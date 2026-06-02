@@ -1,0 +1,68 @@
+{
+  "project_info": {
+    "project_number": "540811774569",
+    "firebase_url": "https://nab3-gded-default-rtdb.firebaseio.com",
+    "project_id": "nab3-gded",
+    "storage_bucket": "nab3-gded.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:540811774569:android:8f637babd72838b90b30f8",
+        "android_client_info": {
+          "package_name": "com.example.nab3_gded"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBZwKE--BAC2fELtkZPQRq3IyU-LgLWLYA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:540811774569:android:207656cd7b3486670b30f8",
+        "android_client_info": {
+          "package_name": "com.nabaa.karem"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBZwKE--BAC2fELtkZPQRq3IyU-LgLWLYA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:540811774569:android:207656cd7b3486670b30f8",
+        "android_client_info": {
+          "package_name": "com.nabaa.karem"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBZwKE--BAC2fELtkZPQRq3IyU-LgLWLYA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>توثيق مشروع نبع</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Cairo', sans-serif;
+            line-height: 1.8;
+            color: #333;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px;
+            background-color: #f9f9f9;
+        }
+        .page {
+            background: #fff;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        h1, h2, h3 {
+            color: #2c3e50;
+        }
+        h1 {
+            text-align: center;
+            font-size: 2.5em;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+        h2 {
+            margin-top: 30px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+            color: #2980b9;
+        }
+        p, li {
+            font-size: 1.1em;
+        }
+        .screenshot {
+            text-align: center;
+            margin: 30px 0;
+            padding: 20px;
+            background: #f1f2f6;
+            border: 2px dashed #ced6e0;
+            border-radius: 8px;
+        }
+        .screenshot img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .screenshot p {
+            color: #7f8fa6;
+            font-size: 0.9em;
+            margin-top: 10px;
+        }
+        @media print {
+            body {
+                background: none;
+                padding: 0;
+            }
+            .page {
+                box-shadow: none;
+                margin: 0;
+                padding: 0;
+            }
+            .screenshot {
+                break-inside: avoid;
+            }
+            h2, h3 {
+                break-after: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <h1>التوثيق التقني والوظيفي لمشروع "نبع" (Naba)</h1>
+        <p style="text-align: center; font-size: 1.2em; color: #7f8fa6;">المنصة الرقمية المتكاملة للقطاع الزراعي</p>
+        
+        <h2>1. مقدمة عن المشروع</h2>
+        <p>تطبيق "نبع" هو منصة رقمية ثورية مصممة خصيصاً لرقمنة وتطوير القطاع الزراعي. يقوم التطبيق بربط جميع الأطراف والكيانات المعنية في نظام بيئي واحد، مما يسهم في تسهيل الإجراءات، رفع الكفاءة التشغيلية، ودعم التنمية المستدامة.</p>
+
+        <!-- Placeholder for Splash/Home Screen -->
+        <div class="screenshot">
+            <img src="docs_images/home_screen.png" alt="صورة الشاشة الرئيسية لتطبيق نبع">
+            <p>(يرجى وضع صورة <code>home_screen.png</code> في مجلد <code>docs_images</code>)</p>
+        </div>
+
+        <h2>2. الرؤية والأهداف</h2>
+        <ul>
+            <li><strong>تسهيل التواصل:</strong> توفير منصة مباشرة تربط المزارعين بموفري الخدمات.</li>
+            <li><strong>الكفاءة العالية:</strong> تقليل هدر الموارد والوقت في البحث عن العمالة أو المعدات.</li>
+            <li><strong>التجارة الإلكترونية المتخصصة:</strong> متجر إلكتروني لبيع وشراء المحاصيل.</li>
+            <li><strong>إدارة الموارد المائية:</strong> نظام دقيق لتسجيل ومتابعة الآبار.</li>
+        </ul>
+
+        <!-- Placeholder for Login/Signup Screen -->
+        <div class="screenshot">
+            <img src="docs_images/login_screen.png" alt="شاشة تسجيل الدخول">
+            <p>(يرجى وضع صورة <code>login_screen.png</code> في مجلد <code>docs_images</code>)</p>
+        </div>
+
+        <h2>3. الفئات المستهدفة (لوحات التحكم)</h2>
+        <p>تم تصميم لوحات تحكم مخصصة لكل نوع من المستخدمين:</p>
+        <ul>
+            <li><strong>المزارعون (Farmers):</strong> طلب العمال، استئجار المعدات، وشراء المستلزمات.</li>
+            <li><strong>العمال (Workers):</strong> استقبال فرص العمل وتتبع السجل الوظيفي.</li>
+            <li><strong>أصحاب المعدات (Equipment Owners):</strong> عرض المعدات للإيجار واستقبال الطلبات.</li>
+            <li><strong>المستثمرون (Investors):</strong> تصفح المشاريع وتتبع العائد.</li>
+            <li><strong>البائعون (Sellers):</strong> متجر لعرض المنتجات ومتابعة الطلبات.</li>
+        </ul>
+
+        <!-- Placeholder for Dashboards -->
+        <div class="screenshot">
+            <img src="docs_images/dashboards.png" alt="لوحات تحكم المستخدمين">
+            <p>(يرجى وضع صورة <code>dashboards.png</code> في مجلد <code>docs_images</code>)</p>
+        </div>
+
+        <h2>4. الميزات الأساسية والوظيفية</h2>
+        <h3>أ. سوق العمل والخدمات</h3>
+        <p>نظام متطور يتيح نشر تفاصيل الوظيفة أو الخدمة المطلوبة، مع تحديد الموقع الجغرافي. يمر الطلب بدورة حياة متكاملة.</p>
+        
+        <h3>ب. منصة التجارة الإلكترونية</h3>
+        <p>سوق يحتوي على عربة تسوق، حيث يمكن للمستخدم إتمام الشراء وتتبع مسار الطلب.</p>
+        
+        <!-- Placeholder for E-Commerce -->
+        <div class="screenshot">
+            <img src="docs_images/ecommerce.png" alt="شاشة التجارة الإلكترونية">
+            <p>(يرجى وضع صورة <code>ecommerce.png</code> في مجلد <code>docs_images</code>)</p>
+        </div>
+
+        <h3>ج. نظام إدارة الموارد المائية والآبار</h3>
+        <p>من أبرز ميزات التطبيق، إدارة تصاريح الآبار الجوفية وإحصائيات الاستهلاك لترشيد وضبط استخدام المياه.</p>
+
+        <!-- Placeholder for Well Admin -->
+        <div class="screenshot">
+            <img src="docs_images/wells.png" alt="شاشة إدارة الآبار">
+            <p>(يرجى وضع صورة <code>wells.png</code> في مجلد <code>docs_images</code>)</p>
+        </div>
+
+        <h2>5. البنية التقنية والأدوات المستخدمة</h2>
+        <h3>واجهة المستخدم (Frontend - Flutter & Dart)</h3>
+        <p>تم استخدام أحدث إصدارات <strong>Flutter</strong> لبناء واجهة التطبيق عبر منصات متعددة (Android, Web). ولغة البرمجة <strong>Dart</strong> لسرعتها وأدائها العالي.</p>
+        
+        <h3>الخوادم وقواعد البيانات (Backend - Firebase)</h3>
+        <p>تم الاعتماد على <strong>Firebase</strong> بخدماته المتعددة:</p>
+        <ul>
+            <li><strong>Firebase Authentication:</strong> لحماية الحسابات وإدارة الصلاحيات (Role-Based).</li>
+            <li><strong>Cloud Firestore:</strong> كقاعدة بيانات فورية (Real-time Database) تضمن المزامنة الحية للطلبات (NoSQL).</li>
+        </ul>
+
+        <h3>إدارة الحالة (Provider State Management)</h3>
+        <p>استُخدم نمط <strong>Provider</strong> لفصل منطق الأعمال (Business Logic) عن واجهة المستخدم (UI)، مما يضمن أداءً مستقراً وتحديثات فورية دون استهلاك إضافي للموارد.</p>
+
+        <h2>6. الخاتمة</h2>
+        <p>يهدف "نبع" ليكون منصة متكاملة وذكية في قطاع حيوي، معززاً قوة تقنيات جوجل البرمجية لدعم النمو والاقتصاد الرقمي الزراعي بقوة وموثوقية.</p>
+
+        <p style="text-align: center; margin-top: 50px; color: #95a5a6;">
+            <em>لجنة التحكيم الموقرة - تم إعداد هذا الملف خصيصاً للمسابقة</em>
+        </p>
+    </div>
+</body>
+</html>

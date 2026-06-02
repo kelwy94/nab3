@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>Naba Facebook Covers</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Cairo:wght@400;600;700;900&family=Tajawal:wght@400;500;700;900&display=swap');
+  
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { 
+    background: #1a1a2e; 
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+    gap: 40px; 
+    padding: 40px;
+    font-family: 'Cairo', sans-serif;
+  }
+  
+  h2 { color: #fff; font-family: 'Cairo'; margin-bottom: 10px; }
+  
+  .cover {
+    width: 1640px;
+    height: 624px;
+    position: relative;
+    overflow: hidden;
+    border-radius: 8px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+
+  /* ===== COVER 1: Gradient + Pattern ===== */
+  .cover1 {
+    background: linear-gradient(135deg, #00695C 0%, #004D40 40%, #00897B 100%);
+  }
+  .cover1 .pattern {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    opacity: 0.06;
+    background-image: 
+      radial-gradient(circle at 20% 50%, #fff 1px, transparent 1px),
+      radial-gradient(circle at 80% 20%, #fff 1.5px, transparent 1.5px),
+      radial-gradient(circle at 60% 80%, #fff 1px, transparent 1px);
+    background-size: 80px 80px, 120px 120px, 60px 60px;
+  }
+  .cover1 .decorative-leaves {
+    position: absolute;
+    right: -50px;
+    top: -80px;
+    width: 500px;
+    height: 800px;
+    opacity: 0.08;
+  }
+  .cover1 .decorative-leaves svg { width: 100%; height: 100%; }
+  .cover1 .decorative-left {
+    position: absolute;
+    left: -30px;
+    bottom: -60px;
+    width: 400px;
+    height: 600px;
+    opacity: 0.06;
+    transform: rotate(180deg);
+  }
+  .cover1 .content {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    z-index: 2;
+  }
+  .cover1 .logo-icon {
+    width: 120px;
+    height: 120px;
+    margin: 0 auto 20px;
+  }
+  .cover1 .logo-icon svg { width: 100%; height: 100%; }
+  .cover1 .brand-name {
+    font-family: 'Amiri', serif;
+    font-size: 96px;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1.1;
+    text-shadow: 0 4px 20px rgba(0,0,0,0.2);
+  }
+  .cover1 .tagline {
+    font-family: 'Cairo', sans-serif;
+    font-size: 28px;
+    color: rgba(255,255,255,0.85);
+    margin-top: 12px;
+    font-weight: 500;
+    letter-spacing: 2px;
+  }
+  .cover1 .line {
+    width: 80px;
+    height: 3px;
+    background: #FF9800;
+    margin: 16px auto 0;
+    border-radius: 2px;
+  }
+
+  /* ===== COVER 2: Photo style ===== */
+  .cover2 {
+    background: linear-gradient(90deg, 
+      #1B5E20 0%, #2E7D32 20%, #388E3C 40%, 
+      rgba(0,105,92,0.95) 60%, #00695C 80%, #004D40 100%);
+  }
+  .cover2 .farm-bg {
+    position: absolute;
+    top: 0; left: 0; width: 65%; height: 100%;
+    background: linear-gradient(45deg, #2E7D32, #4CAF50, #388E3C, #1B5E20);
+    clip-path: polygon(0 0, 100% 0, 85% 100%, 0 100%);
+  }
+  .cover2 .farm-overlay {
+    position: absolute;
+    top: 0; left: 0; width: 65%; height: 100%;
+    clip-path: polygon(0 0, 100% 0, 85% 100%, 0 100%);
+    opacity: 0.15;
+  }
+  .cover2 .field-lines {
+    position: absolute;
+    top: 0; left: 0; width: 65%; height: 100%;
+    clip-path: polygon(0 0, 100% 0, 85% 100%, 0 100%);
+    opacity: 0.1;
+    background: repeating-linear-gradient(
+      30deg,
+      transparent,
+      transparent 30px,
+      rgba(255,255,255,0.1) 30px,
+      rgba(255,255,255,0.1) 32px
+    );
+  }
+  .cover2 .river {
+    position: absolute;
+    top: 0; left: 15%; width: 120px; height: 100%;
+    background: linear-gradient(180deg, rgba(77,182,172,0.3), rgba(77,182,172,0.1));
+    transform: skewX(-15deg);
+    clip-path: polygon(0 0, 100% 0, 85% 100%, 0 100%);
+  }
+  .cover2 .right-content {
+    position: absolute;
+    right: 80px;
+    top: 50%;
+    transform: translateY(-50%);
+    text-align: center;
+    z-index: 2;
+  }
+  .cover2 .logo-icon { width: 100px; height: 100px; margin: 0 auto 16px; }
+  .cover2 .logo-icon svg { width: 100%; height: 100%; }
+  .cover2 .brand-name {
+    font-family: 'Amiri', serif;
+    font-size: 88px;
+    font-weight: 700;
+    color: #fff;
+    text-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  }
+  .cover2 .tagline {
+    font-family: 'Cairo';
+    font-size: 26px;
+    color: rgba(255,255,255,0.9);
+    margin-top: 8px;
+    font-weight: 600;
+  }
+  .cover2 .farm-icons {
+    position: absolute;
+    left: 60px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    gap: 40px;
+    z-index: 2;
+  }
+  .cover2 .farm-icon {
+    width: 70px;
+    height: 70px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255,255,255,0.1);
+    backdrop-filter: blur(4px);
+  }
+  .cover2 .farm-icon svg { width: 36px; height: 36px; fill: rgba(255,255,255,0.8); }
+
+  /* ===== COVER 3: Minimalist Dark ===== */
+  .cover3 {
+    background: #00695C;
+  }
+  .cover3 .geo-pattern {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    opacity: 0.04;
+    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 0L60 30L30 60L0 30Z' fill='none' stroke='white' stroke-width='0.5'/%3E%3C/svg%3E");
+    background-size: 60px 60px;
+  }
+  .cover3 .content {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    align-items: center;
+    gap: 60px;
+    z-index: 2;
+  }
+  .cover3 .logo-section {
+    display: flex;
+    align-items: center;
+    gap: 40px;
+  }
+  .cover3 .logo-icon { width: 140px; height: 140px; }
+  .cover3 .logo-icon svg { width: 100%; height: 100%; }
+  .cover3 .divider {
+    width: 2px;
+    height: 160px;
+    background: linear-gradient(transparent, rgba(255,255,255,0.4), transparent);
+  }
+  .cover3 .text-section { text-align: right; }
+  .cover3 .brand-name {
+    font-family: 'Amiri', serif;
+    font-size: 110px;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1;
+  }
+  .cover3 .tagline {
+    font-family: 'Cairo';
+    font-size: 24px;
+    color: rgba(255,255,255,0.7);
+    margin-top: 8px;
+    font-weight: 500;
+  }
+  .cover3 .accent-line {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #FF9800, #4DB6AC, #00695C);
+  }
+  .cover3 .corner-deco {
+    position: absolute;
+    width: 200px;
+    height: 200px;
+    opacity: 0.08;
+  }
+  .cover3 .corner-deco.tl { top: -20px; left: -20px; }
+  .cover3 .corner-deco.br { bottom: -20px; right: -20px; transform: rotate(180deg); }
+</style>
+</head>
+<body>
+
+<h2>كافر 1 - تدرج أنيق</h2>
+<div class="cover cover1" id="cover1">
+  <div class="pattern"></div>
+  <div class="decorative-leaves">
+    <svg viewBox="0 0 400 700" fill="white">
+      <path d="M200 0 Q250 100 200 200 Q150 300 200 400 Q250 500 200 600 Q180 650 200 700" stroke="white" stroke-width="2" fill="none"/>
+      <ellipse cx="230" cy="100" rx="50" ry="25" transform="rotate(30 230 100)"/>
+      <ellipse cx="170" cy="200" rx="45" ry="22" transform="rotate(-20 170 200)"/>
+      <ellipse cx="240" cy="300" rx="55" ry="28" transform="rotate(25 240 300)"/>
+      <ellipse cx="160" cy="400" rx="40" ry="20" transform="rotate(-30 160 400)"/>
+      <ellipse cx="230" cy="500" rx="48" ry="24" transform="rotate(20 230 500)"/>
+    </svg>
+  </div>
+  <div class="decorative-left">
+    <svg viewBox="0 0 400 700" fill="white">
+      <path d="M200 0 Q250 100 200 200 Q150 300 200 400" stroke="white" stroke-width="2" fill="none"/>
+      <ellipse cx="230" cy="100" rx="50" ry="25" transform="rotate(30 230 100)"/>
+      <ellipse cx="170" cy="200" rx="45" ry="22" transform="rotate(-20 170 200)"/>
+      <ellipse cx="240" cy="300" rx="55" ry="28" transform="rotate(25 240 300)"/>
+    </svg>
+  </div>
+  <div class="content">
+    <div class="logo-icon">
+      <svg viewBox="0 0 100 120" fill="white">
+        <path d="M50 5 C50 5 15 45 15 65 C15 85 30 100 50 100 C70 100 85 85 85 65 C85 45 50 5 50 5Z" fill="none" stroke="white" stroke-width="3"/>
+        <path d="M50 95 C50 95 45 75 50 60 M50 60 C42 68 35 65 35 65 M50 60 C58 68 65 65 65 65 M45 72 C40 78 33 76 33 76" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="brand-name">نَبْع</div>
+    <div class="tagline">منصة الزراعة والري المتكاملة</div>
+    <div class="line"></div>
+  </div>
+</div>
+
+<h2>كافر 2 - حقول وري</h2>
+<div class="cover cover2" id="cover2">
+  <div class="farm-bg"></div>
+  <div class="field-lines"></div>
+  <div class="river"></div>
+  <div class="farm-icons">
+    <div class="farm-icon">
+      <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+    </div>
+    <div class="farm-icon">
+      <svg viewBox="0 0 24 24"><path d="M12 3L1 9l4 2.18v6L12 21l7-3.82v-6l2-1.09V17h2V9L12 3zm6.82 6L12 12.72 5.18 9 12 5.28 18.82 9zM17 15.99l-5 2.73-5-2.73v-3.72L12 15l5-2.73v3.72z"/></svg>
+    </div>
+    <div class="farm-icon">
+      <svg viewBox="0 0 24 24"><path d="M17.66 8L12 2.35 6.34 8C4.78 9.56 4 11.64 4 13.64s.78 4.11 2.34 5.67C7.9 20.87 9.95 21.66 12 21.66s4.1-.79 5.66-2.35C19.22 17.75 20 15.64 20 13.64S19.22 9.56 17.66 8zM6 14c.01-2 .62-3.27 1.76-4.4L12 5.27l4.24 4.38C17.38 10.77 17.99 12 18 14H6z"/></svg>
+    </div>
+  </div>
+  <div class="right-content">
+    <div class="logo-icon">
+      <svg viewBox="0 0 100 120" fill="white">
+        <path d="M50 5 C50 5 15 45 15 65 C15 85 30 100 50 100 C70 100 85 85 85 65 C85 45 50 5 50 5Z" fill="none" stroke="white" stroke-width="3"/>
+        <path d="M50 95 C50 95 45 75 50 60 M50 60 C42 68 35 65 35 65 M50 60 C58 68 65 65 65 65" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="brand-name">نَبْع</div>
+    <div class="tagline">ريك أسهل.. زرعك أحسن</div>
+  </div>
+</div>
+
+<h2>كافر 3 - مينيمال أنيق</h2>
+<div class="cover cover3" id="cover3">
+  <div class="geo-pattern"></div>
+  <div class="corner-deco tl">
+    <svg viewBox="0 0 200 200" fill="none" stroke="white" stroke-width="1">
+      <path d="M0 0 L200 0 L200 200" /><path d="M20 0 L200 0 L200 180" /><path d="M40 0 L200 0 L200 160" />
+      <circle cx="30" cy="30" r="8"/><circle cx="60" cy="10" r="4"/>
+    </svg>
+  </div>
+  <div class="corner-deco br">
+    <svg viewBox="0 0 200 200" fill="none" stroke="white" stroke-width="1">
+      <path d="M0 0 L200 0 L200 200" /><path d="M20 0 L200 0 L200 180" /><path d="M40 0 L200 0 L200 160" />
+    </svg>
+  </div>
+  <div class="content">
+    <div class="text-section">
+      <div class="brand-name">نَبْع</div>
+      <div class="tagline">منصة الزراعة والري المتكاملة</div>
+    </div>
+    <div class="divider"></div>
+    <div class="logo-icon">
+      <svg viewBox="0 0 100 120" fill="white">
+        <path d="M50 5 C50 5 15 45 15 65 C15 85 30 100 50 100 C70 100 85 85 85 65 C85 45 50 5 50 5Z" fill="none" stroke="white" stroke-width="3"/>
+        <path d="M50 95 C50 95 45 75 50 60 M50 60 C42 68 35 65 35 65 M50 60 C58 68 65 65 65 65 M45 72 C40 78 33 76 33 76" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+      </svg>
+    </div>
+  </div>
+  <div class="accent-line"></div>
+</div>
+
+</body>
+</html>
