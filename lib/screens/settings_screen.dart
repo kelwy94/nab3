@@ -3,30 +3,44 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../theme.dart';
 import '../widgets/naba_widgets.dart';
+import '../l10n/app_localizations.dart';
+import '../providers/locale_provider.dart';
+import 'package:firebase_auth/firebase_auth.dart' as auth;
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final auth = Provider.of<AuthProvider>(context);
+    final authProvider = Provider.of<AuthProvider>(context);
+    final localeProvider = Provider.of<LocaleProvider>(context);
+    final isArabic = localeProvider.locale.languageCode == 'ar';
+    final loc = AppLocalizations.of(context);
+    
     return Scaffold(
       backgroundColor: NabaTheme.background,
-      appBar: const NabaAppBar(title: 'الإعدادات'),
+      appBar: NabaAppBar(title: loc?.settings ?? 'الإعدادات'),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
           children: [
             _buildSettingsSection('تفضيلات التطبيق', [
-              _buildSettingsItem(Icons.language_rounded, 'اللغة', 'العربية'),
               _buildSettingsItem(
-                  Icons.notifications_active_outlined, 'الإشعارات', 'مفعلة'),
-              _buildSettingsItem(Icons.dark_mode_outlined, 'المظهر', 'فاتح'),
+                Icons.language_rounded, 
+                loc?.language ?? 'اللغة', 
+                isArabic ? 'العربية' : 'English',
+                onTap: () {
+                  localeProvider.setLocale(Locale(isArabic ? 'en' : 'ar'));
+                }
+              ),
+              _buildSettingsItem(
+                  Icons.notifications_active_outlined, loc?.notifications ?? 'الإشعارات', 'مفعلة'),
+              _buildSettingsItem(Icons.dark_mode_outlined, loc?.theme ?? 'المظهر', 'فاتح'),
             ]),
             const SizedBox(height: 32),
             _buildSettingsSection('الأمن والحساب', [
               _buildSettingsItem(
-                  Icons.lock_outline_rounded, 'تغيير كلمة المرور', ''),
+                  Icons.lock_outline_rounded, loc?.changePassword ?? 'تغيير كلمة المرور', '', onTap: () => _showChangePasswordDialog(context)),
               _buildSettingsItem(
                   Icons.verified_user_outlined, 'توثيق الحساب', 'غير موثق'),
               _buildSettingsItem(
@@ -43,14 +57,80 @@ class SettingsScreen extends StatelessWidget {
             ]),
             const SizedBox(height: 48),
             NabaButton(
-              text: 'تسجيل الخروج',
+              text: loc?.logout ?? 'تسجيل الخروج',
               isPrimary: false,
               icon: Icons.logout_rounded,
-              onPressed: () => auth.logout(),
+              onPressed: () => authProvider.logout(),
             ),
             const SizedBox(height: 24),
             const Text('الإصدار 1.0.0 (389)',
                 style: TextStyle(color: Colors.grey, fontSize: 12)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showChangePasswordDialog(BuildContext context) async {
+    final oldPasswordCtrl = TextEditingController();
+    final newPasswordCtrl = TextEditingController();
+    final confirmPasswordCtrl = TextEditingController();
+    
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          title: const Text('تغيير كلمة المرور'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: oldPasswordCtrl,
+                obscureText: true,
+                decoration: const InputDecoration(labelText: 'كلمة المرور الحالية', border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: newPasswordCtrl,
+                obscureText: true,
+                decoration: const InputDecoration(labelText: 'كلمة المرور الجديدة', border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: confirmPasswordCtrl,
+                obscureText: true,
+                decoration: const InputDecoration(labelText: 'تأكيد كلمة المرور الجديدة', border: OutlineInputBorder()),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+            ElevatedButton(
+              onPressed: () async {
+                if (newPasswordCtrl.text != confirmPasswordCtrl.text) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('كلمتا المرور غير متطابقتين')));
+                  return;
+                }
+                try {
+                  final user = auth.FirebaseAuth.instance.currentUser;
+                  if (user != null && user.email != null) {
+                    final cred = auth.EmailAuthProvider.credential(email: user.email!, password: oldPasswordCtrl.text);
+                    await user.reauthenticateWithCredential(cred);
+                    await user.updatePassword(newPasswordCtrl.text);
+                    if (ctx.mounted) {
+                      Navigator.pop(ctx, true);
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم تغيير كلمة المرور بنجاح'), backgroundColor: Colors.green));
+                    }
+                  }
+                } catch (e) {
+                  if (ctx.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('حدث خطأ: ${e.toString()}'), backgroundColor: Colors.red));
+                  }
+                }
+              },
+              child: const Text('حفظ'),
+            ),
           ],
         ),
       ),
@@ -75,12 +155,12 @@ class SettingsScreen extends StatelessWidget {
   }
 
   Widget _buildSettingsItem(IconData icon, String label, String value,
-      {Color? color}) {
+      {Color? color, VoidCallback? onTap}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: NabaCard(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        onTap: () {},
+        onTap: onTap ?? () {},
         child: Row(
           textDirection: TextDirection.rtl,
           children: [

@@ -4,17 +4,21 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 
+import 'package:flutter/services.dart';
+
 import 'firebase_options.dart';
+import 'services/notification_service.dart';
 import 'models/types.dart';
 import 'providers/app_state_provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/catalog_provider.dart';
-import 'providers/job_provider.dart'; // Added this import
+import 'providers/job_provider.dart';
+import 'providers/locale_provider.dart';
 import 'providers/well_provider.dart';
+import 'l10n/app_localizations.dart';
 import 'screens/admin_dashboard.dart';
 import 'screens/equipment_owner_dashboard.dart';
 import 'screens/farmer_dashboard.dart';
-import 'screens/investor_dashboard.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/pending_approval_screen.dart';
 import 'screens/seller_dashboard.dart';
@@ -27,6 +31,11 @@ void main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+    try {
+      await NotificationService.initialize();
+    } catch (e) {
+      debugPrint('Notification initialization failed: $e');
+    }
   } catch (e) {
     debugPrint('Firebase initialization failed: $e');
   }
@@ -46,6 +55,7 @@ void main() async {
         ChangeNotifierProvider(
             create: (_) => JobProvider()), // Added this provider
         ChangeNotifierProvider(create: (_) => AppStateProvider()),
+        ChangeNotifierProvider(create: (_) => LocaleProvider()),
       ],
       child: const MyApp(),
     ),
@@ -57,20 +67,21 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final localeProvider = Provider.of<LocaleProvider>(context);
+    
     return MaterialApp(
       title: 'نبع - Naba',
       theme: NabaTheme.lightTheme,
       home: const AuthWrapper(),
       debugShowCheckedModeBanner: false,
       localizationsDelegates: const [
+        AppLocalizations.delegate,
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      supportedLocales: const [
-        Locale('ar', 'SA'),
-      ],
-      locale: const Locale('ar', 'SA'),
+      supportedLocales: AppLocalizations.supportedLocales,
+      locale: localeProvider.locale,
     );
   }
 }
@@ -126,8 +137,7 @@ class DashboardSwitcher extends StatelessWidget {
           ),
         );
         if (shouldPop ?? false) {
-          // In a real app, you might use SystemNavigator.pop()
-          // For now, we'll allow it to pop if confirmed
+          SystemNavigator.pop();
         }
       },
       child: _buildDashboard(user.role),
@@ -138,14 +148,14 @@ class DashboardSwitcher extends StatelessWidget {
     switch (role) {
       case UserRole.farmer:
         return const FarmerDashboard();
-      case UserRole.investor:
-        return const InvestorDashboard();
       case UserRole.worker:
         return const WorkerDashboard();
       case UserRole.seller:
         return const SellerDashboard();
       case UserRole.equipmentOwner:
         return const EquipmentOwnerDashboard();
+      case UserRole.investor:
+        return const FarmerDashboard(); // Placeholder until investor flow is enabled
       case UserRole.admin:
         return const AdminDashboard();
     }

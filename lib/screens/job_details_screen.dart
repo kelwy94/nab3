@@ -51,6 +51,7 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
     final currentUser = auth.user;
     final isRequester = currentUser?.id == widget.job.requesterUserId;
     final isWorker = currentUser?.id == widget.job.assignedUserId;
+    final isWorkerRole = currentUser?.role == UserRole.worker;
     final status = widget.job.status;
 
     return Scaffold(
@@ -69,7 +70,7 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
             const SizedBox(height: 24),
 
             // If I am the worker, show requester (Farmer) info
-            if (isWorker && requester != null) ...[
+            if (isWorkerRole && requester != null) ...[
               const Text('بيانات المزارع',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 12),
@@ -454,9 +455,6 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
 
         if (nextStatus == JobStatus.paid && widget.job.assignedUserId != null) {
           _showReviewDialog(context);
-        } else if (nextStatus == JobStatus.accepted) {
-          // Stay on screen after accepting
-          setState(() {});
         } else {
           Navigator.pop(context);
         }
@@ -706,6 +704,7 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
                                       backgroundColor: Colors.green,
                                     ),
                                   );
+                                  if (context.mounted) Navigator.pop(context);
                                 }
                               } catch (e) {
                                 if (bottomSheetContext.mounted) {

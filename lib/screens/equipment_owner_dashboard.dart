@@ -2,10 +2,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../models/types.dart';
 import '../providers/auth_provider.dart';
 import '../theme.dart';
 import '../widgets/naba_widgets.dart';
-import '../models/types.dart';
 import 'job_details_screen.dart';
 import 'settings_screen.dart';
 import 'wallet_screen.dart';
@@ -27,7 +27,7 @@ class _EquipmentOwnerDashboardState extends State<EquipmentOwnerDashboard> {
       backgroundColor: NabaTheme.background,
       body: IndexedStack(
         index: _currentIndex,
-        children: [
+        children: const [
           _MyEquipmentTab(),
           _RentalRequestsTab(),
           WalletScreen(),
@@ -53,7 +53,8 @@ class _EquipmentOwnerDashboardState extends State<EquipmentOwnerDashboard> {
               children: [
                 _buildNavItem(0, Icons.agriculture_rounded, 'معداتي'),
                 _buildNavItem(1, Icons.assignment_rounded, 'الطلبات'),
-                _buildNavItem(2, Icons.account_balance_wallet_rounded, 'الماليات'),
+                _buildNavItem(
+                    2, Icons.account_balance_wallet_rounded, 'الماليات'),
                 _buildNavItem(3, Icons.person_rounded, 'حسابي'),
               ],
             ),
@@ -350,7 +351,7 @@ class _MyEquipmentTab extends StatelessWidget {
                       style: TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
-                    value: selectedType,
+                    initialValue: selectedType,
                     items: [
                       'جرار',
                       'حفار',
@@ -373,8 +374,8 @@ class _MyEquipmentTab extends StatelessWidget {
                     const SizedBox(height: 12),
                     TextField(
                       controller: customTypeCtrl,
-                      decoration: const InputDecoration(
-                          hintText: 'اكتب نوع المعدة'),
+                      decoration:
+                          const InputDecoration(hintText: 'اكتب نوع المعدة'),
                     ),
                   ],
                   const SizedBox(height: 20),
@@ -518,7 +519,8 @@ class _RentalRequestsTab extends StatelessWidget {
                                   type: j['type'] ?? 'equipment',
                                   serviceType: j['serviceType'] ?? '',
                                   location: const {'lat': 0.0, 'lng': 0.0},
-                                  startTime: (j['startTime'] as Timestamp).toDate(),
+                                  startTime:
+                                      (j['startTime'] as Timestamp).toDate(),
                                   endTime: (j['endTime'] as Timestamp).toDate(),
                                   status: JobStatus.values.firstWhere(
                                       (e) => e.toString() == j['status'],
@@ -546,7 +548,9 @@ class _RentalRequestsTab extends StatelessWidget {
                             children: [
                               Chip(
                                 label: Text(
-                                    status == 'accepted' ? 'مقبول - تتبع' : 'مرفوض',
+                                    status == 'accepted'
+                                        ? 'مقبول - تتبع'
+                                        : 'مرفوض',
                                     style: const TextStyle(
                                         color: Colors.white, fontSize: 11)),
                                 backgroundColor: status == 'accepted'
@@ -555,7 +559,8 @@ class _RentalRequestsTab extends StatelessWidget {
                               ),
                               Text(equipmentName,
                                   style: const TextStyle(
-                                      fontWeight: FontWeight.bold, fontSize: 16)),
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16)),
                             ],
                           ),
                           Text('الطالب: $requesterName • $duration',
@@ -609,8 +614,9 @@ class _RentalRequestsTab extends StatelessWidget {
                           Expanded(
                             child: ElevatedButton(
                               onPressed: () async {
-                                final batch = FirebaseFirestore.instance.batch();
-                                
+                                final batch =
+                                    FirebaseFirestore.instance.batch();
+
                                 // 1. Update Rental Request
                                 final reqRef = FirebaseFirestore.instance
                                     .collection('rental_requests')

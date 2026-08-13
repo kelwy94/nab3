@@ -148,12 +148,6 @@ class _SignupScreenState extends State<SignupScreen> {
             'equipmentType': _extra3Controller.text,
             'hourlyRate': _extra4Controller.text,
           });
-        } else if (widget.role == UserRole.investor) {
-          extraData.addAll({
-            'companyName': _extra1Controller.text,
-            'investmentPreference': _extra2Controller.text,
-            'targetInvestment': _extra3Controller.text,
-          });
         }
 
         // Add payment info for service providers
@@ -399,7 +393,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   _buildFieldLabel('طريقة الدفع'),
                   DropdownButtonFormField<PaymentMethod>(
                     decoration: const InputDecoration(),
-                    value: _selectedPaymentMethod,
+                    initialValue: _selectedPaymentMethod,
                     items: const [
                       DropdownMenuItem(
                           value: PaymentMethod.vodafoneCash,
@@ -622,34 +616,6 @@ class _SignupScreenState extends State<SignupScreen> {
             decoration: const InputDecoration(hintText: '0.00'),
           ),
         ];
-      case UserRole.investor:
-        return [
-          _buildFieldLabel('اسم الشركة أو المؤسسة (اختياري)'),
-          TextFormField(
-            controller: _extra1Controller,
-            decoration:
-                const InputDecoration(hintText: 'مثلاً: شركة النور التنموية'),
-          ),
-          const SizedBox(height: 20),
-          _buildFieldLabel('طبيعة الاستثمار المفضلة'),
-          DropdownButtonFormField<String>(
-            decoration: const InputDecoration(),
-            items: [
-              'تمويل آبار',
-              'استصلاح أراضي',
-              'شراكة محاصيل',
-              'معدات وتقنيات'
-            ].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
-            onChanged: (v) => _extra2Controller.text = v ?? '',
-          ),
-          const SizedBox(height: 20),
-          _buildFieldLabel('حجم الاستثمار المستهدف (اختياري)'),
-          TextFormField(
-            controller: _extra3Controller,
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(hintText: '500,000'),
-          ),
-        ];
       case UserRole.admin:
         return [];
       default:
@@ -675,12 +641,12 @@ class _SignupScreenState extends State<SignupScreen> {
         return 'مزارع';
       case UserRole.worker:
         return 'عامل';
-      case UserRole.investor:
-        return 'مستثمر';
       case UserRole.seller:
         return 'تاجر';
       case UserRole.equipmentOwner:
         return 'صاحب معدات';
+      case UserRole.investor:
+        return 'مستثمر';
       case UserRole.admin:
         return 'مسؤول';
     }

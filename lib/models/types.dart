@@ -1,15 +1,15 @@
 enum UserRole {
   farmer,
   worker,
-  investor,
   seller,
   equipmentOwner,
+  investor,
   admin,
 }
 
 enum WaterOutput { low, medium, high }
 
-enum FairnessRule { proportional, equal }
+enum FairnessRule { proportional, equal, manual }
 
 enum JobStatus {
   requested,

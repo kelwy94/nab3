@@ -302,7 +302,9 @@ class _WellCreateScreenState extends State<WellCreateScreen> {
                         Text(
                           rule == FairnessRule.equal
                               ? 'توزيع متساوي'
-                              : 'توزيع نسبي (حسب المساحة)',
+                              : rule == FairnessRule.proportional 
+                                ? 'توزيع نسبي (حسب المساحة)'
+                                : 'توزيع يدوي',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             color: isSelected
@@ -313,7 +315,9 @@ class _WellCreateScreenState extends State<WellCreateScreen> {
                         Text(
                           rule == FairnessRule.equal
                               ? 'كل مزارع يحصل على نفس عدد الساعات'
-                              : 'ساعات الري تعتمد على مساحة أرض كل مزارع',
+                              : rule == FairnessRule.proportional
+                                ? 'ساعات الري تعتمد على مساحة أرض كل مزارع'
+                                : 'المدير يحدد الساعات لكل مزارع يدوياً',
                           style:
                               const TextStyle(fontSize: 12, color: Colors.grey),
                         ),

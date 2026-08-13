@@ -1,0 +1,10 @@
+{
+  "@@locale": "en",
+  "appTitle": "Nabaa",
+  "settings": "Settings",
+  "language": "Language",
+  "notifications": "Notifications",
+  "theme": "Theme",
+  "changePassword": "Change Password",
+  "logout": "Logout"
+}

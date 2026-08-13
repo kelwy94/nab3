@@ -22,6 +22,24 @@ class _RequestWorkerScreenState extends State<RequestWorkerScreen> {
   String _priceUnit = 'باليوم';
   TimeOfDay _startTime = const TimeOfDay(hour: 7, minute: 0);
   TimeOfDay _endTime = const TimeOfDay(hour: 15, minute: 0);
+  DateTime _selectedDate = DateTime.now();
+
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+      builder: (context, child) => Directionality(textDirection: TextDirection.rtl, child: child!),
+    );
+    if (picked != null) {
+      setState(() => _selectedDate = picked);
+    }
+  }
+
+  String _formatDate(DateTime d) {
+    return '${d.year}/${d.month.toString().padLeft(2, '0')}/${d.day.toString().padLeft(2, '0')}';
+  }
 
   final List<String> _services = [
     'عامل ري',
@@ -147,6 +165,31 @@ class _RequestWorkerScreenState extends State<RequestWorkerScreen> {
                         ),
 
                         const SizedBox(height: 24),
+                        
+                        // Work Date
+                        _buildFieldLabel('تاريخ العمل'),
+                        InkWell(
+                          onTap: _pickDate,
+                          borderRadius: BorderRadius.circular(16),
+                          child: Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: Colors.grey.shade200),
+                              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8, offset: const Offset(0, 2))],
+                            ),
+                            child: Row(
+                              textDirection: TextDirection.rtl,
+                              children: [
+                                const Icon(Icons.calendar_today, color: NabaTheme.primary),
+                                const SizedBox(width: 12),
+                                Text(_formatDate(_selectedDate), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
 
                         // Work Time
                         _buildFieldLabel('وقت العمل'),
@@ -270,9 +313,8 @@ class _RequestWorkerScreenState extends State<RequestWorkerScreen> {
                       final jobProvider = Provider.of<JobProvider>(context, listen: false);
 
                       // Build start/end DateTime from TimeOfDay
-                      final now = DateTime.now();
-                      final startDt = DateTime(now.year, now.month, now.day, _startTime.hour, _startTime.minute);
-                      final endDt = DateTime(now.year, now.month, now.day, _endTime.hour, _endTime.minute);
+                      final startDt = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day, _startTime.hour, _startTime.minute);
+                      final endDt = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day, _endTime.hour, _endTime.minute);
 
                       final newJob = Job(
                         id: DateTime.now().millisecondsSinceEpoch.toString(),

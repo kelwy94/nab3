@@ -879,26 +879,34 @@ class _AdminDashboardState extends State<AdminDashboard>
       id: doc.id,
       adminUserId: data['adminUserId'] ?? '',
       wellName: data['wellName'] ?? '',
-      location: Map<String, double>.from((data['location'] ?? {}).map((k, v) => MapEntry(k, (v as num).toDouble()))),
+      location: Map<String, double>.from((data['location'] ?? {})
+          .map((k, v) => MapEntry(k, (v as num).toDouble()))),
       depthMeters: (data['depthMeters'] ?? 0.0).toDouble(),
       irrigatedAreaFeddan: (data['irrigatedAreaFeddan'] ?? 0.0).toDouble(),
       waterOutput: WaterOutput.values.firstWhere(
-        (e) => e.toString() == data['waterOutput'] || e.toString().split('.').last == data['waterOutput'],
+        (e) =>
+            e.toString() == data['waterOutput'] ||
+            e.toString().split('.').last == data['waterOutput'],
         orElse: () => WaterOutput.medium,
       ),
       participantCount: data['participantCount'] ?? 1,
       flowRateM3PerHour: data['flowRateM3PerHour']?.toDouble(),
       fairnessRule: FairnessRule.values.firstWhere(
-        (e) => e.toString() == data['fairnessRule'] || e.toString().split('.').last == data['fairnessRule'],
+        (e) =>
+            e.toString() == data['fairnessRule'] ||
+            e.toString().split('.').last == data['fairnessRule'],
         orElse: () => FairnessRule.proportional,
       ),
       allowedDays: List<String>.from(data['allowedDays'] ?? []),
-      allowedHours: Map<String, String>.from((data['allowedHours'] ?? {}).map((k, v) => MapEntry(k.toString(), v.toString()))),
+      allowedHours: Map<String, String>.from((data['allowedHours'] ?? {})
+          .map((k, v) => MapEntry(k.toString(), v.toString()))),
       slotDuration: data['slotDuration'] ?? 0,
       hoursPerPerson: (data['hoursPerPerson'] ?? 1.0).toDouble(),
       irrigationFrequencyDays: data['irrigationFrequencyDays'] ?? 1,
       status: WellStatus.values.firstWhere(
-        (e) => e.toString() == data['status'] || e.toString().split('.').last == data['status'],
+        (e) =>
+            e.toString() == data['status'] ||
+            e.toString().split('.').last == data['status'],
         orElse: () => WellStatus.approved,
       ),
       pendingEdits: data['pendingEdits'] != null
@@ -939,10 +947,11 @@ class _AdminDashboardState extends State<AdminDashboard>
               ),
               child: ListTile(
                 contentPadding: const EdgeInsets.all(16),
-                leading: const Icon(Icons.water_drop, color: Colors.blue, size: 32),
+                leading:
+                    const Icon(Icons.water_drop, color: Colors.blue, size: 32),
                 title: Text(w.wellName,
-                    style:
-                        const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 18),
                     textAlign: TextAlign.right),
                 subtitle: Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
@@ -1007,17 +1016,18 @@ class _AdminDashboardState extends State<AdminDashboard>
               margin: const EdgeInsets.only(bottom: 12),
               child: ListTile(
                 contentPadding: const EdgeInsets.all(16),
-                leading: const Icon(Icons.water_drop, color: Colors.blue, size: 32),
+                leading:
+                    const Icon(Icons.water_drop, color: Colors.blue, size: 32),
                 title: Text(w.wellName,
-                    style:
-                        const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 18),
                     textAlign: TextAlign.right),
                 subtitle: Text(
                     'المساحة: ${w.irrigatedAreaFeddan} فدان  |  العمق: ${w.depthMeters}م',
                     textAlign: TextAlign.right),
                 trailing: ElevatedButton(
-                  style:
-                      ElevatedButton.styleFrom(backgroundColor: NabaTheme.primary),
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: NabaTheme.primary),
                   onPressed: () => _showWellReviewDialog(w),
                   child: const Text('مراجعة وموافقة',
                       style: TextStyle(color: Colors.white)),
@@ -1703,7 +1713,8 @@ class _AdminDashboardState extends State<AdminDashboard>
             const SizedBox(height: 24),
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance.collection('wells').snapshots(),
+                stream:
+                    FirebaseFirestore.instance.collection('wells').snapshots(),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
@@ -1743,8 +1754,7 @@ class _AdminDashboardState extends State<AdminDashboard>
                                   Text(wellName,
                                       style: const TextStyle(
                                           fontWeight: FontWeight.bold)),
-                                  Text(
-                                      '$area فدان • $depth متر',
+                                  Text('$area فدان • $depth متر',
                                       style: const TextStyle(
                                           fontSize: 12, color: Colors.grey)),
                                 ],
@@ -1756,7 +1766,9 @@ class _AdminDashboardState extends State<AdminDashboard>
                                   FirebaseFirestore.instance
                                       .collection('wells')
                                       .doc(docId)
-                                      .update({'status': WellStatus.approved.toString()});
+                                      .update({
+                                    'status': WellStatus.approved.toString()
+                                  });
                                 },
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.green,
@@ -1765,12 +1777,10 @@ class _AdminDashboardState extends State<AdminDashboard>
                                 child: const Text('موافقة'),
                               )
                             else
-                              Text(
-                                  isApproved ? 'مقبول' : 'مرفوض',
+                              Text(isApproved ? 'مقبول' : 'مرفوض',
                                   style: TextStyle(
-                                      color: isApproved
-                                          ? Colors.blue
-                                          : Colors.red,
+                                      color:
+                                          isApproved ? Colors.blue : Colors.red,
                                       fontWeight: FontWeight.bold,
                                       fontSize: 12)),
                           ],
@@ -1887,12 +1897,12 @@ class _AdminDashboardState extends State<AdminDashboard>
         return 'مزارع';
       case UserRole.worker:
         return 'عامل';
-      case UserRole.investor:
-        return 'مستثمر';
       case UserRole.seller:
         return 'تاجر';
       case UserRole.equipmentOwner:
         return 'صاحب معدات';
+      case UserRole.investor:
+        return 'مستثمر';
       case UserRole.admin:
         return 'مسؤول';
     }
@@ -1919,22 +1929,25 @@ class _AdminDashboardState extends State<AdminDashboard>
 
   Widget _buildLandPlotsTab() {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('land_plots')
-          .snapshots(),
+      stream: FirebaseFirestore.instance.collection('land_plots').snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
         final docs = snapshot.data?.docs ?? [];
-        final pendingPlots = docs.where((d) => (d.data() as Map)['status'] == 'pending').toList();
-        final approvedPlots = docs.where((d) => (d.data() as Map)['status'] == 'approved').toList();
+        final pendingPlots = docs
+            .where((d) => (d.data() as Map)['status'] == 'pending')
+            .toList();
+        final approvedPlots = docs
+            .where((d) => (d.data() as Map)['status'] == 'approved')
+            .toList();
 
         return ListView(
           padding: const EdgeInsets.all(24),
           children: [
             if (pendingPlots.isNotEmpty) ...[
-              _buildSectionHeader('طلبات أراضي بانتظار الموافقة (${pendingPlots.length})'),
+              _buildSectionHeader(
+                  'طلبات أراضي بانتظار الموافقة (${pendingPlots.length})'),
               const SizedBox(height: 12),
               ...pendingPlots.map((doc) {
                 final data = doc.data() as Map<String, dynamic>;
@@ -1958,7 +1971,8 @@ class _AdminDashboardState extends State<AdminDashboard>
                               color: Colors.orange.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: const Icon(Icons.landscape_rounded, color: Colors.orange),
+                            child: const Icon(Icons.landscape_rounded,
+                                color: Colors.orange),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
@@ -1966,11 +1980,18 @@ class _AdminDashboardState extends State<AdminDashboard>
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
                                 Text(data['name'] ?? 'قطعة أرض',
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                                Text('المالك: ${data['ownerName'] ?? 'غير معروف'} • ${data['area'] ?? 0} فدان',
-                                    style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16)),
+                                Text(
+                                    'المالك: ${data['ownerName'] ?? 'غير معروف'} • ${data['area'] ?? 0} فدان',
+                                    style: TextStyle(
+                                        color: Colors.grey.shade600,
+                                        fontSize: 12)),
                                 Text('البئر: ${data['wellName'] ?? 'غير محدد'}',
-                                    style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                                    style: TextStyle(
+                                        color: Colors.grey.shade600,
+                                        fontSize: 12)),
                               ],
                             ),
                           ),
@@ -1982,12 +2003,16 @@ class _AdminDashboardState extends State<AdminDashboard>
                           Expanded(
                             child: ElevatedButton(
                               onPressed: () async {
-                                await FirebaseFirestore.instance.collection('land_plots').doc(doc.id).update({'status': 'approved'});
+                                await FirebaseFirestore.instance
+                                    .collection('land_plots')
+                                    .doc(doc.id)
+                                    .update({'status': 'approved'});
                               },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.green,
                                 foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12)),
                               ),
                               child: const Text('موافقة'),
                             ),
@@ -1996,12 +2021,16 @@ class _AdminDashboardState extends State<AdminDashboard>
                           Expanded(
                             child: OutlinedButton(
                               onPressed: () async {
-                                await FirebaseFirestore.instance.collection('land_plots').doc(doc.id).update({'status': 'rejected'});
+                                await FirebaseFirestore.instance
+                                    .collection('land_plots')
+                                    .doc(doc.id)
+                                    .update({'status': 'rejected'});
                               },
                               style: OutlinedButton.styleFrom(
                                 foregroundColor: Colors.red,
                                 side: const BorderSide(color: Colors.red),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12)),
                               ),
                               child: const Text('رفض'),
                             ),
@@ -2017,20 +2046,30 @@ class _AdminDashboardState extends State<AdminDashboard>
             _buildSectionHeader('الأراضي المعتمدة (${approvedPlots.length})'),
             const SizedBox(height: 12),
             if (approvedPlots.isEmpty)
-              const Center(child: Padding(padding: EdgeInsets.all(32), child: Text('لا توجد أراضي معتمدة', style: TextStyle(color: Colors.grey))))
+              const Center(
+                  child: Padding(
+                      padding: EdgeInsets.all(32),
+                      child: Text('لا توجد أراضي معتمدة',
+                          style: TextStyle(color: Colors.grey))))
             else
               ...approvedPlots.map((doc) {
                 final data = doc.data() as Map<String, dynamic>;
                 return Container(
                   margin: const EdgeInsets.only(bottom: 8),
                   padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+                  decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16)),
                   child: Row(
                     textDirection: TextDirection.rtl,
                     children: [
-                      const Icon(Icons.check_circle, color: Colors.green, size: 20),
+                      const Icon(Icons.check_circle,
+                          color: Colors.green, size: 20),
                       const SizedBox(width: 12),
-                      Expanded(child: Text('${data['name']} • ${data['area']} فدان • ${data['ownerName'] ?? ''}', style: const TextStyle(fontSize: 13))),
+                      Expanded(
+                          child: Text(
+                              '${data['name']} • ${data['area']} فدان • ${data['ownerName'] ?? ''}',
+                              style: const TextStyle(fontSize: 13))),
                     ],
                   ),
                 );

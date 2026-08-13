@@ -64,8 +64,7 @@ class _FarmerDashboardState extends State<FarmerDashboard> {
         ),
         child: SafeArea(
           child: Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
+            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
@@ -219,7 +218,8 @@ class FarmerHomeTab extends StatelessWidget {
               return FutureBuilder<QuerySnapshot>(
                 future: FirebaseFirestore.instance
                     .collection('wells')
-                    .where(FieldPath.documentId, whereIn: approvedMemberWellIds.take(10).toList())
+                    .where(FieldPath.documentId,
+                        whereIn: approvedMemberWellIds.take(10).toList())
                     .get(),
                 builder: (context, memberWellSnap) {
                   if (memberWellSnap.hasData) {
@@ -234,12 +234,14 @@ class FarmerHomeTab extends StatelessWidget {
                       }
                     }
                   }
-                  return _buildHomeContent(context, approvedWells, hasPendingCreation, hasPendingJoin, auth);
+                  return _buildHomeContent(context, approvedWells,
+                      hasPendingCreation, hasPendingJoin, auth);
                 },
               );
             }
 
-            return _buildHomeContent(context, approvedWells, hasPendingCreation, hasPendingJoin, auth);
+            return _buildHomeContent(context, approvedWells, hasPendingCreation,
+                hasPendingJoin, auth);
           },
         );
       },
@@ -252,26 +254,34 @@ class FarmerHomeTab extends StatelessWidget {
       id: doc.id,
       adminUserId: data['adminUserId'] ?? '',
       wellName: data['wellName'] ?? '',
-      location: Map<String, double>.from((data['location'] ?? {}).map((k, v) => MapEntry(k, (v as num).toDouble()))),
+      location: Map<String, double>.from((data['location'] ?? {})
+          .map((k, v) => MapEntry(k, (v as num).toDouble()))),
       depthMeters: (data['depthMeters'] ?? 0.0).toDouble(),
       irrigatedAreaFeddan: (data['irrigatedAreaFeddan'] ?? 0.0).toDouble(),
       waterOutput: WaterOutput.values.firstWhere(
-        (e) => e.toString() == data['waterOutput'] || e.toString().split('.').last == (data['waterOutput'] ?? ''),
+        (e) =>
+            e.toString() == data['waterOutput'] ||
+            e.toString().split('.').last == (data['waterOutput'] ?? ''),
         orElse: () => WaterOutput.medium,
       ),
       participantCount: data['participantCount'] ?? 1,
       flowRateM3PerHour: data['flowRateM3PerHour']?.toDouble(),
       fairnessRule: FairnessRule.values.firstWhere(
-        (e) => e.toString() == data['fairnessRule'] || e.toString().split('.').last == (data['fairnessRule'] ?? ''),
+        (e) =>
+            e.toString() == data['fairnessRule'] ||
+            e.toString().split('.').last == (data['fairnessRule'] ?? ''),
         orElse: () => FairnessRule.proportional,
       ),
       allowedDays: List<String>.from(data['allowedDays'] ?? []),
-      allowedHours: Map<String, String>.from((data['allowedHours'] ?? {}).map((k, v) => MapEntry(k.toString(), v.toString()))),
+      allowedHours: Map<String, String>.from((data['allowedHours'] ?? {})
+          .map((k, v) => MapEntry(k.toString(), v.toString()))),
       slotDuration: data['slotDuration'] ?? 0,
       hoursPerPerson: (data['hoursPerPerson'] ?? 1.0).toDouble(),
       irrigationFrequencyDays: data['irrigationFrequencyDays'] ?? 1,
       status: WellStatus.values.firstWhere(
-        (e) => e.toString() == data['status'] || e.toString().split('.').last == (data['status'] ?? ''),
+        (e) =>
+            e.toString() == data['status'] ||
+            e.toString().split('.').last == (data['status'] ?? ''),
         orElse: () => WellStatus.approved,
       ),
       pendingEdits: data['pendingEdits'] != null
@@ -280,7 +290,8 @@ class FarmerHomeTab extends StatelessWidget {
     );
   }
 
-  Widget _buildHomeContent(BuildContext context, List<Well> wells, bool hasPendingCreation, bool hasPendingJoin, AuthProvider auth) {
+  Widget _buildHomeContent(BuildContext context, List<Well> wells,
+      bool hasPendingCreation, bool hasPendingJoin, AuthProvider auth) {
     if (wells.isEmpty) {
       if (hasPendingCreation) {
         return const Scaffold(
@@ -420,7 +431,8 @@ class FarmerHomeTab extends StatelessWidget {
 
           if (plotDocs.isEmpty) {
             // No plots - use default
-            final nextDate = _getNextIrrigationDate(wells.first, auth.user?.id, 0);
+            final nextDate =
+                _getNextIrrigationDate(wells.first, auth.user?.id, 0);
             if (nextDate != null) {
               nextDates.add({
                 'date': nextDate,
@@ -431,7 +443,8 @@ class FarmerHomeTab extends StatelessWidget {
           } else {
             for (int i = 0; i < plotDocs.length; i++) {
               final data = plotDocs[i].data() as Map<String, dynamic>;
-              final nextDate = _getNextIrrigationDate(wells.first, auth.user?.id, i);
+              final nextDate =
+                  _getNextIrrigationDate(wells.first, auth.user?.id, i);
               if (nextDate != null) {
                 nextDates.add({
                   'date': nextDate,
@@ -461,7 +474,8 @@ class FarmerHomeTab extends StatelessWidget {
                   return Container(
                     width: double.infinity,
                     margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [plotColor, plotColor.withOpacity(0.7)],
@@ -509,12 +523,11 @@ class FarmerHomeTab extends StatelessWidget {
                     .collection('jobs')
                     .where('requesterUserId', isEqualTo: auth.user?.id)
                     .where('status', whereIn: [
-                      JobStatus.accepted.toString(),
-                      JobStatus.inProgress.toString(),
-                      JobStatus.completed.toString(),
-                      JobStatus.paid.toString()
-                    ])
-                    .snapshots(),
+                  JobStatus.accepted.toString(),
+                  JobStatus.inProgress.toString(),
+                  JobStatus.completed.toString(),
+                  JobStatus.paid.toString()
+                ]).snapshots(),
                 builder: (context, jobSnap) {
                   final jobDocs = jobSnap.data?.docs ?? [];
                   if (jobDocs.isEmpty) return const SizedBox.shrink();
@@ -542,11 +555,14 @@ class FarmerHomeTab extends StatelessWidget {
                                 jobDocs[index].data() as Map<String, dynamic>;
                             final status = data['status'] ?? '';
                             final type = data['serviceType'] ?? '';
-                            
+
                             Color statusColor = Colors.orange;
-                            if (status.contains('inProgress')) statusColor = NabaTheme.primary;
-                            if (status.contains('completed')) statusColor = Colors.green;
-                            if (status.contains('paid')) statusColor = Colors.teal;
+                            if (status.contains('inProgress'))
+                              statusColor = NabaTheme.primary;
+                            if (status.contains('completed'))
+                              statusColor = Colors.green;
+                            if (status.contains('paid'))
+                              statusColor = Colors.teal;
 
                             return GestureDetector(
                               onTap: () {
@@ -557,8 +573,10 @@ class FarmerHomeTab extends StatelessWidget {
                                   type: data['type'] ?? 'worker',
                                   serviceType: data['serviceType'] ?? '',
                                   location: const {'lat': 0.0, 'lng': 0.0},
-                                  startTime: (data['startTime'] as Timestamp).toDate(),
-                                  endTime: (data['endTime'] as Timestamp).toDate(),
+                                  startTime:
+                                      (data['startTime'] as Timestamp).toDate(),
+                                  endTime:
+                                      (data['endTime'] as Timestamp).toDate(),
                                   status: JobStatus.values.firstWhere(
                                       (e) => e.toString() == status,
                                       orElse: () => JobStatus.requested),
@@ -569,7 +587,8 @@ class FarmerHomeTab extends StatelessWidget {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                      builder: (_) => JobDetailsScreen(job: job)),
+                                      builder: (_) =>
+                                          JobDetailsScreen(job: job)),
                                 );
                               },
                               child: Container(
@@ -621,7 +640,11 @@ class FarmerHomeTab extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               // Calendar
-              const Expanded(child: IrrigationCalendar()),
+              Expanded(
+                child: IrrigationCalendar(
+                  well: wells.isNotEmpty ? wells.first : null,
+                ),
+              ),
             ],
           );
         },
@@ -772,8 +795,7 @@ class LandPlotsTab extends StatelessWidget {
                           runSpacing: 8,
                           alignment: WrapAlignment.end,
                           children: List.generate(docs.length, (i) {
-                            final data =
-                                docs[i].data() as Map<String, dynamic>;
+                            final data = docs[i].data() as Map<String, dynamic>;
                             final plotName = data['name'] ?? 'قطعة ${i + 1}';
                             final color = plotColors[i % plotColors.length];
                             return Container(
@@ -782,8 +804,8 @@ class LandPlotsTab extends StatelessWidget {
                               decoration: BoxDecoration(
                                 color: color.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                    color: color.withOpacity(0.3)),
+                                border:
+                                    Border.all(color: color.withOpacity(0.3)),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
@@ -815,7 +837,7 @@ class LandPlotsTab extends StatelessWidget {
 
               final data = docs[index - 1].data() as Map<String, dynamic>;
               final docId = docs[index - 1].id;
-              final plotName = data['name'] ?? 'قطعة ${index}';
+              final plotName = data['name'] ?? 'قطعة $index';
               final area = data['area'] ?? 0.0;
               final wellName = data['wellName'] ?? 'غير محدد';
               final crops = data['crops'] ?? '';
@@ -828,68 +850,73 @@ class LandPlotsTab extends StatelessWidget {
                 child: Opacity(
                   opacity: isPending ? 0.7 : 1.0,
                   child: NabaCard(
-                  padding: const EdgeInsets.all(16),
-                  border: Border(
-                    right: BorderSide(color: color, width: 4),
-                  ),
-                  child: Row(
-                    textDirection: TextDirection.rtl,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: color.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(14),
+                    padding: const EdgeInsets.all(16),
+                    border: Border(
+                      right: BorderSide(color: color, width: 4),
+                    ),
+                    child: Row(
+                      textDirection: TextDirection.rtl,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: color.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Icon(Icons.landscape_rounded,
+                              color: color, size: 28),
                         ),
-                        child:
-                            Icon(Icons.landscape_rounded, color: color, size: 28),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(plotName,
-                                style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                    color: color)),
-                            const SizedBox(height: 4),
-                            Text('المساحة: $area فدان • البئر: $wellName',
-                                style: TextStyle(
-                                    color: Colors.grey.shade600, fontSize: 12)),
-                            if (isPending)
-                              Container(
-                                margin: const EdgeInsets.only(top: 4),
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: Colors.orange.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: const Text('⏳ قيد المراجعة',
-                                    style: TextStyle(color: Colors.orange, fontSize: 11, fontWeight: FontWeight.bold)),
-                              ),
-                            if (crops.isNotEmpty)
-                              Text('المحاصيل: $crops',
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(plotName,
                                   style: TextStyle(
-                                      color: Colors.grey.shade500,
-                                      fontSize: 11)),
-                          ],
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                      color: color)),
+                              const SizedBox(height: 4),
+                              Text('المساحة: $area فدان • البئر: $wellName',
+                                  style: TextStyle(
+                                      color: Colors.grey.shade600,
+                                      fontSize: 12)),
+                              if (isPending)
+                                Container(
+                                  margin: const EdgeInsets.only(top: 4),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.orange.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: const Text('⏳ قيد المراجعة',
+                                      style: TextStyle(
+                                          color: Colors.orange,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold)),
+                                ),
+                              if (crops.isNotEmpty)
+                                Text('المحاصيل: $crops',
+                                    style: TextStyle(
+                                        color: Colors.grey.shade500,
+                                        fontSize: 11)),
+                            ],
+                          ),
                         ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.delete_outline_rounded,
-                            color: Colors.red, size: 20),
-                        onPressed: () async {
-                          await FirebaseFirestore.instance
-                              .collection('land_plots')
-                              .doc(docId)
-                              .delete();
-                        },
-                      ),
-                    ],
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline_rounded,
+                              color: Colors.red, size: 20),
+                          onPressed: () async {
+                            await FirebaseFirestore.instance
+                                .collection('land_plots')
+                                .doc(docId)
+                                .delete();
+                          },
+                        ),
+                      ],
+                    ),
                   ),
-                ),
                 ),
               );
             },
@@ -956,8 +983,8 @@ class LandPlotsTab extends StatelessWidget {
                   const SizedBox(height: 8),
                   TextField(
                     controller: nameCtrl,
-                    decoration: const InputDecoration(
-                        hintText: 'مثلاً: الأرض الشرقية'),
+                    decoration:
+                        const InputDecoration(hintText: 'مثلاً: الأرض الشرقية'),
                   ),
                   const SizedBox(height: 20),
                   const Text('المساحة (فدان)',
@@ -973,15 +1000,14 @@ class LandPlotsTab extends StatelessWidget {
                       style: TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
-                    value: selectedWell.isNotEmpty ? selectedWell : null,
+                    initialValue: selectedWell.isNotEmpty ? selectedWell : null,
                     items: wells
                         .map((w) => DropdownMenuItem(
                             value: w.wellName, child: Text(w.wellName)))
                         .toList(),
                     onChanged: (v) =>
                         setModalState(() => selectedWell = v ?? ''),
-                    decoration:
-                        const InputDecoration(hintText: 'اختر البئر'),
+                    decoration: const InputDecoration(hintText: 'اختر البئر'),
                   ),
                   const SizedBox(height: 20),
                   const Text('المحاصيل (اختياري)',
@@ -1047,26 +1073,34 @@ class WellManagementScreen extends StatelessWidget {
       id: doc.id,
       adminUserId: data['adminUserId'] ?? '',
       wellName: data['wellName'] ?? '',
-      location: Map<String, double>.from((data['location'] ?? {}).map((k, v) => MapEntry(k, (v as num).toDouble()))),
+      location: Map<String, double>.from((data['location'] ?? {})
+          .map((k, v) => MapEntry(k, (v as num).toDouble()))),
       depthMeters: (data['depthMeters'] ?? 0.0).toDouble(),
       irrigatedAreaFeddan: (data['irrigatedAreaFeddan'] ?? 0.0).toDouble(),
       waterOutput: WaterOutput.values.firstWhere(
-        (e) => e.toString() == data['waterOutput'] || e.toString().split('.').last == (data['waterOutput'] ?? ''),
+        (e) =>
+            e.toString() == data['waterOutput'] ||
+            e.toString().split('.').last == (data['waterOutput'] ?? ''),
         orElse: () => WaterOutput.medium,
       ),
       participantCount: data['participantCount'] ?? 1,
       flowRateM3PerHour: data['flowRateM3PerHour']?.toDouble(),
       fairnessRule: FairnessRule.values.firstWhere(
-        (e) => e.toString() == data['fairnessRule'] || e.toString().split('.').last == (data['fairnessRule'] ?? ''),
+        (e) =>
+            e.toString() == data['fairnessRule'] ||
+            e.toString().split('.').last == (data['fairnessRule'] ?? ''),
         orElse: () => FairnessRule.proportional,
       ),
       allowedDays: List<String>.from(data['allowedDays'] ?? []),
-      allowedHours: Map<String, String>.from((data['allowedHours'] ?? {}).map((k, v) => MapEntry(k.toString(), v.toString()))),
+      allowedHours: Map<String, String>.from((data['allowedHours'] ?? {})
+          .map((k, v) => MapEntry(k.toString(), v.toString()))),
       slotDuration: data['slotDuration'] ?? 0,
       hoursPerPerson: (data['hoursPerPerson'] ?? 1.0).toDouble(),
       irrigationFrequencyDays: data['irrigationFrequencyDays'] ?? 1,
       status: WellStatus.values.firstWhere(
-        (e) => e.toString() == data['status'] || e.toString().split('.').last == (data['status'] ?? ''),
+        (e) =>
+            e.toString() == data['status'] ||
+            e.toString().split('.').last == (data['status'] ?? ''),
         orElse: () => WellStatus.approved,
       ),
       pendingEdits: data['pendingEdits'] != null
@@ -1126,7 +1160,8 @@ class WellManagementScreen extends StatelessWidget {
                       return FutureBuilder<QuerySnapshot>(
                         future: FirebaseFirestore.instance
                             .collection('wells')
-                            .where(FieldPath.documentId, whereIn: memberWellIds.take(10).toList())
+                            .where(FieldPath.documentId,
+                                whereIn: memberWellIds.take(10).toList())
                             .get(),
                         builder: (context, memberWellSnap) {
                           if (memberWellSnap.hasData) {
@@ -1187,10 +1222,8 @@ class WellManagementScreen extends StatelessWidget {
             icon: Icons.search_rounded,
             color: Colors.blue,
             onTap: () {
-              Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => const WellSearchScreen()));
+              Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const WellSearchScreen()));
             },
           ),
         ],

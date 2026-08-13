@@ -9,7 +9,9 @@ import '../theme.dart';
 import '../widgets/naba_widgets.dart';
 
 class IrrigationCalendar extends StatefulWidget {
-  const IrrigationCalendar({super.key});
+  final Well? well;
+
+  const IrrigationCalendar({super.key, this.well});
 
   @override
   State<IrrigationCalendar> createState() => _IrrigationCalendarState();
@@ -55,9 +57,7 @@ class _IrrigationCalendarState extends State<IrrigationCalendar> {
   }
 
   Widget _buildCalendarSection(List<QueryDocumentSnapshot> plotDocs) {
-    final wellProvider = context.watch<WellProvider>();
-    final wells = wellProvider.wells;
-    final well = wells.isNotEmpty ? wells.first : null;
+    final well = widget.well;
     final auth = context.read<AuthProvider>();
     final userHash = auth.user?.id.hashCode.abs() ?? 0;
 
@@ -203,10 +203,8 @@ class _IrrigationCalendarState extends State<IrrigationCalendar> {
   }
 
   Widget _buildSlotsList(List<QueryDocumentSnapshot> plotDocs) {
-    final wellProvider = context.watch<WellProvider>();
-    final wells = wellProvider.myWells;
-    if (wells.isEmpty) return const SizedBox();
-    final well = wells.first;
+    final well = widget.well;
+    if (well == null) return const SizedBox();
 
     final auth = context.read<AuthProvider>();
     final userHash = auth.user?.id.hashCode.abs() ?? 0;
@@ -265,7 +263,19 @@ class _IrrigationCalendarState extends State<IrrigationCalendar> {
     final plotName = plotInfo['name'] as String;
 
     final userHash = user?.id.hashCode.abs() ?? 0;
-    final hours = well.hoursPerPerson.toInt();
+    
+    int hours = well.hoursPerPerson.toInt();
+    if (well.fairnessRule == FairnessRule.proportional) {
+      double totalArea = well.irrigatedAreaFeddan > 0 ? well.irrigatedAreaFeddan : 1;
+      double plotArea = (plotInfo['area'] as num?)?.toDouble() ?? 1.0;
+      int totalHoursAvailable = 24 * (well.irrigationFrequencyDays > 0 ? well.irrigationFrequencyDays : 1);
+      hours = ((plotArea / totalArea) * totalHoursAvailable).round();
+      if (hours < 1) hours = 1;
+    } else if (well.fairnessRule == FairnessRule.manual) {
+      // Fetch manual hours if available, otherwise fallback
+      hours = plotInfo['manualHours'] ?? well.hoursPerPerson.toInt();
+    }
+    
     final startHourOffset = (userHash + colorIndex * 3) % (16 - (hours > 0 ? hours : 1));
     final timePrefix = 6 + startHourOffset;
 

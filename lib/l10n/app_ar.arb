@@ -1,0 +1,10 @@
+{
+  "@@locale": "ar",
+  "appTitle": "نبع",
+  "settings": "الإعدادات",
+  "language": "اللغة",
+  "notifications": "الإشعارات",
+  "theme": "المظهر",
+  "changePassword": "تغيير كلمة المرور",
+  "logout": "تسجيل الخروج"
+}
