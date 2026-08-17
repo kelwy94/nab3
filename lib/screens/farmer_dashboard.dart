@@ -132,13 +132,15 @@ class FarmerHomeTab extends StatelessWidget {
     Color(0xFF00838F),
   ];
 
-  /// Calculate the next irrigation date for a specific plot index
   DateTime? _getNextIrrigationDate(Well well, String? userId, int plotIndex) {
     final userHash = userId?.hashCode.abs() ?? 0;
     final freq =
         well.irrigationFrequencyDays > 0 ? well.irrigationFrequencyDays : 1;
     final dayOffset = (userHash + plotIndex * 7) % freq;
-    final today = DateTime.now();
+    
+    // Normalize today to UTC midnight to match TableCalendar's behavior exactly
+    final now = DateTime.now();
+    final today = DateTime.utc(now.year, now.month, now.day);
     final baseDate = DateTime.utc(2024, 1, 1);
 
     for (int i = 0; i <= freq; i++) {

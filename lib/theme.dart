@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 
 class NabaTheme {
   // Colors
-  static const Color primary = Color(0xFF00695C); // Dark Teal/Green
-  static const Color primaryLight = Color(0xFF4DB6AC); // Soft Teal
-  static const Color accent = Color(0xFFFF9800); // Classic Orange
+  static const Color primary = Color(0xFF046231); // Dark Islamic Green
+  static const Color primaryLight = Color(0xFF0A8F4A); // Lighter Islamic Green
+  static const Color accent = Color(0xFFF0B323); // Soft Gold/Yellow
   static const Color background = Color(0xFFF5F7F7); // Soft Grey
   static const Color surface = Colors.white;
   static const Color textPrimary = Color(0xFF263238); // Dark Blue Grey
