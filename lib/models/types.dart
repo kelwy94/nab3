@@ -279,6 +279,7 @@ class WellMember {
   final String status; // pending, approved, rejected
   final double landAreaFeddan;
   final List<String> crops;
+  final Map<String, dynamic>? manualSchedule;
 
   WellMember({
     required this.id,
@@ -287,6 +288,7 @@ class WellMember {
     required this.status,
     required this.landAreaFeddan,
     required this.crops,
+    this.manualSchedule,
   });
 }
 

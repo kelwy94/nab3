@@ -17,6 +17,8 @@ import 'job_details_screen.dart';
 import 'job_history_screen.dart';
 import 'marketplace_screen.dart';
 import 'orders_history_screen.dart';
+import 'request_worker_screen.dart';
+import 'request_equipment_screen.dart';
 import 'settings_screen.dart';
 import 'wallet_screen.dart';
 import 'well_create_screen.dart';
@@ -421,41 +423,76 @@ class FarmerHomeTab extends StatelessWidget {
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
-            .collection('land_plots')
-            .where('ownerId', isEqualTo: auth.user?.id)
-            .where('status', isEqualTo: 'approved')
+            .collection('well_members')
+            .where('userId', isEqualTo: auth.user?.id)
+            .where('wellId', isEqualTo: wells.first.id)
             .snapshots(),
-        builder: (context, plotSnapshot) {
-          final plotDocs = plotSnapshot.data?.docs ?? [];
+        builder: (context, memberSnapshot) {
+          final memberDoc = memberSnapshot.data?.docs.isNotEmpty == true ? memberSnapshot.data!.docs.first : null;
+          final manualSchedule = memberDoc != null ? (memberDoc.data() as Map<String, dynamic>)['manualSchedule'] : null;
 
-          // Find the soonest next irrigation across all plots
-          List<Map<String, dynamic>> nextDates = [];
+          return StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('land_plots')
+                .where('ownerId', isEqualTo: auth.user?.id)
+                .where('status', isEqualTo: 'approved')
+                .snapshots(),
+            builder: (context, plotSnapshot) {
+              final plotDocs = plotSnapshot.data?.docs ?? [];
 
-          if (plotDocs.isEmpty) {
-            // No plots - use default
-            final nextDate =
-                _getNextIrrigationDate(wells.first, auth.user?.id, 0);
-            if (nextDate != null) {
-              nextDates.add({
-                'date': nextDate,
-                'name': wells.first.wellName,
-                'color': NabaTheme.primary,
-              });
-            }
-          } else {
-            for (int i = 0; i < plotDocs.length; i++) {
-              final data = plotDocs[i].data() as Map<String, dynamic>;
-              final nextDate =
-                  _getNextIrrigationDate(wells.first, auth.user?.id, i);
-              if (nextDate != null) {
-                nextDates.add({
-                  'date': nextDate,
-                  'name': data['name'] ?? 'قطعة ${i + 1}',
-                  'color': plotColors[i % plotColors.length],
-                });
+              // Find the soonest next irrigation across all plots
+              List<Map<String, dynamic>> nextDates = [];
+
+              if (wells.first.fairnessRule == FairnessRule.manual && manualSchedule != null) {
+                final dayOffset = manualSchedule['dayOffset'] as int;
+                final freq = wells.first.irrigationFrequencyDays > 0 ? wells.first.irrigationFrequencyDays : 1;
+                
+                final now = DateTime.now();
+                final today = DateTime.utc(now.year, now.month, now.day);
+                final baseDate = DateTime.utc(2024, 1, 1);
+                
+                DateTime? nextDate;
+                for (int i = 0; i <= freq; i++) {
+                  final checkDate = today.add(Duration(days: i));
+                  final diff = checkDate.difference(baseDate).inDays;
+                  if (diff % freq == dayOffset) {
+                    nextDate = checkDate;
+                    break;
+                  }
+                }
+                
+                if (nextDate != null) {
+                  nextDates.add({
+                    'date': nextDate,
+                    'name': 'موعدك (يدوي)',
+                    'color': NabaTheme.primary,
+                  });
+                }
+              } else if (plotDocs.isEmpty) {
+                // No plots - use default
+                final nextDate =
+                    _getNextIrrigationDate(wells.first, auth.user?.id, 0);
+                if (nextDate != null) {
+                  nextDates.add({
+                    'date': nextDate,
+                    'name': wells.first.wellName,
+                    'color': NabaTheme.primary,
+                  });
+                }
+              } else {
+                for (int i = 0; i < plotDocs.length; i++) {
+                  final data = plotDocs[i].data() as Map<String, dynamic>;
+                  final nextDate =
+                      _getNextIrrigationDate(wells.first, auth.user?.id, i);
+                  if (nextDate != null) {
+                    nextDates.add({
+                      'date': nextDate,
+                      'name': data['name'] ?? 'قطعة ${i + 1}',
+                      'color': plotColors[i % plotColors.length],
+                    });
+                  }
+                }
               }
-            }
-          }
 
           // Sort by nearest date
           nextDates.sort((a, b) =>
@@ -518,6 +555,34 @@ class FarmerHomeTab extends StatelessWidget {
                     ),
                   );
                 }),
+              const SizedBox(height: 8),
+              // Quick Actions
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _buildQuickActionCard(
+                        context,
+                        title: 'طلب معدة',
+                        icon: Icons.agriculture_rounded,
+                        color: Colors.orange.shade700,
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RequestEquipmentScreen())),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildQuickActionCard(
+                        context,
+                        title: 'طلب عامل',
+                        icon: Icons.engineering_rounded,
+                        color: Colors.blue.shade700,
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RequestWorkerScreen())),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               const SizedBox(height: 8),
               // Active Tracking Section
               StreamBuilder<QuerySnapshot>(
@@ -649,6 +714,8 @@ class FarmerHomeTab extends StatelessWidget {
               ),
             ],
           );
+            },
+          );
         },
       ),
     );
@@ -660,6 +727,44 @@ class FarmerHomeTab extends StatelessWidget {
     if (status.contains('completed')) return 'انتهى - ادفع';
     if (status.contains('paid')) return 'تم الدفع - قيم';
     return 'قيد المراجعة';
+  }
+
+  Widget _buildQuickActionCard(
+    BuildContext context, {
+    required String title,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return NabaCard(
+      onTap: onTap,
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [color.withOpacity(0.7), color],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: color.withOpacity(0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Icon(icon, color: Colors.white, size: 32),
+          ),
+          const SizedBox(height: 12),
+          Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+        ],
+      ),
+    );
   }
 
   Widget _buildSpecialCard(
@@ -928,15 +1033,22 @@ class LandPlotsTab extends StatelessWidget {
     );
   }
 
-  void _showAddPlotDialog(BuildContext context) {
+  Future<void> _showAddPlotDialog(BuildContext context) async {
     final nameCtrl = TextEditingController();
     final areaCtrl = TextEditingController();
     final cropsCtrl = TextEditingController();
-    String selectedWell = '';
+    final customWellCtrl = TextEditingController();
+    
+    // Fetch all wells
+    final wellSnap = await FirebaseFirestore.instance.collection('wells').get();
+    final allWellsNames = wellSnap.docs.map((doc) => (doc.data()['wellName'] ?? '') as String).where((n) => n.isNotEmpty).toSet().toList();
+    
+    String? selectedWell;
+    if (allWellsNames.isNotEmpty) {
+      selectedWell = allWellsNames.first;
+    }
 
-    final wellProvider = Provider.of<WellProvider>(context, listen: false);
-    final wells = wellProvider.myWells;
-    if (wells.isNotEmpty) selectedWell = wells.first.wellName;
+    if (!context.mounted) return;
 
     showModalBottomSheet(
       context: context,
@@ -944,7 +1056,7 @@ class LandPlotsTab extends StatelessWidget {
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setModalState) => Container(
-          height: MediaQuery.of(context).size.height * 0.7,
+          height: MediaQuery.of(context).size.height * 0.75,
           decoration: const BoxDecoration(
             color: NabaTheme.background,
             borderRadius: BorderRadius.only(
@@ -1002,15 +1114,21 @@ class LandPlotsTab extends StatelessWidget {
                       style: TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
-                    initialValue: selectedWell.isNotEmpty ? selectedWell : null,
-                    items: wells
-                        .map((w) => DropdownMenuItem(
-                            value: w.wellName, child: Text(w.wellName)))
-                        .toList(),
-                    onChanged: (v) =>
-                        setModalState(() => selectedWell = v ?? ''),
+                    value: selectedWell,
+                    items: [
+                      ...allWellsNames.map((name) => DropdownMenuItem(value: name, child: Text(name))),
+                      const DropdownMenuItem(value: 'أخرى', child: Text('أخرى (إدخال يدوي)')),
+                    ],
+                    onChanged: (v) => setModalState(() => selectedWell = v),
                     decoration: const InputDecoration(hintText: 'اختر البئر'),
                   ),
+                  if (selectedWell == 'أخرى') ...[
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: customWellCtrl,
+                      decoration: const InputDecoration(hintText: 'اكتب اسم البئر هنا'),
+                    ),
+                  ],
                   const SizedBox(height: 20),
                   const Text('المحاصيل (اختياري)',
                       style: TextStyle(fontWeight: FontWeight.bold)),
@@ -1032,9 +1150,17 @@ class LandPlotsTab extends StatelessWidget {
                         );
                         return;
                       }
-                      final user =
-                          Provider.of<AuthProvider>(context, listen: false)
-                              .user;
+                      
+                      final finalWellName = (selectedWell == 'أخرى') ? customWellCtrl.text.trim() : (selectedWell ?? '');
+                      if (finalWellName.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text('يرجى تحديد أو كتابة اسم البئر')),
+                        );
+                        return;
+                      }
+
+                      final user = Provider.of<AuthProvider>(context, listen: false).user;
                       await FirebaseFirestore.instance
                           .collection('land_plots')
                           .add({
@@ -1042,7 +1168,7 @@ class LandPlotsTab extends StatelessWidget {
                         'ownerName': user?.fullName,
                         'name': nameCtrl.text,
                         'area': double.tryParse(areaCtrl.text) ?? 0,
-                        'wellName': selectedWell,
+                        'wellName': finalWellName,
                         'crops': cropsCtrl.text,
                         'status': 'pending',
                         'createdAt': FieldValue.serverTimestamp(),
@@ -1051,7 +1177,7 @@ class LandPlotsTab extends StatelessWidget {
                         Navigator.pop(ctx);
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                              content: Text('تم إضافة قطعة الأرض بنجاح!')),
+                              content: Text('تم إرسال طلب إضافة قطعة الأرض للإدارة!')),
                         );
                       }
                     },
@@ -1243,13 +1369,24 @@ class WellManagementScreen extends StatelessWidget {
         textDirection: TextDirection.rtl,
         children: [
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: NabaTheme.primary.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(16),
+              gradient: LinearGradient(
+                colors: [NabaTheme.primaryLight, NabaTheme.primary],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: NabaTheme.primary.withOpacity(0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
             child: const Icon(Icons.water_drop_rounded,
-                color: NabaTheme.primary, size: 24),
+                color: Colors.white, size: 24),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -1290,12 +1427,23 @@ class WellManagementScreen extends StatelessWidget {
             children: [
               const Icon(Icons.arrow_back_ios, size: 14, color: Colors.grey),
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(16),
+                  gradient: LinearGradient(
+                    colors: [color.withOpacity(0.7), color],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: color.withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
-                child: Icon(icon, color: color, size: 32),
+                child: Icon(icon, color: Colors.white, size: 32),
               ),
             ],
           ),

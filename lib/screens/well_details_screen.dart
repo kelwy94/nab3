@@ -108,9 +108,23 @@ class WellDetailsScreen extends StatelessWidget {
         textDirection: TextDirection.rtl,
         children: [
           Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
-            child: Icon(icon, color: color, size: 24),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [color.withOpacity(0.7), color],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: color.withOpacity(0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Icon(icon, color: Colors.white, size: 24),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -130,36 +144,104 @@ class WellDetailsScreen extends StatelessWidget {
 
   void _showAddParticipantDialog(BuildContext context) {
     final controller = TextEditingController();
+    int dayOffset = 0;
+    int startHour = 6;
+    int durationHours = 2;
+    final isManual = well.fairnessRule == FairnessRule.manual;
+
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('إضافة مشترك جديد', textAlign: TextAlign.right),
-        content: TextField(
-          controller: controller,
-          keyboardType: TextInputType.phone,
-          textAlign: TextAlign.right,
-          decoration: const InputDecoration(
-            hintText: 'أدخل رقم هاتف المزارع (مثال: 01xxxxxxxxx)',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
-          ElevatedButton(
-            onPressed: () async {
-              if (controller.text.trim().isNotEmpty) {
-                final success = await ctx.read<WellProvider>().inviteParticipantByPhone(well.id, controller.text.trim());
-                if (ctx.mounted) {
-                  Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(success ? 'تم إرسال طلب الانضمام بنجاح وهو الآن بانتظار الإدارة' : 'لم يتم العثور على مزارع بهذا الرقم أو تمت دعوته مسبقاً')),
-                  );
-                }
-              }
-            },
-            child: const Text('إرسال الدعوة'),
-          ),
-        ],
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            title: const Text('إضافة مشترك جديد', textAlign: TextAlign.right),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: controller,
+                    keyboardType: TextInputType.phone,
+                    textAlign: TextAlign.right,
+                    decoration: const InputDecoration(
+                      hintText: 'أدخل رقم هاتف المزارع (مثال: 01xxxxxxxxx)',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  if (isManual) ...[
+                    const SizedBox(height: 16),
+                    const Text('تحديد موعد الري اليدوي', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        DropdownButton<int>(
+                          value: dayOffset,
+                          items: List.generate(
+                              well.irrigationFrequencyDays > 0 ? well.irrigationFrequencyDays : 1,
+                              (i) => DropdownMenuItem(value: i, child: Text('اليوم ${i + 1}'))),
+                          onChanged: (val) => setState(() => dayOffset = val!),
+                        ),
+                        const Text('اليوم (في الدورة)'),
+                      ],
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        DropdownButton<int>(
+                          value: startHour,
+                          items: List.generate(24, (i) => DropdownMenuItem(value: i, child: Text('$i:00'))),
+                          onChanged: (val) => setState(() => startHour = val!),
+                        ),
+                        const Text('ساعة البدء'),
+                      ],
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        DropdownButton<int>(
+                          value: durationHours,
+                          items: List.generate(24, (i) => DropdownMenuItem(value: i + 1, child: Text('${i + 1} ساعة'))),
+                          onChanged: (val) => setState(() => durationHours = val!),
+                        ),
+                        const Text('المدة'),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+              ElevatedButton(
+                onPressed: () async {
+                  if (controller.text.trim().isNotEmpty) {
+                    Map<String, dynamic>? schedule;
+                    if (isManual) {
+                      schedule = {
+                        'dayOffset': dayOffset,
+                        'startHour': startHour,
+                        'durationHours': durationHours,
+                      };
+                    }
+                    final success = await ctx.read<WellProvider>().inviteParticipantByPhone(
+                      well.id, 
+                      controller.text.trim(),
+                      manualSchedule: schedule,
+                    );
+                    if (ctx.mounted) {
+                      Navigator.pop(ctx);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(success ? 'تم إرسال طلب الانضمام بنجاح وهو الآن بانتظار الإدارة' : 'لم يتم العثور على مزارع بهذا الرقم أو تمت دعوته مسبقاً')),
+                      );
+                    }
+                  }
+                },
+                child: const Text('إرسال الدعوة'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

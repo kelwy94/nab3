@@ -262,7 +262,7 @@ class WellProvider with ChangeNotifier {
     }
   }
 
-  Future<bool> inviteParticipantByPhone(String wellId, String phone) async {
+  Future<bool> inviteParticipantByPhone(String wellId, String phone, {Map<String, dynamic>? manualSchedule}) async {
     try {
       final query = await _firestore
           .collection('users')
@@ -281,13 +281,18 @@ class WellProvider with ChangeNotifier {
 
       if (existing.docs.isNotEmpty) return true; // Already invited/member
 
-      await _firestore.collection('well_members').add({
+      final data = <String, dynamic>{
         'wellId': wellId,
         'userId': userId,
         'status': 'pending',
         'landAreaFeddan': 0.0,
         'crops': [],
-      });
+      };
+      if (manualSchedule != null) {
+        data['manualSchedule'] = manualSchedule;
+      }
+
+      await _firestore.collection('well_members').add(data);
       return true;
     } catch (e) {
       debugPrint('Error inviting participant: $e');

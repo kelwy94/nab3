@@ -17,86 +17,50 @@ class MarketplaceScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        backgroundColor: NabaTheme.background,
-        appBar: NabaAppBar(
-          title: 'سوق نبع',
-          showBackButton: false,
-          actions: [
-            Stack(
-              alignment: Alignment.center,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.shopping_cart_outlined),
-                  onPressed: () {
-                    Navigator.push(context,
-                        MaterialPageRoute(builder: (_) => const CartScreen()));
+    return Scaffold(
+      backgroundColor: NabaTheme.background,
+      appBar: NabaAppBar(
+        title: 'سوق نبع',
+        showBackButton: false,
+        actions: [
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.shopping_cart_outlined),
+                onPressed: () {
+                  Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const CartScreen()));
+                },
+              ),
+              Positioned(
+                right: 8,
+                top: 8,
+                child: Consumer<AppStateProvider>(
+                  builder: (context, appState, child) {
+                    if (appState.cart.isEmpty) return const SizedBox.shrink();
+                    return Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Text(
+                        '${appState.cart.length}',
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold),
+                      ),
+                    );
                   },
                 ),
-                Positioned(
-                  right: 8,
-                  top: 8,
-                  child: Consumer<AppStateProvider>(
-                    builder: (context, appState, child) {
-                      if (appState.cart.isEmpty) return const SizedBox.shrink();
-                      return Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(
-                          color: Colors.red,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Text(
-                          '${appState.cart.length}',
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-        body: Column(
-          children: [
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
               ),
-              child: TabBar(
-                indicator: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  color: NabaTheme.primary,
-                ),
-                indicatorSize: TabBarIndicatorSize.tab,
-                labelColor: Colors.white,
-                unselectedLabelColor: Colors.grey,
-                labelStyle: const TextStyle(fontWeight: FontWeight.bold),
-                tabs: const [
-                  Tab(text: 'عمال ومعدات'),
-                  Tab(text: 'منتجات ومستلزمات'),
-                ],
-              ),
-            ),
-            const Expanded(
-              child: TabBarView(
-                children: [
-                  ServicesList(),
-                  ProductCatalog(),
-                ],
-              ),
-            ),
-          ],
-        ),
+            ],
+          ),
+        ],
       ),
+      body: const ProductCatalog(),
     );
   }
 }
@@ -264,12 +228,23 @@ class ServicesList extends StatelessWidget {
         textDirection: TextDirection.rtl,
         children: [
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(20),
+              gradient: LinearGradient(
+                colors: [color.withOpacity(0.7), color],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: color.withOpacity(0.3),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
-            child: Icon(icon, color: color, size: 40),
+            child: Icon(icon, color: Colors.white, size: 36),
           ),
           const SizedBox(width: 20),
           Expanded(

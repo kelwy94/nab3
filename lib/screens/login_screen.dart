@@ -105,6 +105,51 @@ class _LoginScreenState extends State<LoginScreen> {
                   onPressed: _isLoading ? null : _handleLogin,
                   icon: _isLoading ? null : Icons.login_rounded,
                 ),
+                const SizedBox(height: 16),
+                TextButton(
+                  onPressed: () {
+                    if (_phoneController.text.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('الرجاء إدخال رقم الهاتف أولاً لإرسال رابط الاستعادة')),
+                      );
+                      return;
+                    }
+                    showDialog(
+                      context: context,
+                      builder: (ctx) => Directionality(
+                        textDirection: TextDirection.rtl,
+                        child: AlertDialog(
+                          title: const Text('استعادة كلمة المرور'),
+                          content: Text('هل تريد إرسال رابط استعادة كلمة المرور إلى الحساب المرتبط برقم ${_phoneController.text}؟\n(ملاحظة: النظام يستخدم بريداً افتراضياً)'),
+                          actions: [
+                            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+                            ElevatedButton(
+                              onPressed: () async {
+                                Navigator.pop(ctx);
+                                try {
+                                  await Provider.of<AuthProvider>(context, listen: false).resetPassword("${_phoneController.text}@naba.app");
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('تم إرسال طلب استعادة كلمة المرور بنجاح!')),
+                                    );
+                                  }
+                                } catch (e) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('حدث خطأ، تأكد من أن الرقم مسجل')),
+                                    );
+                                  }
+                                }
+                              },
+                              child: const Text('إرسال'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                  child: const Text('نسيت كلمة المرور؟', style: TextStyle(color: Colors.grey)),
+                ),
                 const SizedBox(height: 24),
                 TextButton(
                   onPressed: () => Navigator.pop(context),

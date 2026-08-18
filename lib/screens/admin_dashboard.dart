@@ -1111,6 +1111,11 @@ class _AdminDashboardState extends State<AdminDashboard>
                                 'المساحة المروية: ${data['landAreaFeddan']} فدان',
                                 style: const TextStyle(color: Colors.grey),
                                 textAlign: TextAlign.right),
+                            if (data['manualSchedule'] != null)
+                              Text(
+                                'الموعد: اليوم ${data['manualSchedule']['dayOffset'] + 1}، ${data['manualSchedule']['startHour']}:00 (${data['manualSchedule']['durationHours']} ساعة)',
+                                style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 12),
+                                textAlign: TextAlign.right),
                           ],
                         ),
                       ),
@@ -2001,38 +2006,17 @@ class _AdminDashboardState extends State<AdminDashboard>
                       Row(
                         children: [
                           Expanded(
-                            child: ElevatedButton(
-                              onPressed: () async {
-                                await FirebaseFirestore.instance
-                                    .collection('land_plots')
-                                    .doc(doc.id)
-                                    .update({'status': 'approved'});
-                              },
+                            child: ElevatedButton.icon(
+                              onPressed: () => _showReviewPlotDialog(doc),
+                              icon: const Icon(Icons.rate_review_rounded, size: 20),
+                              label: const Text('مراجعة الطلب'),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.green,
+                                backgroundColor: Colors.orange,
                                 foregroundColor: Colors.white,
                                 shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12)),
+                                padding: const EdgeInsets.symmetric(vertical: 12),
                               ),
-                              child: const Text('موافقة'),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: () async {
-                                await FirebaseFirestore.instance
-                                    .collection('land_plots')
-                                    .doc(doc.id)
-                                    .update({'status': 'rejected'});
-                              },
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.red,
-                                side: const BorderSide(color: Colors.red),
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12)),
-                              ),
-                              child: const Text('رفض'),
                             ),
                           ),
                         ],
@@ -2075,6 +2059,72 @@ class _AdminDashboardState extends State<AdminDashboard>
                 );
               }),
           ],
+        );
+      },
+    );
+  }
+  void _showReviewPlotDialog(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    final nameCtrl = TextEditingController(text: data['name'] ?? '');
+    final areaCtrl = TextEditingController(text: (data['area'] ?? 0).toString());
+    final wellCtrl = TextEditingController(text: data['wellName'] ?? '');
+    final cropsCtrl = TextEditingController(text: data['crops'] ?? '');
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Directionality(
+          textDirection: TextDirection.rtl,
+          child: AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: const Text('مراجعة طلب قطعة أرض', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('المالك', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                  Text(data['ownerName'] ?? 'غير معروف', style: const TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 16),
+                  TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'اسم القطعة', border: OutlineInputBorder())),
+                  const SizedBox(height: 12),
+                  TextField(controller: areaCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'المساحة (فدان)', border: OutlineInputBorder())),
+                  const SizedBox(height: 12),
+                  TextField(controller: wellCtrl, decoration: const InputDecoration(labelText: 'البئر المرتبط', border: OutlineInputBorder())),
+                  const SizedBox(height: 12),
+                  TextField(controller: cropsCtrl, decoration: const InputDecoration(labelText: 'المحاصيل', border: OutlineInputBorder())),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('إلغاء', style: TextStyle(color: Colors.grey)),
+              ),
+              OutlinedButton(
+                onPressed: () async {
+                  await FirebaseFirestore.instance.collection('land_plots').doc(doc.id).update({'status': 'rejected'});
+                  if (context.mounted) Navigator.pop(context);
+                },
+                style: OutlinedButton.styleFrom(foregroundColor: Colors.red, side: const BorderSide(color: Colors.red)),
+                child: const Text('رفض'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  await FirebaseFirestore.instance.collection('land_plots').doc(doc.id).update({
+                    'status': 'approved',
+                    'name': nameCtrl.text,
+                    'area': double.tryParse(areaCtrl.text) ?? 0,
+                    'wellName': wellCtrl.text,
+                    'crops': cropsCtrl.text,
+                  });
+                  if (context.mounted) Navigator.pop(context);
+                },
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
+                child: const Text('حفظ وموافقة'),
+              ),
+            ],
+          ),
         );
       },
     );

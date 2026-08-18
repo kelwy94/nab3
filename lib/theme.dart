@@ -54,7 +54,7 @@ class NabaTheme {
       ),
       appBarTheme: const AppBarTheme(
         backgroundColor: primary,
-        elevation: 4,
+        elevation: 0,
         centerTitle: true,
         iconTheme: IconThemeData(color: Colors.white),
         titleTextStyle: TextStyle(

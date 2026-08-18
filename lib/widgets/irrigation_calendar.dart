@@ -37,26 +37,39 @@ class _IrrigationCalendarState extends State<IrrigationCalendar> {
 
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
-          .collection('land_plots')
-          .where('ownerId', isEqualTo: user?.id)
+          .collection('well_members')
+          .where('userId', isEqualTo: user?.id)
+          .where('wellId', isEqualTo: widget.well?.id)
           .snapshots(),
-      builder: (context, plotSnapshot) {
-        final plotDocs = plotSnapshot.data?.docs ?? [];
+      builder: (context, memberSnapshot) {
+        final memberDoc = memberSnapshot.data?.docs.isNotEmpty == true ? memberSnapshot.data!.docs.first : null;
+        final manualSchedule = memberDoc != null ? (memberDoc.data() as Map<String, dynamic>)['manualSchedule'] : null;
 
-        return Column(
-          children: [
-            _buildCalendarSection(plotDocs),
-            const SizedBox(height: 12),
-            Expanded(
-              child: _buildSlotsList(plotDocs),
-            ),
-          ],
+        return StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('land_plots')
+              .where('ownerId', isEqualTo: user?.id)
+              .where('status', isEqualTo: 'approved')
+              .snapshots(),
+          builder: (context, plotSnapshot) {
+            final plotDocs = plotSnapshot.data?.docs ?? [];
+
+            return Column(
+              children: [
+                _buildCalendarSection(plotDocs, manualSchedule as Map<String, dynamic>?),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: _buildSlotsList(plotDocs, manualSchedule as Map<String, dynamic>?),
+                ),
+              ],
+            );
+          },
         );
       },
     );
   }
 
-  Widget _buildCalendarSection(List<QueryDocumentSnapshot> plotDocs) {
+  Widget _buildCalendarSection(List<QueryDocumentSnapshot> plotDocs, Map<String, dynamic>? manualSchedule) {
     final well = widget.well;
     final auth = context.read<AuthProvider>();
     final userHash = auth.user?.id.hashCode.abs() ?? 0;
@@ -99,7 +112,19 @@ class _IrrigationCalendarState extends State<IrrigationCalendar> {
 
           List<String> events = [];
 
-          if (plotDocs.isEmpty) {
+          if (well.fairnessRule == FairnessRule.manual && manualSchedule != null) {
+            final dayOffset = manualSchedule['dayOffset'] as int;
+            if (diff % freq == dayOffset) {
+              if (plotDocs.isEmpty) {
+                events.add('موعدك (يدوي)');
+              } else {
+                for (int i = 0; i < plotDocs.length; i++) {
+                  final data = plotDocs[i].data() as Map<String, dynamic>;
+                  events.add(data['name'] ?? 'قطعة ${i + 1}');
+                }
+              }
+            }
+          } else if (plotDocs.isEmpty) {
             // No plots - use default behavior
             final dayOffset = userHash % freq;
             if (diff % freq == dayOffset) events.add('default');
@@ -123,7 +148,16 @@ class _IrrigationCalendarState extends State<IrrigationCalendar> {
 
             Color? circleColor;
 
-            if (plotDocs.isEmpty) {
+            if (well.fairnessRule == FairnessRule.manual && manualSchedule != null) {
+              final dayOffset = manualSchedule['dayOffset'] as int;
+              if (diff % freq == dayOffset) {
+                if (plotDocs.isEmpty) {
+                  circleColor = NabaTheme.primary;
+                } else {
+                  circleColor = plotColors[0];
+                }
+              }
+            } else if (plotDocs.isEmpty) {
               final dayOffset = userHash % freq;
               if (diff % freq == dayOffset) {
                 circleColor = NabaTheme.primary;
@@ -169,7 +203,9 @@ class _IrrigationCalendarState extends State<IrrigationCalendar> {
                 children: events.asMap().entries.map((entry) {
                   Color dotColor;
 
-                  if (plotDocs.isEmpty) {
+                  if (well != null && well.fairnessRule == FairnessRule.manual && manualSchedule != null && plotDocs.isEmpty) {
+                    dotColor = NabaTheme.primary;
+                  } else if (plotDocs.isEmpty) {
                     dotColor = NabaTheme.primary;
                   } else {
                     final plotName = entry.value as String;
@@ -202,7 +238,7 @@ class _IrrigationCalendarState extends State<IrrigationCalendar> {
     );
   }
 
-  Widget _buildSlotsList(List<QueryDocumentSnapshot> plotDocs) {
+  Widget _buildSlotsList(List<QueryDocumentSnapshot> plotDocs, Map<String, dynamic>? manualSchedule) {
     final well = widget.well;
     if (well == null) return const SizedBox();
 
@@ -214,7 +250,28 @@ class _IrrigationCalendarState extends State<IrrigationCalendar> {
     // Find which plots have irrigation on this day
     List<Map<String, dynamic>> irrigatingPlots = [];
 
-    if (plotDocs.isEmpty) {
+    if (well.fairnessRule == FairnessRule.manual && manualSchedule != null) {
+      final dayOffset = manualSchedule['dayOffset'] as int;
+      if (diff % freq == dayOffset) {
+        if (plotDocs.isEmpty) {
+          irrigatingPlots.add({
+            'name': 'موعدك (يدوي)',
+            'colorIndex': 0,
+            'manualSchedule': manualSchedule,
+          });
+        } else {
+          for (int i = 0; i < plotDocs.length; i++) {
+            final data = plotDocs[i].data() as Map<String, dynamic>;
+            irrigatingPlots.add({
+              'name': data['name'] ?? 'قطعة ${i + 1}',
+              'area': data['area'] ?? 0,
+              'colorIndex': i,
+              'manualSchedule': manualSchedule,
+            });
+          }
+        }
+      }
+    } else if (plotDocs.isEmpty) {
       final dayOffset = userHash % freq;
       if (diff % freq == dayOffset) {
         irrigatingPlots.add({'name': 'أرضك', 'colorIndex': 0});
@@ -265,19 +322,27 @@ class _IrrigationCalendarState extends State<IrrigationCalendar> {
     final userHash = user?.id.hashCode.abs() ?? 0;
     
     int hours = well.hoursPerPerson.toInt();
+    int timePrefix = 6;
+
     if (well.fairnessRule == FairnessRule.proportional) {
       double totalArea = well.irrigatedAreaFeddan > 0 ? well.irrigatedAreaFeddan : 1;
       double plotArea = (plotInfo['area'] as num?)?.toDouble() ?? 1.0;
       int totalHoursAvailable = 24 * (well.irrigationFrequencyDays > 0 ? well.irrigationFrequencyDays : 1);
       hours = ((plotArea / totalArea) * totalHoursAvailable).round();
       if (hours < 1) hours = 1;
-    } else if (well.fairnessRule == FairnessRule.manual) {
-      // Fetch manual hours if available, otherwise fallback
+      final startHourOffset = (userHash + colorIndex * 3) % (16 - (hours > 0 ? hours : 1));
+      timePrefix = 6 + startHourOffset;
+    } else if (well.fairnessRule == FairnessRule.manual && plotInfo['manualSchedule'] != null) {
+      final schedule = plotInfo['manualSchedule'] as Map<String, dynamic>;
+      hours = (schedule['durationHours'] as num?)?.toInt() ?? well.hoursPerPerson.toInt();
+      int baseTimePrefix = (schedule['startHour'] as num?)?.toInt() ?? 6;
+      timePrefix = baseTimePrefix + (colorIndex * hours);
+      if (timePrefix > 23) timePrefix = timePrefix % 24;
+    } else {
       hours = plotInfo['manualHours'] ?? well.hoursPerPerson.toInt();
+      final startHourOffset = (userHash + colorIndex * 3) % (16 - (hours > 0 ? hours : 1));
+      timePrefix = 6 + startHourOffset;
     }
-    
-    final startHourOffset = (userHash + colorIndex * 3) % (16 - (hours > 0 ? hours : 1));
-    final timePrefix = 6 + startHourOffset;
 
     final bool isPast = timePrefix < DateTime.now().hour &&
         isSameDay(_selectedDay, DateTime.now());
