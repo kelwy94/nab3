@@ -22,6 +22,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
   late TextEditingController _nameController;
   late TextEditingController _priceController;
   late TextEditingController _unitController;
+  late TextEditingController _descriptionController;
   String _selectedCategory = 'بذور وأسمدة';
   bool _inStock = true;
   bool _isLoading = false;
@@ -43,6 +44,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
     _priceController =
         TextEditingController(text: widget.product?.price.toString() ?? '');
     _unitController = TextEditingController(text: widget.product?.unit ?? '');
+    _descriptionController = TextEditingController(text: widget.product?.description ?? '');
     _selectedCategory = widget.product?.category ?? 'بذور وأسمدة';
     _inStock = widget.product?.stockStatus ?? true;
     if (widget.product?.photoUrl != null) {
@@ -59,6 +61,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
     _nameController.dispose();
     _priceController.dispose();
     _unitController.dispose();
+    _descriptionController.dispose();
     super.dispose();
   }
 
@@ -101,6 +104,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
           price: double.parse(_priceController.text),
           stockStatus: _inStock,
           photoUrl: base64Image,
+          description: _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
         );
 
         await context.read<CatalogProvider>().addOrUpdateProduct(item);
@@ -214,6 +218,13 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(height: 20),
+              _buildFieldLabel('مواصفات المنتج'),
+              TextFormField(
+                controller: _descriptionController,
+                decoration: const InputDecoration(hintText: 'وصف المنتج، مواصفاته واستخداماته'),
+                maxLines: 4,
               ),
               const SizedBox(height: 24),
               SwitchListTile(

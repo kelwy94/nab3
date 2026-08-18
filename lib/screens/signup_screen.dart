@@ -148,6 +148,13 @@ class _SignupScreenState extends State<SignupScreen> {
             'equipmentType': _extra3Controller.text,
             'hourlyRate': _extra4Controller.text,
           });
+        } else if (widget.role == UserRole.deliveryWorker) {
+          if (_idFrontBytes == null || _idBackBytes == null) {
+            throw Exception('صورة البطاقة (الوجهين) إجبارية لعامل التوصيل');
+          }
+          extraData.addAll({
+            'vehicleType': _extra1Controller.text,
+          });
         }
 
         // Add payment info for service providers
@@ -616,6 +623,19 @@ class _SignupScreenState extends State<SignupScreen> {
             decoration: const InputDecoration(hintText: '0.00'),
           ),
         ];
+      case UserRole.deliveryWorker:
+        return [
+          _buildFieldLabel('نوع وسيلة النقل'),
+          DropdownButtonFormField<String>(
+            decoration: const InputDecoration(),
+            items: ['توكتوك', 'موتسيكل', 'سكوتر', 'عجلة']
+                .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                .toList(),
+            onChanged: (v) => _extra1Controller.text = v ?? '',
+            validator: (v) => v == null ? 'مطلوب' : null,
+          ),
+          const SizedBox(height: 20),
+        ];
       case UserRole.admin:
         return [];
       default:
@@ -647,6 +667,8 @@ class _SignupScreenState extends State<SignupScreen> {
         return 'صاحب معدات';
       case UserRole.investor:
         return 'مستثمر';
+      case UserRole.deliveryWorker:
+        return 'عامل توصيل';
       case UserRole.admin:
         return 'مسؤول';
     }
@@ -655,6 +677,7 @@ class _SignupScreenState extends State<SignupScreen> {
   bool get _isServiceProvider =>
       widget.role == UserRole.worker ||
       widget.role == UserRole.seller ||
+      widget.role == UserRole.deliveryWorker ||
       widget.role == UserRole.equipmentOwner;
 
   String get _paymentDetailsLabel {

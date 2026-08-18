@@ -268,6 +268,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   const SizedBox(height: 12),
                   _buildRoleCard(
                     context,
+                    title: 'عامل توصيل',
+                    subtitle: 'توصيل الطلبات والمستلزمات',
+                    icon: Icons.moped_rounded,
+                    role: UserRole.deliveryWorker,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildRoleCard(
+                    context,
                     title: 'صاحب معدات',
                     subtitle: 'جرارات، ماكينات ري، إلخ',
                     icon: Icons.minor_crash_rounded,

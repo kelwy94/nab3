@@ -53,10 +53,39 @@ class _RegisterFormScreenState extends State<RegisterFormScreen> {
       );
 
       await authProvider.signup(user, _passwordController.text);
+      
+      if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تم التسجيل بنجاح!')),
+      bool isFarmer = user.role == UserRole.farmer;
+      
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => Directionality(
+          textDirection: TextDirection.rtl,
+          child: AlertDialog(
+            title: Text(
+              isFarmer ? 'مرحباً بك في تطبيق نبع! 🌾' : 'شريكاً معنا في نبع! 🤝',
+              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green),
+            ),
+            content: Text(
+              isFarmer 
+                ? 'نود التنويه بأن التطبيق سيعمل بكامل طاقته ومميزاته ابتداءً من 15-9-2026.\n\nالفترة الحالية مخصصة لتسجيل العمالة، المعدات، والمستلزمات الزراعية (والذي ينتهي في 15-9-2026). لذلك، يمكنك استكشاف التطبيق براحتك، لكن قد لا تجد جميع الخدمات متاحة أو مكتملة في الوقت الحالي.\n\nشكراً لانضمامك إلى مجتمعنا وتفهمك!'
+                : 'نود التنويه بأن فترة التسجيل الحالية للعمالة، المعدات، والمستلزمات الزراعية ستنتهي يوم 15-9-2026.\n\nيرجى التأكد من استكمال كافة بياناتك قبل هذا الموعد لضمان ظهور خدماتك للمزارعين فور انطلاق التطبيق بكامل طاقته.',
+              style: const TextStyle(height: 1.5, fontSize: 16),
+            ),
+            actions: [
+              ElevatedButton(
+                onPressed: () => Navigator.pop(ctx),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade700),
+                child: const Text('حسناً، فهمت', style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          ),
+        ),
       );
+
+      if (!mounted) return;
       Navigator.of(context).pushReplacementNamed('/home');
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(

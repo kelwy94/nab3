@@ -11,6 +11,7 @@ import 'request_worker_screen.dart';
 import 'request_equipment_screen.dart';
 import 'job_details_screen.dart';
 import 'cart_screen.dart';
+import 'product_details_screen.dart';
 
 class MarketplaceScreen extends StatelessWidget {
   const MarketplaceScreen({super.key});
@@ -90,6 +91,11 @@ class ProductCatalog extends StatelessWidget {
   Widget _buildProductCard(BuildContext context, dynamic p) {
     return NabaCard(
       padding: EdgeInsets.zero,
+      onTap: () {
+        Navigator.push(context, MaterialPageRoute(
+          builder: (_) => ProductDetailsScreen(product: p)
+        ));
+      },
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

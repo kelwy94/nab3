@@ -23,6 +23,7 @@ import 'screens/onboarding_screen.dart';
 import 'screens/pending_approval_screen.dart';
 import 'screens/seller_dashboard.dart';
 import 'screens/worker_dashboard.dart';
+import 'screens/delivery_worker_dashboard.dart';
 import 'theme.dart';
 
 void main() async {
@@ -154,6 +155,8 @@ class DashboardSwitcher extends StatelessWidget {
         return const SellerDashboard();
       case UserRole.equipmentOwner:
         return const EquipmentOwnerDashboard();
+      case UserRole.deliveryWorker:
+        return const DeliveryWorkerDashboard();
       case UserRole.investor:
         return const FarmerDashboard(); // Placeholder until investor flow is enabled
       case UserRole.admin:

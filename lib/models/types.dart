@@ -1,6 +1,7 @@
 enum UserRole {
   farmer,
   worker,
+  deliveryWorker,
   seller,
   equipmentOwner,
   investor,
@@ -155,6 +156,22 @@ class WorkerProfile {
     this.hourlyRate,
     this.dailyRate,
     required this.availability,
+    required this.serviceRadiusKm,
+    this.ratingAvg = 0.0,
+  });
+}
+
+class DeliveryWorkerProfile {
+  final String userId;
+  final String idCardImageBase64;
+  final String vehicleType; // tuktuk, motorcycle, scooter, bicycle
+  final double serviceRadiusKm;
+  final double ratingAvg;
+
+  DeliveryWorkerProfile({
+    required this.userId,
+    required this.idCardImageBase64,
+    required this.vehicleType,
     required this.serviceRadiusKm,
     this.ratingAvg = 0.0,
   });
@@ -388,6 +405,7 @@ class Order {
   final String id;
   final String buyerUserId;
   final String sellerUserId;
+  final String? deliveryWorkerId;
   final OrderStatus status;
   final double total;
   final double deliveryFee;
@@ -398,6 +416,7 @@ class Order {
     required this.id,
     required this.buyerUserId,
     required this.sellerUserId,
+    this.deliveryWorkerId,
     required this.status,
     required this.total,
     required this.deliveryFee,
@@ -431,6 +450,9 @@ class CatalogItem {
   final double price;
   final bool stockStatus;
   final String? photoUrl;
+  final String? description;
+  final double ratingAvg;
+  final int ratingCount;
 
   CatalogItem({
     required this.id,
@@ -441,6 +463,9 @@ class CatalogItem {
     required this.price,
     required this.stockStatus,
     this.photoUrl,
+    this.description,
+    this.ratingAvg = 0.0,
+    this.ratingCount = 0,
   });
 }
 

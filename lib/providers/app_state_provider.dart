@@ -121,6 +121,9 @@ class AppStateProvider with ChangeNotifier {
             price: (data['price'] ?? 0.0).toDouble(),
             stockStatus: data['stockStatus'] ?? true,
             photoUrl: data['photoUrl'],
+            description: data['description'],
+            ratingAvg: (data['ratingAvg'] ?? 0.0).toDouble(),
+            ratingCount: data['ratingCount'] ?? 0,
           ));
         } catch (e) {
           debugPrint('CATALOG: Error parsing product ${doc.id}: $e');
@@ -144,6 +147,7 @@ class AppStateProvider with ChangeNotifier {
             id: doc.id,
             buyerUserId: data['buyerUserId'] ?? '',
             sellerUserId: data['sellerUserId'] ?? '',
+            deliveryWorkerId: data['deliveryWorkerId'],
             status: naba.OrderStatus.values.firstWhere(
               (e) => e.toString() == data['status'] || e.toString().split('.').last == (data['status'] ?? ''),
               orElse: () => naba.OrderStatus.placed,

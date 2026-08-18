@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
 import 'package:flutter/material.dart';
 
 import '../models/types.dart';
+import '../services/notification_service.dart';
 
 class AuthProvider with ChangeNotifier {
   User? _user;
@@ -33,6 +34,7 @@ class AuthProvider with ChangeNotifier {
         }
       } else {
         await _fetchUserProfile(fbUser.uid);
+        await NotificationService.updateToken(fbUser.uid);
       }
     });
   }

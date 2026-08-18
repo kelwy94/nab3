@@ -158,6 +158,36 @@ class _LoginScreenState extends State<LoginScreen> {
                           color: NabaTheme.primary,
                           fontWeight: FontWeight.bold)),
                 ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.green.shade200),
+                  ),
+                  child: const Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.info_outline, color: Colors.green),
+                          SizedBox(width: 8),
+                          Text(
+                            'تنويه هام',
+                            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        'الفترة الحالية مخصصة لتسجيل العمالة والمعدات الزراعية وتنتهي في 15-9-2026. سيعمل التطبيق بكامل طاقته للمزارعين ابتداءً من هذا التاريخ.\n(ملاحظة للمزارع: يمكنك التسجيل الآن بشكل طبيعي، ولكن قد لا تجد خدمات متاحة في الوقت الحالي)',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 13, height: 1.5, color: Colors.black87),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
