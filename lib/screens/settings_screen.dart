@@ -6,6 +6,7 @@ import '../widgets/naba_widgets.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/locale_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart' as auth;
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -53,7 +54,8 @@ class SettingsScreen extends StatelessWidget {
               _buildSettingsItem(
                   Icons.description_outlined, 'الشروطة والأحكام', ''),
               _buildSettingsItem(
-                  Icons.star_outline_rounded, 'تقييم التطبيق', ''),
+                  Icons.star_outline_rounded, 'تقييم التطبيق', '',
+                  onTap: () => _showRateAppDialog(context)),
             ]),
             const SizedBox(height: 48),
             NabaButton(
@@ -63,7 +65,7 @@ class SettingsScreen extends StatelessWidget {
               onPressed: () => authProvider.logout(),
             ),
             const SizedBox(height: 24),
-            const Text('الإصدار 1.0.0 (389)',
+            const Text('الإصدار 1.0.4 (5)',
                 style: TextStyle(color: Colors.grey, fontSize: 12)),
           ],
         ),
@@ -132,6 +134,89 @@ class SettingsScreen extends StatelessWidget {
               child: const Text('حفظ'),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showRateAppDialog(BuildContext context) async {
+    int rating = 5;
+    final feedbackCtrl = TextEditingController();
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('تقييم التطبيق'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('ما تقييمك لتجربة استخدام تطبيق نبع؟', textAlign: TextAlign.center),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(5, (index) {
+                      return IconButton(
+                        icon: Icon(
+                          index < rating ? Icons.star_rounded : Icons.star_outline_rounded,
+                          color: Colors.amber,
+                          size: 32,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            rating = index + 1;
+                          });
+                        },
+                      );
+                    }),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: feedbackCtrl,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      hintText: 'أخبرنا برأيك أو أي اقتراحات للتطوير...',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: NabaTheme.primary),
+                  onPressed: () async {
+                    try {
+                      final user = Provider.of<AuthProvider>(context, listen: false).user;
+                      await FirebaseFirestore.instance.collection('app_ratings').add({
+                        'userId': user?.id ?? 'unknown',
+                        'userName': user?.fullName ?? 'unknown',
+                        'rating': rating,
+                        'feedback': feedbackCtrl.text,
+                        'createdAt': FieldValue.serverTimestamp(),
+                      });
+                      if (ctx.mounted) {
+                        Navigator.pop(ctx);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('شكراً لتقييمك!'), backgroundColor: Colors.green),
+                        );
+                      }
+                    } catch (e) {
+                      if (ctx.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('حدث خطأ: $e'), backgroundColor: Colors.red),
+                        );
+                      }
+                    }
+                  },
+                  child: const Text('إرسال', style: TextStyle(color: Colors.white)),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );

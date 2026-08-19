@@ -17,6 +17,14 @@ class CheckoutScreen extends StatefulWidget {
 class _CheckoutScreenState extends State<CheckoutScreen> {
   bool _isProcessing = false;
   bool _leaveAtDoor = false;
+  String _selectedPaymentMethod = 'الدفع عند الاستلام';
+  
+  final List<String> _paymentMethods = [
+    'الدفع عند الاستلام',
+    'تحويل بنكي',
+    'إنستاباي',
+    'فودافون كاش'
+  ];
 
   /// Fetch seller info from Firestore
   Future<Map<String, dynamic>?> _fetchSellerInfo(String sellerId) async {
@@ -117,7 +125,43 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         continue;
       }
 
-      // Show payment proof dialog for THIS seller
+      if (_selectedPaymentMethod == 'الدفع عند الاستلام') {
+        // Direct order creation for Cash on Delivery
+        await FirebaseFirestore.instance.collection('orders').add({
+          'buyerUserId': user.id,
+          'sellerUserId': sellerId,
+          'status': 'OrderStatus.placed',
+          'total': sellerTotal,
+          'subtotal': sellerSubtotal,
+          'deliveryFee': deliveryFeePerSeller,
+          'deliveryMethod': 'delivery',
+          'deliveryAddress': appState.selectedAddress ?? user.address,
+          'leaveAtDoor': _leaveAtDoor,
+          'paymentMethod': _selectedPaymentMethod,
+          'createdAt': FieldValue.serverTimestamp(),
+          'items': sellerItems
+              .map((item) => {
+                    'itemId': item.id,
+                    'name': item.name,
+                    'price': item.price,
+                    'quantity': appState.getQuantity(item.id),
+                  })
+              .toList(),
+        });
+        
+        // Remove items from cart
+        for (var item in sellerItems) {
+          final qty = appState.getQuantity(item.id);
+          for (int q = 0; q < qty; q++) {
+            appState.removeFromCart(item);
+          }
+        }
+        continue;
+      }
+
+      // If not Cash on Delivery, show payment proof dialog
+      
+
       final sellerLabel = totalSellers > 1
           ? '${payInfo.name} (${i + 1} من $totalSellers)'
           : payInfo.name;
@@ -131,7 +175,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           paymentDetails: payInfo.details,
           amount: sellerTotal,
           onSubmit: (senderNumber, screenshotBase64) async {
-            // Create order for this seller
             await FirebaseFirestore.instance.collection('orders').add({
               'buyerUserId': user.id,
               'sellerUserId': sellerId,
@@ -142,7 +185,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               'deliveryMethod': 'delivery',
               'deliveryAddress': appState.selectedAddress ?? user.address,
               'leaveAtDoor': _leaveAtDoor,
-              'paymentMethod': payInfo.methodLabel,
+              'paymentMethod': _selectedPaymentMethod,
               'paymentProof': {
                 'senderNumber': senderNumber,
                 'screenshotBase64': screenshotBase64,
@@ -159,18 +202,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   .toList(),
             });
 
-            // Add transaction to seller's wallet
             await FirebaseFirestore.instance.collection('transactions').add({
               'userId': sellerId,
               'type': 'incoming',
               'amount': sellerTotal,
-              'note': 'طلب من ${user.fullName} (${payInfo.methodLabel})',
-              'paymentMethod': payInfo.methodLabel,
+              'note': 'طلب من ${user.fullName} (${_selectedPaymentMethod})',
+              'paymentMethod': _selectedPaymentMethod,
               'buyerName': user.fullName,
               'createdAt': FieldValue.serverTimestamp(),
             });
 
-            // Update seller wallet balance
             final walletRef =
                 FirebaseFirestore.instance.collection('wallets').doc(sellerId);
             final walletDoc = await walletRef.get();
@@ -186,7 +227,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       );
 
       if (result == true) {
-        // Remove this seller's items from cart immediately
         for (var item in sellerItems) {
           final qty = appState.getQuantity(item.id);
           for (int q = 0; q < qty; q++) {
@@ -195,7 +235,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         }
       } else {
         allSuccess = false;
-        break; // User cancelled
+        break;
       }
     }
 
@@ -368,32 +408,46 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             ),
           ),
 
-          // Payment Info Note
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.amber.shade50,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.amber.shade200),
-            ),
-            child: Row(
-              textDirection: TextDirection.rtl,
-              children: [
-                Icon(Icons.info_outline,
-                    color: Colors.amber.shade800, size: 22),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'عند الضغط على "تأكيد الطلب" ستظهر بيانات الدفع الخاصة بالبائع لتحويل المبلغ وإرسال إثبات التحويل',
-                    style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.amber.shade900,
-                        height: 1.5),
-                    textAlign: TextAlign.right,
+          // Payment Method Selector
+          _buildSectionCard(
+            icon: Icons.payment,
+            iconColor: Colors.green.shade700,
+            title: 'طريقة الدفع',
+            child: Column(
+              children: _paymentMethods.map((method) {
+                final isSelected = _selectedPaymentMethod == method;
+                return InkWell(
+                  onTap: () => setState(() => _selectedPaymentMethod = method),
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: isSelected ? NabaTheme.primary : Colors.grey.shade300,
+                        width: isSelected ? 2 : 1,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      color: isSelected ? NabaTheme.primary.withOpacity(0.05) : Colors.white,
+                    ),
+                    child: Row(
+                      textDirection: TextDirection.rtl,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(method,
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                              color: isSelected ? NabaTheme.primary : Colors.black87,
+                            )),
+                        if (isSelected)
+                          const Icon(Icons.check_circle, color: NabaTheme.primary, size: 20)
+                        else
+                          Icon(Icons.circle_outlined, color: Colors.grey.shade400, size: 20),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                );
+              }).toList(),
             ),
           ),
 

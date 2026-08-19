@@ -342,4 +342,11 @@ class AuthProvider with ChangeNotifier {
   Future<void> seedDemoData() async {
     // Deprecated: No longer using mock data in AuthProvider
   }
+
+  Future<void> reloadUser() async {
+    if (_user != null) {
+      await _fetchUserProfile(_user!.id);
+      notifyListeners();
+    }
+  }
 }

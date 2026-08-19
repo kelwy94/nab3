@@ -36,12 +36,14 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
     switch (status) {
       case OrderStatus.placed:
         return 0;
-      case OrderStatus.confirmed:
+      case OrderStatus.deliveryAccepted:
         return 1;
-      case OrderStatus.outForDelivery:
+      case OrderStatus.preparing:
         return 2;
-      case OrderStatus.completed:
+      case OrderStatus.outForDelivery:
         return 3;
+      case OrderStatus.completed:
+        return 4;
     }
   }
 
@@ -49,7 +51,9 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
     switch (status) {
       case OrderStatus.placed:
         return 'تم استلام الطلب';
-      case OrderStatus.confirmed:
+      case OrderStatus.deliveryAccepted:
+        return 'تم تعيين مندوب';
+      case OrderStatus.preparing:
         return 'جاري التجهيز';
       case OrderStatus.outForDelivery:
         return 'في الطريق إليك';
@@ -62,7 +66,9 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
     switch (status) {
       case OrderStatus.placed:
         return Colors.blue;
-      case OrderStatus.confirmed:
+      case OrderStatus.deliveryAccepted:
+        return Colors.teal;
+      case OrderStatus.preparing:
         return Colors.orange;
       case OrderStatus.outForDelivery:
         return Colors.purple;
@@ -71,32 +77,82 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
     }
   }
 
-  Future<void> _confirmReceipt() async {
-    setState(() => _isConfirming = true);
-    try {
-      await FirebaseFirestore.instance
-          .collection('orders')
-          .doc(widget.order.id)
-          .update({'status': OrderStatus.completed.toString()});
+  Future<void> _rateSeller() async {
+    if (!mounted) return;
+    int selectedRating = 5;
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('مبروك! تم استلام الطلب بنجاح. شكراً لتسوقك من نبع 🎉'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        Navigator.pop(context);
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('خطأ: $e')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isConfirming = false);
-    }
+    await showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: const Text('تقييم المحل', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('ما هو تقييمك لجودة المنتجات والخدمة؟', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(5, (index) {
+                    return IconButton(
+                      icon: Icon(
+                        index < selectedRating ? Icons.star_rounded : Icons.star_border_rounded,
+                        color: Colors.amber,
+                        size: 40,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          selectedRating = index + 1;
+                        });
+                      },
+                    );
+                  }),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: NabaTheme.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: () async {
+                  Navigator.pop(context);
+                  try {
+                    // Update seller's rating in Firestore
+                    final sellerDoc = FirebaseFirestore.instance.collection('users').doc(widget.order.sellerUserId);
+                    final snapshot = await sellerDoc.get();
+                    if (snapshot.exists) {
+                      final Map<String, dynamic> dataMap = snapshot.data() as Map<String, dynamic>? ?? {};
+                      final Map<String, dynamic> extraData = dataMap['extraData'] is Map ? dataMap['extraData'] as Map<String, dynamic> : {};
+                      final double currentRating = extraData['rating'] != null ? (extraData['rating'] as num).toDouble() : 5.0;
+                      final int ratingCount = extraData['ratingCount'] != null ? (extraData['ratingCount'] as num).toInt() : 1;
+                      
+                      final newRating = ((currentRating * ratingCount) + selectedRating) / (ratingCount + 1);
+                      
+                      await sellerDoc.set({
+                        'extraData': {
+                          'rating': newRating,
+                          'ratingCount': ratingCount + 1,
+                        }
+                      }, SetOptions(merge: true));
+                    }
+                    if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إرسال التقييم بنجاح. شكراً لك!')));
+                  } catch (e) {
+                    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('حدث خطأ أثناء إرسال التقييم: $e')));
+                  }
+                },
+                child: const Text('إرسال التقييم'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
   }
 
   @override
@@ -163,7 +219,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
                                 ? Icons.check_circle_rounded
                                 : currentStatus == OrderStatus.outForDelivery
                                     ? Icons.local_shipping_rounded
-                                    : currentStatus == OrderStatus.confirmed
+                                    : (currentStatus == OrderStatus.preparing || currentStatus == OrderStatus.deliveryAccepted)
                                         ? Icons.inventory_2_rounded
                                         : Icons.receipt_long_rounded,
                             color: Colors.white,
@@ -181,7 +237,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
                           if (currentStatus != OrderStatus.completed) ...[
                             const SizedBox(height: 8),
                             Text(
-                              'تقدم الطلب: ${((step + 1) / 4 * 100).toInt()}%',
+                              'تقدم الطلب: ${((step + 1) / 5 * 100).toInt()}%',
                               style: const TextStyle(
                                   color: Colors.white70, fontSize: 14),
                             ),
@@ -189,7 +245,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
                             ClipRRect(
                               borderRadius: BorderRadius.circular(10),
                               child: LinearProgressIndicator(
-                                value: (step + 1) / 4,
+                                value: (step + 1) / 5,
                                 backgroundColor: Colors.white.withOpacity(0.2),
                                 valueColor: const AlwaysStoppedAnimation<Color>(
                                     Colors.white),
@@ -245,27 +301,35 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
                         isLast: false,
                       ),
                       _buildTimelineStep(
+                        'تم تعيين مندوب',
+                        'تم تحديد مندوب توصيل لطلبك',
+                        Icons.person_search_outlined,
+                        step >= 1,
+                        isActive: step == 1,
+                        isLast: false,
+                      ),
+                      _buildTimelineStep(
                         'جاري التجهيز',
                         'التاجر يقوم بتجهيز منتجاتك الآن',
                         Icons.inventory_2_outlined,
-                        step >= 1,
-                        isActive: step == 1,
+                        step >= 2,
+                        isActive: step == 2,
                         isLast: false,
                       ),
                       _buildTimelineStep(
                         'في الطريق إليك',
                         'المندوب في طريقه لتسليمك الطلب',
                         Icons.local_shipping_outlined,
-                        step >= 2,
-                        isActive: step == 2,
+                        step >= 3,
+                        isActive: step == 3,
                         isLast: false,
                       ),
                       _buildTimelineStep(
                         'تم التسليم',
                         'شكراً لتسوقك من نبع الجُدد',
                         Icons.check_circle_outline,
-                        step >= 3,
-                        isActive: step == 3,
+                        step >= 4,
+                        isActive: step == 4,
                         isLast: true,
                       ),
                     ],
@@ -273,13 +337,11 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
                 ),
                 const SizedBox(height: 32),
 
-                if (currentStatus == OrderStatus.outForDelivery)
+                if (currentStatus == OrderStatus.completed)
                   NabaButton(
-                    text: _isConfirming
-                        ? 'جاري التأكيد...'
-                        : 'تأكيد استلام الطلب ✅',
-                    onPressed: _isConfirming ? null : _confirmReceipt,
-                    icon: Icons.check_circle,
+                    text: 'تقييم المحل ⭐️',
+                    onPressed: _rateSeller,
+                    icon: Icons.star_rate_rounded,
                   ),
               ],
             ),

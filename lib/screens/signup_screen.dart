@@ -9,6 +9,8 @@ import '../models/types.dart';
 import '../providers/auth_provider.dart';
 import '../theme.dart';
 import '../widgets/naba_widgets.dart';
+import 'map_picker_screen.dart';
+import 'package:latlong2/latlong.dart';
 
 class SignupScreen extends StatefulWidget {
   final UserRole role;
@@ -41,6 +43,7 @@ class _SignupScreenState extends State<SignupScreen> {
   PaymentMethod? _selectedPaymentMethod;
   late TextEditingController _paymentDetailsController;
   late TextEditingController _bankNameController;
+  LatLng? _selectedLocation;
 
   Future<void> _pickImage() async {
     try {
@@ -128,6 +131,13 @@ class _SignupScreenState extends State<SignupScreen> {
         Map<String, dynamic> extraData = {
           'email': _emailController.text,
           'password': _passwordController.text,
+          'location': _selectedLocation != null ? {
+            'lat': _selectedLocation!.latitude,
+            'lng': _selectedLocation!.longitude,
+          } : {
+            'lat': 30.0444, // Default to Cairo if not picked
+            'lng': 31.2357,
+          },
         };
         if (widget.role == UserRole.farmer) {
           extraData.addAll({
@@ -508,35 +518,51 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   Widget _buildLocationPicker() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.blue.shade50,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.blue.shade100),
-      ),
-      child: Row(
-        textDirection: TextDirection.rtl,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.blue.shade400,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(Icons.location_on_rounded,
-                color: Colors.white, size: 20),
+    return InkWell(
+      onTap: () async {
+        final result = await Navigator.push<LatLng>(
+          context,
+          MaterialPageRoute(
+            builder: (_) => MapPickerScreen(initialLocation: _selectedLocation),
           ),
-          const SizedBox(width: 16),
-          const Expanded(
-            child: Text(
-              'تحديد الموقع على الخريطة',
-              textAlign: TextAlign.right,
-              style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+        );
+        if (result != null) {
+          setState(() {
+            _selectedLocation = result;
+          });
+        }
+      },
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: _selectedLocation != null ? Colors.green.shade50 : Colors.blue.shade50,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: _selectedLocation != null ? Colors.green.shade200 : Colors.blue.shade100),
+        ),
+        child: Row(
+          textDirection: TextDirection.rtl,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: _selectedLocation != null ? Colors.green.shade400 : Colors.blue.shade400,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.location_on_rounded,
+                  color: Colors.white, size: 20),
             ),
-          ),
-          const Icon(Icons.arrow_back_ios_new, size: 14, color: Colors.blue),
-        ],
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                _selectedLocation != null ? 'تم تحديد الموقع' : 'تحديد الموقع على الخريطة',
+                textAlign: TextAlign.right,
+                style: TextStyle(color: _selectedLocation != null ? Colors.green.shade700 : Colors.blue, fontWeight: FontWeight.bold),
+              ),
+            ),
+            Icon(Icons.arrow_back_ios_new, size: 14, color: _selectedLocation != null ? Colors.green : Colors.blue),
+          ],
+        ),
       ),
     );
   }

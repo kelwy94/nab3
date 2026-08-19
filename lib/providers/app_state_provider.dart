@@ -155,6 +155,7 @@ class AppStateProvider with ChangeNotifier {
             total: (data['total'] ?? 0.0).toDouble(),
             deliveryFee: (data['deliveryFee'] ?? 0.0).toDouble(),
             deliveryMethod: data['deliveryMethod'] ?? 'delivery',
+            paymentMethod: data['paymentMethod'],
             createdAt:
                 (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
           ));

@@ -8,7 +8,7 @@ import '../theme.dart';
 import 'farmer_dashboard.dart' show ProfileScreen;
 import 'settings_screen.dart';
 import 'wallet_screen.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_firestore/cloud_firestore.dart' hide Order;
 
 class DeliveryWorkerDashboard extends StatefulWidget {
   const DeliveryWorkerDashboard({super.key});
@@ -119,13 +119,13 @@ class DeliveryHomeTab extends StatelessWidget {
           
           final availableOrders = allOrders.where((o) =>
             o.deliveryMethod == 'delivery' &&
-            o.status == OrderStatus.confirmed &&
+            o.status == OrderStatus.placed &&
             o.deliveryWorkerId == null
           ).toList();
 
           final myActiveOrders = allOrders.where((o) =>
             o.deliveryWorkerId == user?.id &&
-            o.status == OrderStatus.outForDelivery
+            (o.status == OrderStatus.deliveryAccepted || o.status == OrderStatus.preparing || o.status == OrderStatus.outForDelivery)
           ).toList();
 
           final myCompletedOrders = allOrders.where((o) =>
@@ -267,57 +267,112 @@ class DeliveryHomeTab extends StatelessWidget {
     final color = isActive ? Colors.blue : NabaTheme.primary;
     final userId = Provider.of<AuthProvider>(context, listen: false).user!.id;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.3)),
-        boxShadow: [BoxShadow(color: color.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Row(
-            textDirection: ui.TextDirection.rtl,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('طلب توصيل #${order.id.substring(0, 5)}', style: const TextStyle(fontWeight: FontWeight.bold)),
-              Text('${order.deliveryFee} ج.م', style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 16)),
+    return InkWell(
+      onTap: () {
+        // Show order details dialogue
+        showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: Text('تفاصيل الطلب #${order.id.substring(0, 5)}', textAlign: TextAlign.right),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text('استلام من المحل: ${order.sellerUserId}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                Text('تسليم للمزارع: ${order.buyerUserId}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 16),
+                Text('طريقة الدفع: ${order.paymentMethod ?? "غير محدد"}'),
+                Text('رسوم التوصيل: ${order.deliveryFee} ج.م'),
+                const SizedBox(height: 16),
+                const Text('تأكد من المسافة قبل قبول الطلب لضمان التوصيل في الوقت المناسب.', style: TextStyle(color: Colors.grey, fontSize: 12), textAlign: TextAlign.right),
+              ],
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context), child: const Text('إغلاق')),
             ],
           ),
-          const SizedBox(height: 8),
-          const Text('استلام من: السوق الزراعي', style: TextStyle(color: Colors.grey)),
-          const Text('توصيل إلى: المزارع', style: TextStyle(color: Colors.grey)),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () async {
-                if (!isActive) {
-                  // Accept delivery
-                  await FirebaseFirestore.instance.collection('orders').doc(order.id).update({
-                    'deliveryWorkerId': userId,
-                    'status': OrderStatus.outForDelivery.toString(),
-                  });
-                  if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم قبول الطلب بنجاح')));
-                } else {
-                  // Complete delivery
-                  await FirebaseFirestore.instance.collection('orders').doc(order.id).update({
-                    'status': OrderStatus.completed.toString(),
-                  });
-                  if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إنهاء التوصيل بنجاح')));
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: color,
-                foregroundColor: Colors.white,
-              ),
-              child: Text(isActive ? 'تم التوصيل بنجاح' : 'قبول التوصيل'),
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withOpacity(0.3)),
+          boxShadow: [BoxShadow(color: color.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Row(
+              textDirection: ui.TextDirection.rtl,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('طلب توصيل #${order.id.substring(0, 5)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text('${order.deliveryFee} ج.م', style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 16)),
+              ],
             ),
-          )
-        ],
+            const SizedBox(height: 8),
+            const Text('استلام من: عنوان المحل (اضغط للتفاصيل)', style: TextStyle(color: Colors.grey)),
+            const Text('توصيل إلى: عنوان المزارع (اضغط للتفاصيل)', style: TextStyle(color: Colors.grey)),
+            const SizedBox(height: 12),
+            if (!isActive)
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () async {
+                    await FirebaseFirestore.instance.collection('orders').doc(order.id).update({
+                      'deliveryWorkerId': userId,
+                      'status': OrderStatus.deliveryAccepted.toString(),
+                    });
+                    
+                    final auth = Provider.of<AuthProvider>(context, listen: false);
+                    final workerName = auth.user?.fullName ?? 'مندوب توصيل';
+                    await FirebaseFirestore.instance.collection('users').doc(order.sellerUserId).collection('notifications').add({
+                      'title': 'المندوب في الطريق!',
+                      'body': 'لقد وافق $workerName على توصيل الطلب رقم #${order.id.substring(0, 5)} وسيصل لاستلامه قريباً.',
+                      'createdAt': FieldValue.serverTimestamp(),
+                      'isRead': false,
+                    });
+
+                    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم قبول الطلب بنجاح وإشعار المحل')));
+                  },
+                  style: ElevatedButton.styleFrom(backgroundColor: color, foregroundColor: Colors.white),
+                  child: const Text('قبول التوصيل'),
+                ),
+              )
+            else if (order.status == OrderStatus.outForDelivery)
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () async {
+                    await FirebaseFirestore.instance.collection('orders').doc(order.id).update({
+                      'status': OrderStatus.completed.toString(),
+                    });
+                    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إنهاء التوصيل بنجاح')));
+                  },
+                  style: ElevatedButton.styleFrom(backgroundColor: color, foregroundColor: Colors.white),
+                  child: const Text('تم التوصيل بنجاح'),
+                ),
+              )
+            else
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade200,
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Text(
+                  order.status == OrderStatus.preparing ? 'بانتظار تجهيز المحل...' : 'تم قبول الطلب',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey.shade700, fontWeight: FontWeight.bold),
+                ),
+              )
+          ],
+        ),
       ),
     );
   }

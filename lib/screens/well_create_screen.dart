@@ -5,6 +5,8 @@ import '../providers/auth_provider.dart';
 import '../providers/well_provider.dart';
 import '../theme.dart';
 import '../widgets/naba_widgets.dart';
+import 'map_picker_screen.dart';
+import 'package:latlong2/latlong.dart';
 
 class WellCreateScreen extends StatefulWidget {
   const WellCreateScreen({super.key});
@@ -26,6 +28,7 @@ class _WellCreateScreenState extends State<WellCreateScreen> {
   int _irrigationFrequencyDays = 1;
   WaterOutput _output = WaterOutput.medium;
   FairnessRule _rule = FairnessRule.proportional;
+  LatLng? _selectedLocation;
 
   @override
   Widget build(BuildContext context) {
@@ -57,6 +60,8 @@ class _WellCreateScreenState extends State<WellCreateScreen> {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 32),
+              _buildLocationPicker(),
+              const SizedBox(height: 24),
               _buildInputSection(
                 label: 'اسم البئر',
                 child: TextFormField(
@@ -169,7 +174,7 @@ class _WellCreateScreenState extends State<WellCreateScreen> {
                       id: 'well_${DateTime.now().millisecondsSinceEpoch}',
                       adminUserId: auth.user?.id ?? 'guest',
                       wellName: _wellName,
-                      location: {'lat': 0.0, 'lng': 0.0}, // Mock location
+                      location: _selectedLocation != null ? {'lat': _selectedLocation!.latitude, 'lng': _selectedLocation!.longitude} : {'lat': 30.0, 'lng': 31.0},
                       depthMeters: _depth,
                       irrigatedAreaFeddan: _area,
                       waterOutput: _output,
@@ -342,5 +347,54 @@ class _WellCreateScreenState extends State<WellCreateScreen> {
       case WaterOutput.high:
         return 'قوي';
     }
+  }
+
+  Widget _buildLocationPicker() {
+    return InkWell(
+      onTap: () async {
+        final result = await Navigator.push<LatLng>(
+          context,
+          MaterialPageRoute(
+            builder: (_) => MapPickerScreen(initialLocation: _selectedLocation),
+          ),
+        );
+        if (result != null) {
+          setState(() {
+            _selectedLocation = result;
+          });
+        }
+      },
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: _selectedLocation != null ? Colors.green.shade50 : Colors.blue.shade50,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: _selectedLocation != null ? Colors.green.shade200 : Colors.blue.shade100),
+        ),
+        child: Row(
+          textDirection: TextDirection.rtl,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: _selectedLocation != null ? Colors.green.shade400 : Colors.blue.shade400,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.location_on_rounded, color: Colors.white, size: 20),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                _selectedLocation != null ? 'تم تحديد موقع البئر بنجاح' : 'حدد موقع البئر على الخريطة',
+                textAlign: TextAlign.right,
+                style: TextStyle(color: _selectedLocation != null ? Colors.green.shade700 : Colors.blue, fontWeight: FontWeight.bold),
+              ),
+            ),
+            Icon(Icons.arrow_back_ios_new, size: 14, color: _selectedLocation != null ? Colors.green : Colors.blue),
+          ],
+        ),
+      ),
+    );
   }
 }

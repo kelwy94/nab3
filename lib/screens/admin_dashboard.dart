@@ -1910,6 +1910,8 @@ class _AdminDashboardState extends State<AdminDashboard>
         return 'مستثمر';
       case UserRole.admin:
         return 'مسؤول';
+      case UserRole.deliveryWorker:
+        return 'عامل توصيل';
     }
   }
 

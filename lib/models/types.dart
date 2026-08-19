@@ -22,7 +22,7 @@ enum JobStatus {
   disputed
 }
 
-enum OrderStatus { placed, confirmed, outForDelivery, completed }
+enum OrderStatus { placed, deliveryAccepted, preparing, outForDelivery, completed }
 
 enum SwapStatus { pending, accepted, rejected }
 
@@ -410,6 +410,7 @@ class Order {
   final double total;
   final double deliveryFee;
   final String deliveryMethod; // delivery, pickup
+  final String? paymentMethod;
   final DateTime createdAt;
 
   Order({
@@ -421,6 +422,7 @@ class Order {
     required this.total,
     required this.deliveryFee,
     required this.deliveryMethod,
+    this.paymentMethod,
     required this.createdAt,
   });
 }

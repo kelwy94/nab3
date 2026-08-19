@@ -75,11 +75,15 @@ class OrdersHistoryScreen extends StatelessWidget {
     Color color = Colors.grey;
     switch (status) {
       case OrderStatus.placed:
-        text = 'مراجعة';
+        text = 'جديد';
         color = Colors.blue;
         break;
-      case OrderStatus.confirmed:
-        text = 'تجهيز';
+      case OrderStatus.deliveryAccepted:
+        text = 'تم تعيين مندوب';
+        color = Colors.teal;
+        break;
+      case OrderStatus.preparing:
+        text = 'جاري التجهيز';
         color = Colors.orange;
         break;
       case OrderStatus.outForDelivery:
