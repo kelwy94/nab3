@@ -13,6 +13,165 @@ class OnboardingScreen extends StatefulWidget {
 
   @override
   State<OnboardingScreen> createState() => _OnboardingScreenState();
+
+  static void showRoleSelection(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.85,
+        decoration: const BoxDecoration(
+          color: NabaTheme.background,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(32),
+            topRight: Radius.circular(32),
+          ),
+        ),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'اختر نوع حسابك',
+              style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: NabaTheme.primary),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'حدد صفتك لتخصيص التطبيق لتلبية احتياجاتك',
+              style: TextStyle(fontSize: 14, color: Colors.grey),
+            ),
+            const SizedBox(height: 24),
+            Expanded(
+              child: GridView.count(
+                crossAxisCount: 2,
+                crossAxisSpacing: 16,
+                mainAxisSpacing: 16,
+                childAspectRatio: 0.9,
+                children: [
+                  _buildRoleCard(
+                    context,
+                    title: 'مزارع',
+                    icon: Icons.grass_rounded,
+                    color: Colors.green,
+                    role: UserRole.farmer,
+                  ),
+                  _buildRoleCard(
+                    context,
+                    title: 'مهندس استشاري',
+                    icon: Icons.workspace_premium_rounded,
+                    color: Colors.teal,
+                    role: UserRole.engineer,
+                  ),
+                  _buildRoleCard(
+                    context,
+                    title: 'عامل زراعي / فني',
+                    icon: Icons.handyman_rounded,
+                    color: Colors.amber.shade700,
+                    role: UserRole.worker,
+                  ),
+                  _buildRoleCard(
+                    context,
+                    title: 'صاحب معدات',
+                    icon: Icons.agriculture_rounded,
+                    color: Colors.orange.shade800,
+                    role: UserRole.equipmentOwner,
+                  ),
+                  _buildRoleCard(
+                    context,
+                    title: 'صاحب محل',
+                    icon: Icons.storefront_rounded,
+                    color: Colors.indigo,
+                    role: UserRole.seller,
+                  ),
+                  _buildRoleCard(
+                    context,
+                    title: 'عامل توصيل',
+                    icon: Icons.local_shipping_rounded,
+                    color: Colors.red.shade400,
+                    role: UserRole.deliveryWorker,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static Widget _buildRoleCard(
+    BuildContext context, {
+    required String title,
+    required IconData icon,
+    required Color color,
+    required UserRole role,
+  }) {
+    return Material(
+      color: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(color: Colors.grey.shade200, width: 1.5),
+      ),
+      elevation: 2,
+      shadowColor: color.withOpacity(0.15),
+      child: InkWell(
+        onTap: () async {
+          if (role == UserRole.admin) {
+            await Provider.of<AuthProvider>(context, listen: false)
+                .loginAsAdmin();
+            if (!context.mounted) return;
+            Navigator.of(context).pop();
+          } else {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => SignupScreen(role: role)),
+            );
+          }
+        },
+        borderRadius: BorderRadius.circular(20),
+        splashColor: color.withOpacity(0.1),
+        highlightColor: color.withOpacity(0.05),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: color, size: 36),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _OnboardingScreenState extends State<OnboardingScreen> {
@@ -177,10 +336,39 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           style: TextStyle(color: Colors.grey, fontSize: 16),
                         ),
                       ),
-                      const SizedBox(height: 48),
+                      const SizedBox(height: 24),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.orange.shade200),
+                        ),
+                        child: Row(
+                          textDirection: TextDirection.rtl,
+                          children: [
+                            Icon(Icons.info_outline_rounded,
+                                color: Colors.orange.shade800),
+                            const SizedBox(width: 12),
+                            const Expanded(
+                              child: Text(
+                                'تنويه هام 🚨\nالفترة الحالية مخصصة لتسجيل العمالة والمعدات الزراعية, وتنتهي في 15-9-2026.\nسيعمل التطبيق بكامل طاقته للمزارعين ابتداءً من هذا التاريخ.',
+                                style: TextStyle(
+                                  color: Colors.black87,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  height: 1.5,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
                       NabaButton(
                         text: 'إنشاء حساب جديد',
-                        onPressed: () => _showRoleSelection(context),
+                        onPressed: () =>
+                            OnboardingScreen.showRoleSelection(context),
                         icon: Icons.person_add_alt_1_rounded,
                       ),
                       const SizedBox(height: 16),
@@ -196,158 +384,31 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         },
                         icon: Icons.login_rounded,
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 12),
+                      TextButton(
+                        onPressed: () {
+                          Provider.of<AuthProvider>(context, listen: false)
+                              .enterGuestMode();
+                        },
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: const [
+                            Icon(Icons.visibility_rounded,
+                                color: Colors.grey, size: 16),
+                            SizedBox(width: 6),
+                            Text('تصفّح كزائر (بدون تسجيل)',
+                                style: TextStyle(
+                                    color: Colors.grey, fontSize: 13)),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
                     ],
                   ),
                 ),
               ],
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  void _showRoleSelection(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.7,
-        decoration: const BoxDecoration(
-          color: NabaTheme.background,
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(32),
-            topRight: Radius.circular(32),
-          ),
-        ),
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey.withOpacity(0.3),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              'اختر نوع الحساب',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 24),
-            Expanded(
-              child: ListView(
-                children: [
-                  _buildRoleCard(
-                    context,
-                    title: 'مزارع',
-                    subtitle: 'مشارك في بئر أو مسؤول بئر',
-                    icon: Icons.agriculture_rounded,
-                    role: UserRole.farmer,
-                  ),
-                  const SizedBox(height: 12),
-                  _buildRoleCard(
-                    context,
-                    title: 'عامل زراعي',
-                    subtitle: 'مختص ري، تقليم، أو معدات',
-                    icon: Icons.engineering_rounded,
-                    role: UserRole.worker,
-                  ),
-                  const SizedBox(height: 12),
-                  _buildRoleCard(
-                    context,
-                    title: 'صاحب معدات',
-                    subtitle: 'جرارات، ماكينات ري، إلخ',
-                    icon: Icons.minor_crash_rounded,
-                    role: UserRole.equipmentOwner,
-                  ),
-                  const SizedBox(height: 12),
-                  _buildRoleCard(
-                    context,
-                    title: 'بائع مستلزمات',
-                    subtitle: 'تاجر بذور، أسمدة، أو معدات',
-                    icon: Icons.store_rounded,
-                    role: UserRole.seller,
-                  ),
-                  const SizedBox(height: 12),
-                  _buildRoleCard(
-                    context,
-                    title: 'عامل توصيل',
-                    subtitle: 'توصيل الطلبات والمستلزمات',
-                    icon: Icons.moped_rounded,
-                    role: UserRole.deliveryWorker,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRoleCard(
-    BuildContext context, {
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required UserRole role,
-  }) {
-    return NabaCard(
-      onTap: () async {
-        if (role == UserRole.admin) {
-          await Provider.of<AuthProvider>(context, listen: false)
-              .loginAsAdmin();
-          if (!context.mounted) return;
-          Navigator.of(context).pop(); // Close bottom sheet
-        } else {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => SignupScreen(role: role)),
-          );
-        }
-      },
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      child: Row(
-        textDirection: TextDirection.rtl,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: NabaTheme.primary.withOpacity(0.08),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: NabaTheme.primary, size: 28),
-          ),
-          const SizedBox(width: 20),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                ),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: Colors.black54,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          const Icon(Icons.arrow_back_ios, size: 14, color: Colors.grey),
         ],
       ),
     );

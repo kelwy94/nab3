@@ -5,6 +5,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 
 import 'package:flutter/services.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 import 'firebase_options.dart';
 import 'services/notification_service.dart';
@@ -24,7 +25,15 @@ import 'screens/pending_approval_screen.dart';
 import 'screens/seller_dashboard.dart';
 import 'screens/worker_dashboard.dart';
 import 'screens/delivery_worker_dashboard.dart';
+import 'screens/engineer_dashboard.dart';
+import 'screens/guest_dashboard.dart';
 import 'theme.dart';
+
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  debugPrint("Handling a background message: ${message.messageId}");
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -34,6 +43,8 @@ void main() async {
     );
     try {
       await NotificationService.initialize();
+      FirebaseMessaging.onBackgroundMessage(
+          _firebaseMessagingBackgroundHandler);
     } catch (e) {
       debugPrint('Notification initialization failed: $e');
     }
@@ -69,7 +80,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final localeProvider = Provider.of<LocaleProvider>(context);
-    
+
     return MaterialApp(
       title: 'نبع - Naba',
       theme: NabaTheme.lightTheme,
@@ -93,6 +104,8 @@ class AuthWrapper extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthProvider>(context);
+
+    if (auth.isGuest) return const GuestDashboard();
 
     if (auth.isAuthenticated) {
       if (auth.user!.status == AccountStatus.pending &&
@@ -161,6 +174,8 @@ class DashboardSwitcher extends StatelessWidget {
         return const FarmerDashboard(); // Placeholder until investor flow is enabled
       case UserRole.admin:
         return const AdminDashboard();
+      case UserRole.engineer:
+        return const EngineerDashboard();
     }
   }
 }

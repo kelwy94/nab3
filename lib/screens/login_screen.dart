@@ -110,7 +110,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   onPressed: () {
                     if (_phoneController.text.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('الرجاء إدخال رقم الهاتف أولاً لإرسال رابط الاستعادة')),
+                        const SnackBar(
+                            content: Text(
+                                'الرجاء إدخال رقم الهاتف أولاً لإرسال رابط الاستعادة')),
                       );
                       return;
                     }
@@ -120,23 +122,33 @@ class _LoginScreenState extends State<LoginScreen> {
                         textDirection: TextDirection.rtl,
                         child: AlertDialog(
                           title: const Text('استعادة كلمة المرور'),
-                          content: Text('هل تريد إرسال رابط استعادة كلمة المرور إلى الحساب المرتبط برقم ${_phoneController.text}؟\n(ملاحظة: النظام يستخدم بريداً افتراضياً)'),
+                          content: Text(
+                              'هل تريد إرسال رابط استعادة كلمة المرور إلى الحساب المرتبط برقم ${_phoneController.text}؟\n(ملاحظة: النظام يستخدم بريداً افتراضياً)'),
                           actions: [
-                            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+                            TextButton(
+                                onPressed: () => Navigator.pop(ctx),
+                                child: const Text('إلغاء')),
                             ElevatedButton(
                               onPressed: () async {
                                 Navigator.pop(ctx);
                                 try {
-                                  await Provider.of<AuthProvider>(context, listen: false).resetPassword("${_phoneController.text}@naba.app");
+                                  await Provider.of<AuthProvider>(context,
+                                          listen: false)
+                                      .resetPassword(
+                                          "${_phoneController.text}@naba.app");
                                   if (context.mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('تم إرسال طلب استعادة كلمة المرور بنجاح!')),
+                                      const SnackBar(
+                                          content: Text(
+                                              'تم إرسال طلب استعادة كلمة المرور بنجاح!')),
                                     );
                                   }
                                 } catch (e) {
                                   if (context.mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('حدث خطأ، تأكد من أن الرقم مسجل')),
+                                      const SnackBar(
+                                          content: Text(
+                                              'حدث خطأ، تأكد من أن الرقم مسجل')),
                                     );
                                   }
                                 }
@@ -148,7 +160,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     );
                   },
-                  child: const Text('نسيت كلمة المرور؟', style: TextStyle(color: Colors.grey)),
+                  child: const Text('نسيت كلمة المرور؟',
+                      style: TextStyle(color: Colors.grey)),
                 ),
                 const SizedBox(height: 24),
                 TextButton(
@@ -175,15 +188,18 @@ class _LoginScreenState extends State<LoginScreen> {
                           SizedBox(width: 8),
                           Text(
                             'تنويه هام',
-                            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green),
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green),
                           ),
                         ],
                       ),
                       SizedBox(height: 8),
                       Text(
-                        'الفترة الحالية مخصصة لتسجيل العمالة والمعدات الزراعية وتنتهي في 15-9-2026. سيعمل التطبيق بكامل طاقته للمزارعين ابتداءً من هذا التاريخ.\n(ملاحظة للمزارع: يمكنك التسجيل الآن بشكل طبيعي، ولكن قد لا تجد خدمات متاحة في الوقت الحالي)',
+                        'الفترة الحالية مخصصة لتسجيل العمالة والمعدات الزراعية، وتنتهي في 15-9-2026.\nسيعمل التطبيق بكامل طاقته للمزارعين ابتداءً من هذا التاريخ.\n(ملاحظة للمزارع: يمكنك التسجيل الآن بشكل طبيعي، ولكن قد لا تجد جميع الخدمات متاحة في الوقت الحالي)',
                         textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 13, height: 1.5, color: Colors.black87),
+                        style: TextStyle(
+                            fontSize: 13, height: 1.5, color: Colors.black87),
                       ),
                     ],
                   ),

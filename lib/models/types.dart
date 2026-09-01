@@ -6,11 +6,63 @@ enum UserRole {
   equipmentOwner,
   investor,
   admin,
+  engineer,
+}
+
+enum ConsultationStatus {
+  pendingEngineerApproval,
+  rejected,
+  pendingPriceApproval,
+  negotiatingTime,
+  confirmed,
+  completed,
+  rated,
+}
+
+class ConsultationRequest {
+  final String id;
+  final String farmerUserId;
+  final String farmerName;
+  final String engineerUserId;
+  final String engineerName;
+  final String serviceType;
+  final String? problemDescription;
+  final ConsultationStatus status;
+  final double? agreedPrice;
+  final DateTime? proposedDate;
+  final DateTime? farmerProposedDate;
+  final DateTime? finalAgreedDate;
+  final double? rating;
+  final DateTime createdAt;
+
+  ConsultationRequest({
+    required this.id,
+    required this.farmerUserId,
+    required this.farmerName,
+    required this.engineerUserId,
+    required this.engineerName,
+    required this.serviceType,
+    this.problemDescription,
+    this.status = ConsultationStatus.pendingEngineerApproval,
+    this.agreedPrice,
+    this.proposedDate,
+    this.farmerProposedDate,
+    this.finalAgreedDate,
+    this.rating,
+    required this.createdAt,
+  });
 }
 
 enum WaterOutput { low, medium, high }
 
 enum FairnessRule { proportional, equal, manual }
+
+enum BidStatus {
+  pending,
+  counterOffered,
+  accepted,
+  rejected,
+}
 
 enum JobStatus {
   requested,
@@ -22,7 +74,13 @@ enum JobStatus {
   disputed
 }
 
-enum OrderStatus { placed, deliveryAccepted, preparing, outForDelivery, completed }
+enum OrderStatus {
+  placed,
+  deliveryAccepted,
+  preparing,
+  outForDelivery,
+  completed
+}
 
 enum SwapStatus { pending, accepted, rejected }
 
@@ -44,6 +102,7 @@ class User {
   final AccountStatus status;
   final Map<String, dynamic>? extraData;
   final String? profileImageBase64;
+  final String? profileImageUrl;
   final PaymentMethod? paymentMethod;
   final String? paymentDetails; // phone number or bank account
 
@@ -59,6 +118,7 @@ class User {
     this.status = AccountStatus.approved,
     this.extraData,
     this.profileImageBase64,
+    this.profileImageUrl,
     this.paymentMethod,
     this.paymentDetails,
   });
@@ -75,6 +135,7 @@ class User {
     AccountStatus? status,
     Map<String, dynamic>? extraData,
     String? profileImageBase64,
+    String? profileImageUrl,
     PaymentMethod? paymentMethod,
     String? paymentDetails,
   }) {
@@ -90,6 +151,7 @@ class User {
       status: status ?? this.status,
       extraData: extraData ?? this.extraData,
       profileImageBase64: profileImageBase64 ?? this.profileImageBase64,
+      profileImageUrl: profileImageUrl ?? this.profileImageUrl,
       paymentMethod: paymentMethod ?? this.paymentMethod,
       paymentDetails: paymentDetails ?? this.paymentDetails,
     );
@@ -253,6 +315,7 @@ class Well {
   final String id;
   final String adminUserId;
   final String wellName;
+  final String? district;
   final Map<String, double> location;
   final double depthMeters;
   final double irrigatedAreaFeddan;
@@ -267,11 +330,13 @@ class Well {
   final FairnessRule fairnessRule;
   final WellStatus status;
   final Map<String, dynamic>? pendingEdits;
+  final DateTime? nextIrrigationDate;
 
   Well({
     required this.id,
     required this.adminUserId,
     required this.wellName,
+    this.district,
     required this.location,
     required this.depthMeters,
     required this.irrigatedAreaFeddan,
@@ -286,6 +351,7 @@ class Well {
     required this.fairnessRule,
     this.status = WellStatus.approved,
     this.pendingEdits,
+    this.nextIrrigationDate,
   });
 }
 
@@ -297,6 +363,7 @@ class WellMember {
   final double landAreaFeddan;
   final List<String> crops;
   final Map<String, dynamic>? manualSchedule;
+  final DateTime? nextIrrigationDate;
 
   WellMember({
     required this.id,
@@ -306,6 +373,7 @@ class WellMember {
     required this.landAreaFeddan,
     required this.crops,
     this.manualSchedule,
+    this.nextIrrigationDate,
   });
 }
 
@@ -362,6 +430,28 @@ class SwapRequest {
     required this.slotId,
     this.proposedSlotId,
     required this.status,
+  });
+}
+
+class JobBid {
+  final String id;
+  final String jobId;
+  final String workerUserId;
+  final String workerName;
+  final double currentPrice;
+  final BidStatus status;
+  final String lastProposedByUserId;
+  final DateTime createdAt;
+
+  JobBid({
+    required this.id,
+    required this.jobId,
+    required this.workerUserId,
+    required this.workerName,
+    required this.currentPrice,
+    required this.status,
+    required this.lastProposedByUserId,
+    required this.createdAt,
   });
 }
 
@@ -514,3 +604,41 @@ class Review {
     required this.createdAt,
   });
 }
+
+enum ComplaintStatus { newComplaint, reviewing, resolved }
+
+class Complaint {
+  final String id;
+  final String
+      type; // e.g., 'irrigation_conflict', 'service_unpaid', 'bad_service'
+  final String fromUserId;
+  final String? targetUserId;
+  final String? relatedId; // wellId, jobId, etc.
+  final String details;
+  final ComplaintStatus status;
+  final DateTime createdAt;
+  final Map<String, dynamic>? extraData; // e.g. conflictingDate
+
+  Complaint({
+    required this.id,
+    required this.type,
+    required this.fromUserId,
+    this.targetUserId,
+    this.relatedId,
+    required this.details,
+    this.status = ComplaintStatus.newComplaint,
+    required this.createdAt,
+    this.extraData,
+  });
+}
+
+const List<String> kWorkerSpecializations = [
+  'عامل ري',
+  'عامل نخيل',
+  'عامل تقليم وتنظيف حشائش',
+  'عامل جني محصول',
+  'عامل بناء حظائر',
+  'عامل لأعمال البرسيم (حش - لم)',
+  'عامل تقطيع حطب',
+  'عامل جني البلح',
+];

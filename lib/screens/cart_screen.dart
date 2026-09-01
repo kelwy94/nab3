@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../providers/app_state_provider.dart';
 import '../providers/auth_provider.dart';
 import '../theme.dart';
+import '../utils/guest_utils.dart';
 import 'checkout_screen.dart';
 
 class CartScreen extends StatefulWidget {
@@ -28,8 +29,10 @@ class _CartScreenState extends State<CartScreen> {
   Widget build(BuildContext context) {
     final appState = context.watch<AppStateProvider>();
     final cart = appState.cart;
-    final total = cart.fold(0.0, (sum, item) => sum + (item.price * appState.getQuantity(item.id)));
-    final itemCount = cart.fold(0, (sum, item) => sum + appState.getQuantity(item.id));
+    final total = cart.fold(
+        0.0, (sum, item) => sum + (item.price * appState.getQuantity(item.id)));
+    final itemCount =
+        cart.fold(0, (sum, item) => sum + appState.getQuantity(item.id));
     final selectedAddress = appState.selectedAddress;
 
     return Scaffold(
@@ -37,7 +40,8 @@ class _CartScreenState extends State<CartScreen> {
       appBar: AppBar(
         backgroundColor: NabaTheme.primary,
         foregroundColor: Colors.white,
-        title: const Text('سلة المشتريات', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('سلة المشتريات',
+            style: TextStyle(fontWeight: FontWeight.bold)),
         centerTitle: true,
         elevation: 0,
         actions: [
@@ -49,17 +53,23 @@ class _CartScreenState extends State<CartScreen> {
                 showDialog(
                   context: context,
                   builder: (_) => AlertDialog(
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                    title: const Text('إفراغ السلة', textAlign: TextAlign.right),
-                    content: const Text('هل تريد حذف جميع المنتجات من السلة؟', textAlign: TextAlign.right),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20)),
+                    title:
+                        const Text('إفراغ السلة', textAlign: TextAlign.right),
+                    content: const Text('هل تريد حذف جميع المنتجات من السلة؟',
+                        textAlign: TextAlign.right),
                     actions: [
-                      TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
+                      TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('إلغاء')),
                       TextButton(
                         onPressed: () {
                           context.read<AppStateProvider>().clearCart();
                           Navigator.pop(context);
                         },
-                        child: const Text('حذف الكل', style: TextStyle(color: Colors.red)),
+                        child: const Text('حذف الكل',
+                            style: TextStyle(color: Colors.red)),
                       ),
                     ],
                   ),
@@ -79,12 +89,19 @@ class _CartScreenState extends State<CartScreen> {
                       color: NabaTheme.primary.withOpacity(0.08),
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(Icons.shopping_cart_outlined, size: 64, color: NabaTheme.primary.withOpacity(0.5)),
+                    child: Icon(Icons.shopping_cart_outlined,
+                        size: 64, color: NabaTheme.primary.withOpacity(0.5)),
                   ),
                   const SizedBox(height: 20),
-                  const Text('السلة فارغة', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.grey)),
+                  const Text('السلة فارغة',
+                      style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey)),
                   const SizedBox(height: 8),
-                  Text('ابدأ بإضافة منتجات من السوق', style: TextStyle(fontSize: 14, color: Colors.grey.shade500)),
+                  Text('ابدأ بإضافة منتجات من السوق',
+                      style:
+                          TextStyle(fontSize: 14, color: Colors.grey.shade500)),
                 ],
               ),
             )
@@ -96,7 +113,8 @@ class _CartScreenState extends State<CartScreen> {
                 // Cart Items
                 Expanded(
                   child: ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     itemCount: cart.length,
                     itemBuilder: (context, index) {
                       final item = cart[index];
@@ -111,9 +129,13 @@ class _CartScreenState extends State<CartScreen> {
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                    borderRadius:
+                        const BorderRadius.vertical(top: Radius.circular(24)),
                     boxShadow: [
-                      BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 12, offset: const Offset(0, -4)),
+                      BoxShadow(
+                          color: Colors.black.withOpacity(0.08),
+                          blurRadius: 12,
+                          offset: const Offset(0, -4)),
                     ],
                   ),
                   child: SafeArea(
@@ -124,10 +146,15 @@ class _CartScreenState extends State<CartScreen> {
                           mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            Text('الإجمالي', style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
+                            Text('الإجمالي',
+                                style: TextStyle(
+                                    color: Colors.grey.shade500, fontSize: 12)),
                             Text(
                               '${total.toStringAsFixed(2)} ج.م',
-                              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: NabaTheme.primary),
+                              style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: NabaTheme.primary),
                             ),
                           ],
                         ),
@@ -137,20 +164,33 @@ class _CartScreenState extends State<CartScreen> {
                             height: 52,
                             child: ElevatedButton(
                               onPressed: () {
-                                Navigator.push(context, MaterialPageRoute(builder: (_) => const CheckoutScreen()));
+                                if (context.read<AuthProvider>().isGuest) {
+                                  GuestUtils.showGuestLoginPrompt(context);
+                                  return;
+                                }
+                                Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (_) =>
+                                            const CheckoutScreen()));
                               },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: NabaTheme.primary,
                                 foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16)),
                                 elevation: 2,
                               ),
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  const Icon(Icons.shopping_cart_checkout, size: 20),
+                                  const Icon(Icons.shopping_cart_checkout,
+                                      size: 20),
                                   const SizedBox(width: 8),
-                                  Text('Checkout ($itemCount)', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                                  Text('Checkout ($itemCount)',
+                                      style: const TextStyle(
+                                          fontSize: 17,
+                                          fontWeight: FontWeight.bold)),
                                 ],
                               ),
                             ),
@@ -181,25 +221,35 @@ class _AddressHeader extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 2))
+          ],
         ),
         child: Row(
           textDirection: TextDirection.rtl,
           children: [
             Container(
               padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(color: NabaTheme.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
-              child: const Icon(Icons.location_on, color: NabaTheme.primary, size: 20),
+              decoration: BoxDecoration(
+                  color: NabaTheme.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10)),
+              child: const Icon(Icons.location_on,
+                  color: NabaTheme.primary, size: 20),
             ),
             const SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  const Text('التوصيل إلى', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                  const Text('التوصيل إلى',
+                      style: TextStyle(fontSize: 11, color: Colors.grey)),
                   Text(
                     selectedAddress ?? 'اختر عنوان التوصيل',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 13),
                     textAlign: TextAlign.right,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -249,29 +299,43 @@ class _AddressBottomSheetState extends State<_AddressBottomSheet> {
     final selected = appState.selectedAddress;
 
     return Container(
-      constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.6),
+      constraints:
+          BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.6),
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: SingleChildScrollView(
         child: Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+          padding:
+              EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               const SizedBox(height: 12),
-              Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(10))),
+              Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(10))),
               const SizedBox(height: 16),
-              const Text('اختر العنوان', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+              const Text('اختر العنوان',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
               const SizedBox(height: 16),
 
               // Add new address button or form
               if (!_isAddingNew) ...[
                 ListTile(
-                  leading: const Icon(Icons.add_circle_outline, color: NabaTheme.primary),
-                  title: const Text('إضافة عنوان جديد', textAlign: TextAlign.right, style: TextStyle(color: NabaTheme.primary, fontWeight: FontWeight.bold)),
-                  trailing: const Icon(Icons.chevron_left, color: NabaTheme.primary),
+                  leading: const Icon(Icons.add_circle_outline,
+                      color: NabaTheme.primary),
+                  title: const Text('إضافة عنوان جديد',
+                      textAlign: TextAlign.right,
+                      style: TextStyle(
+                          color: NabaTheme.primary,
+                          fontWeight: FontWeight.bold)),
+                  trailing:
+                      const Icon(Icons.chevron_left, color: NabaTheme.primary),
                   onTap: () => setState(() => _isAddingNew = true),
                 ),
               ] else ...[
@@ -285,10 +349,13 @@ class _AddressBottomSheetState extends State<_AddressBottomSheet> {
                         autofocus: true,
                         decoration: InputDecoration(
                           hintText: 'أدخل العنوان الجديد بالتفصيل...',
-                          prefixIcon: const Icon(Icons.edit_location_alt, color: NabaTheme.primary),
+                          prefixIcon: const Icon(Icons.edit_location_alt,
+                              color: NabaTheme.primary),
                           filled: true,
                           fillColor: Colors.grey.shade100,
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: BorderSide.none),
                         ),
                         maxLines: 2,
                       ),
@@ -301,7 +368,8 @@ class _AddressBottomSheetState extends State<_AddressBottomSheet> {
                                 _isAddingNew = false;
                                 _newAddressController.clear();
                               }),
-                              child: const Text('إلغاء', style: TextStyle(color: Colors.grey)),
+                              child: const Text('إلغاء',
+                                  style: TextStyle(color: Colors.grey)),
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -311,7 +379,9 @@ class _AddressBottomSheetState extends State<_AddressBottomSheet> {
                               onPressed: () {
                                 final addr = _newAddressController.text.trim();
                                 if (addr.isNotEmpty) {
-                                  context.read<AppStateProvider>().addAddress(addr);
+                                  context
+                                      .read<AppStateProvider>()
+                                      .addAddress(addr);
                                   _newAddressController.clear();
                                   setState(() => _isAddingNew = false);
                                 }
@@ -321,7 +391,8 @@ class _AddressBottomSheetState extends State<_AddressBottomSheet> {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: NabaTheme.primary,
                                 foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12)),
                               ),
                             ),
                           ),
@@ -338,13 +409,15 @@ class _AddressBottomSheetState extends State<_AddressBottomSheet> {
               if (addresses.isEmpty)
                 Padding(
                   padding: const EdgeInsets.all(24),
-                  child: Text('لا يوجد عناوين محفوظة', style: TextStyle(color: Colors.grey.shade500)),
+                  child: Text('لا يوجد عناوين محفوظة',
+                      style: TextStyle(color: Colors.grey.shade500)),
                 )
               else
                 ...addresses.map((addr) {
                   final isSelected = addr == selected;
                   return Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    margin:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                     child: InkWell(
                       onTap: () {
                         context.read<AppStateProvider>().selectAddress(addr);
@@ -354,17 +427,24 @@ class _AddressBottomSheetState extends State<_AddressBottomSheet> {
                       child: Container(
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
-                          color: isSelected ? NabaTheme.primary.withOpacity(0.05) : Colors.grey.shade50,
+                          color: isSelected
+                              ? NabaTheme.primary.withOpacity(0.05)
+                              : Colors.grey.shade50,
                           borderRadius: BorderRadius.circular(14),
                           border: Border.all(
-                            color: isSelected ? NabaTheme.primary.withOpacity(0.3) : Colors.grey.shade200,
+                            color: isSelected
+                                ? NabaTheme.primary.withOpacity(0.3)
+                                : Colors.grey.shade200,
                             width: isSelected ? 2 : 1,
                           ),
                         ),
                         child: Row(
                           textDirection: TextDirection.rtl,
                           children: [
-                            Icon(Icons.home, color: isSelected ? NabaTheme.primary : Colors.grey),
+                            Icon(Icons.home,
+                                color: isSelected
+                                    ? NabaTheme.primary
+                                    : Colors.grey),
                             const SizedBox(width: 12),
                             Expanded(
                               child: Column(
@@ -375,25 +455,39 @@ class _AddressBottomSheetState extends State<_AddressBottomSheet> {
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Text(
-                                        isSelected ? 'العنوان الحالي' : 'عنوان محفوظ',
-                                        style: TextStyle(fontWeight: FontWeight.bold, color: isSelected ? NabaTheme.primary : Colors.black87),
+                                        isSelected
+                                            ? 'العنوان الحالي'
+                                            : 'عنوان محفوظ',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: isSelected
+                                                ? NabaTheme.primary
+                                                : Colors.black87),
                                       ),
                                       if (isSelected) ...[
                                         const SizedBox(width: 6),
-                                        const Icon(Icons.check_circle, color: NabaTheme.primary, size: 16),
+                                        const Icon(Icons.check_circle,
+                                            color: NabaTheme.primary, size: 16),
                                       ],
                                     ],
                                   ),
                                   const SizedBox(height: 2),
-                                  Text(addr, style: TextStyle(fontSize: 12, color: Colors.grey.shade600), textAlign: TextAlign.right),
+                                  Text(addr,
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey.shade600),
+                                      textAlign: TextAlign.right),
                                 ],
                               ),
                             ),
                             // Delete button
                             if (addresses.length > 1)
                               IconButton(
-                                icon: Icon(Icons.delete_outline, color: Colors.red.shade300, size: 20),
-                                onPressed: () => context.read<AppStateProvider>().removeAddress(addr),
+                                icon: Icon(Icons.delete_outline,
+                                    color: Colors.red.shade300, size: 20),
+                                onPressed: () => context
+                                    .read<AppStateProvider>()
+                                    .removeAddress(addr),
                               ),
                           ],
                         ),
@@ -424,16 +518,26 @@ class _CartItemCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2))
+        ],
       ),
       child: Row(
         textDirection: TextDirection.rtl,
         children: [
           // Product Image
           Container(
-            width: 72, height: 72,
-            decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(12)),
-            child: ClipRRect(borderRadius: BorderRadius.circular(12), child: _buildImage(item.photoUrl)),
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(12)),
+            child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: _buildImage(item.photoUrl)),
           ),
           const SizedBox(width: 12),
 
@@ -442,15 +546,26 @@ class _CartItemCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(item.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14), textAlign: TextAlign.right, maxLines: 2, overflow: TextOverflow.ellipsis),
+                Text(item.name,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 14),
+                    textAlign: TextAlign.right,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis),
                 const SizedBox(height: 4),
                 Row(
                   textDirection: TextDirection.rtl,
                   children: [
-                    Text('${item.price} ج.م', style: const TextStyle(color: NabaTheme.primary, fontWeight: FontWeight.bold, fontSize: 16)),
+                    Text('${item.price} ج.م',
+                        style: const TextStyle(
+                            color: NabaTheme.primary,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16)),
                     const SizedBox(width: 6),
                     if (item.unit.isNotEmpty)
-                      Text('/ ${item.unit}', style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
+                      Text('/ ${item.unit}',
+                          style: TextStyle(
+                              color: Colors.grey.shade500, fontSize: 12)),
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -460,18 +575,40 @@ class _CartItemCard extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Container(
-                      decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(12)),
+                      decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(12)),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          _qtyBtn(icon: quantity > 1 ? Icons.remove : Icons.delete_outline, color: quantity > 1 ? NabaTheme.primary : Colors.red,
-                              onTap: () => context.read<AppStateProvider>().removeFromCart(item)),
-                          Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: Text('$quantity', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
-                          _qtyBtn(icon: Icons.add, color: NabaTheme.primary, onTap: () => context.read<AppStateProvider>().addToCart(item)),
+                          _qtyBtn(
+                              icon: quantity > 1
+                                  ? Icons.remove
+                                  : Icons.delete_outline,
+                              color:
+                                  quantity > 1 ? NabaTheme.primary : Colors.red,
+                              onTap: () => context
+                                  .read<AppStateProvider>()
+                                  .removeFromCart(item)),
+                          Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 16),
+                              child: Text('$quantity',
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16))),
+                          _qtyBtn(
+                              icon: Icons.add,
+                              color: NabaTheme.primary,
+                              onTap: () => context
+                                  .read<AppStateProvider>()
+                                  .addToCart(item)),
                         ],
                       ),
                     ),
-                    Text('${(item.price * quantity).toStringAsFixed(2)} ج.م', style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+                    Text('${(item.price * quantity).toStringAsFixed(2)} ج.م',
+                        style: TextStyle(
+                            color: Colors.grey.shade600, fontSize: 13)),
                   ],
                 ),
               ],
@@ -482,18 +619,31 @@ class _CartItemCard extends StatelessWidget {
     );
   }
 
-  Widget _qtyBtn({required IconData icon, required Color color, required VoidCallback onTap}) {
-    return InkWell(onTap: onTap, borderRadius: BorderRadius.circular(10), child: Padding(padding: const EdgeInsets.all(6), child: Icon(icon, color: color, size: 20)));
+  Widget _qtyBtn(
+      {required IconData icon,
+      required Color color,
+      required VoidCallback onTap}) {
+    return InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Padding(
+            padding: const EdgeInsets.all(6),
+            child: Icon(icon, color: color, size: 20)));
   }
 
   Widget _buildImage(String? base64String) {
     if (base64String == null || base64String.isEmpty) {
-      return const Center(child: Icon(Icons.shopping_bag_outlined, color: Colors.grey, size: 32));
+      return const Center(
+          child:
+              Icon(Icons.shopping_bag_outlined, color: Colors.grey, size: 32));
     }
     try {
       String clean = base64String;
       if (clean.contains(',')) clean = clean.split(',').last;
-      return Image.memory(base64Decode(clean.trim()), fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.broken_image, color: Colors.grey)));
+      return Image.memory(base64Decode(clean.trim()),
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => const Center(
+              child: Icon(Icons.broken_image, color: Colors.grey)));
     } catch (_) {
       return const Center(child: Icon(Icons.broken_image, color: Colors.grey));
     }

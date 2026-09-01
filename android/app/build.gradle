@@ -83,3 +83,13 @@ dependencies {
     // When using the BoM, don't specify versions in Firebase dependencies
     implementation 'com.google.firebase:firebase-analytics'
 }
+
+// Force AndroidX dependencies to versions compatible with compileSdk 35 / AGP 8.5.2
+configurations.all {
+    resolutionStrategy {
+        force 'androidx.core:core:1.15.0'
+        force 'androidx.core:core-ktx:1.15.0'
+        force 'androidx.activity:activity:1.9.3'
+        force 'androidx.navigation:navigation-common:2.8.5'
+    }
+}

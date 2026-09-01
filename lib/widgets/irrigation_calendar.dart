@@ -42,8 +42,12 @@ class _IrrigationCalendarState extends State<IrrigationCalendar> {
           .where('wellId', isEqualTo: widget.well?.id)
           .snapshots(),
       builder: (context, memberSnapshot) {
-        final memberDoc = memberSnapshot.data?.docs.isNotEmpty == true ? memberSnapshot.data!.docs.first : null;
-        final manualSchedule = memberDoc != null ? (memberDoc.data() as Map<String, dynamic>)['manualSchedule'] : null;
+        final memberDoc = memberSnapshot.data?.docs.isNotEmpty == true
+            ? memberSnapshot.data!.docs.first
+            : null;
+        final manualSchedule = memberDoc != null
+            ? (memberDoc.data() as Map<String, dynamic>)['manualSchedule']
+            : null;
 
         return StreamBuilder<QuerySnapshot>(
           stream: FirebaseFirestore.instance
@@ -54,13 +58,23 @@ class _IrrigationCalendarState extends State<IrrigationCalendar> {
           builder: (context, plotSnapshot) {
             final plotDocs = plotSnapshot.data?.docs ?? [];
 
+            final dynamicStartDate = (memberDoc != null &&
+                    (memberDoc.data() as Map<String, dynamic>)
+                        .containsKey('nextIrrigationDate'))
+                ? ((memberDoc.data()
+                            as Map<String, dynamic>)['nextIrrigationDate']
+                        as Timestamp)
+                    .toDate()
+                : widget.well?.nextIrrigationDate;
+
             return Column(
               children: [
-                _buildCalendarSection(plotDocs, manualSchedule as Map<String, dynamic>?),
+                _buildCalendarSection(plotDocs,
+                    manualSchedule as Map<String, dynamic>?, dynamicStartDate),
                 const SizedBox(height: 12),
-                Expanded(
-                  child: _buildSlotsList(plotDocs, manualSchedule as Map<String, dynamic>?),
-                ),
+                _buildSlotsList(plotDocs,
+                    manualSchedule as Map<String, dynamic>?, dynamicStartDate),
+                const SizedBox(height: 24),
               ],
             );
           },
@@ -69,18 +83,41 @@ class _IrrigationCalendarState extends State<IrrigationCalendar> {
     );
   }
 
-  Widget _buildCalendarSection(List<QueryDocumentSnapshot> plotDocs, Map<String, dynamic>? manualSchedule) {
+  Widget _buildCalendarSection(List<QueryDocumentSnapshot> plotDocs,
+      Map<String, dynamic>? manualSchedule, DateTime? dynamicStartDate) {
     final well = widget.well;
     final auth = context.read<AuthProvider>();
-    final userHash = auth.user?.id.hashCode.abs() ?? 0;
+
+    bool isIrrigationDay(
+        DateTime targetDay, Map<String, dynamic>? schedule, int? dayOffsetVar) {
+      if (well == null) return false;
+      final freq =
+          well.irrigationFrequencyDays > 0 ? well.irrigationFrequencyDays : 1;
+      final target =
+          DateTime.utc(targetDay.year, targetDay.month, targetDay.day);
+
+      if (well.fairnessRule == FairnessRule.manual && schedule != null) {
+        final dayOffset = schedule['dayOffset'] as int;
+        final base = DateTime.utc(2024, 1, 1);
+        final diff = target.difference(base).inDays;
+        return diff % freq == dayOffset;
+      } else if (dynamicStartDate != null) {
+        final start = DateTime.utc(dynamicStartDate.year,
+            dynamicStartDate.month, dynamicStartDate.day);
+        if (target.isBefore(start)) return false;
+        final diff = target.difference(start).inDays;
+        return diff % freq == 0;
+      }
+      return false;
+    }
 
     return NabaCard(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
       child: TableCalendar(
         firstDay: DateTime.utc(2024, 1, 1),
         lastDay: DateTime.utc(2030, 12, 31),
-        rowHeight: 42,
-        daysOfWeekHeight: 28,
+        rowHeight: 60,
+        daysOfWeekHeight: 40,
         focusedDay: _focusedDay,
         selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
         onDaySelected: (selectedDay, focusedDay) {
@@ -107,32 +144,13 @@ class _IrrigationCalendarState extends State<IrrigationCalendar> {
         ),
         eventLoader: (day) {
           if (well == null) return [];
-          final freq = well.irrigationFrequencyDays > 0 ? well.irrigationFrequencyDays : 1;
-          final diff = day.difference(DateTime.utc(2024, 1, 1)).inDays;
-
           List<String> events = [];
 
-          if (well.fairnessRule == FairnessRule.manual && manualSchedule != null) {
-            final dayOffset = manualSchedule['dayOffset'] as int;
-            if (diff % freq == dayOffset) {
-              if (plotDocs.isEmpty) {
-                events.add('موعدك (يدوي)');
-              } else {
-                for (int i = 0; i < plotDocs.length; i++) {
-                  final data = plotDocs[i].data() as Map<String, dynamic>;
-                  events.add(data['name'] ?? 'قطعة ${i + 1}');
-                }
-              }
-            }
-          } else if (plotDocs.isEmpty) {
-            // No plots - use default behavior
-            final dayOffset = userHash % freq;
-            if (diff % freq == dayOffset) events.add('default');
-          } else {
-            // Each plot gets its own irrigation offset
-            for (int i = 0; i < plotDocs.length; i++) {
-              final plotHash = (userHash + i * 7) % freq;
-              if (diff % freq == plotHash) {
+          if (isIrrigationDay(day, manualSchedule, null)) {
+            if (plotDocs.isEmpty) {
+              events.add(manualSchedule != null ? 'موعدك (يدوي)' : 'default');
+            } else {
+              for (int i = 0; i < plotDocs.length; i++) {
                 final data = plotDocs[i].data() as Map<String, dynamic>;
                 events.add(data['name'] ?? 'قطعة ${i + 1}');
               }
@@ -143,32 +161,14 @@ class _IrrigationCalendarState extends State<IrrigationCalendar> {
         calendarBuilders: CalendarBuilders(
           defaultBuilder: (context, date, focusedDay) {
             if (well == null) return null;
-            final freq = well.irrigationFrequencyDays > 0 ? well.irrigationFrequencyDays : 1;
-            final diff = date.difference(DateTime.utc(2024, 1, 1)).inDays;
 
             Color? circleColor;
 
-            if (well.fairnessRule == FairnessRule.manual && manualSchedule != null) {
-              final dayOffset = manualSchedule['dayOffset'] as int;
-              if (diff % freq == dayOffset) {
-                if (plotDocs.isEmpty) {
-                  circleColor = NabaTheme.primary;
-                } else {
-                  circleColor = plotColors[0];
-                }
-              }
-            } else if (plotDocs.isEmpty) {
-              final dayOffset = userHash % freq;
-              if (diff % freq == dayOffset) {
+            if (isIrrigationDay(date, manualSchedule, null)) {
+              if (plotDocs.isEmpty) {
                 circleColor = NabaTheme.primary;
-              }
-            } else {
-              for (int i = 0; i < plotDocs.length; i++) {
-                final plotHash = (userHash + i * 7) % freq;
-                if (diff % freq == plotHash) {
-                  circleColor = plotColors[i % plotColors.length];
-                  break; // Use first matching plot color
-                }
+              } else {
+                circleColor = plotColors[0];
               }
             }
 
@@ -203,7 +203,10 @@ class _IrrigationCalendarState extends State<IrrigationCalendar> {
                 children: events.asMap().entries.map((entry) {
                   Color dotColor;
 
-                  if (well != null && well.fairnessRule == FairnessRule.manual && manualSchedule != null && plotDocs.isEmpty) {
+                  if (well != null &&
+                      well.fairnessRule == FairnessRule.manual &&
+                      manualSchedule != null &&
+                      plotDocs.isEmpty) {
                     dotColor = NabaTheme.primary;
                   } else if (plotDocs.isEmpty) {
                     dotColor = NabaTheme.primary;
@@ -238,53 +241,53 @@ class _IrrigationCalendarState extends State<IrrigationCalendar> {
     );
   }
 
-  Widget _buildSlotsList(List<QueryDocumentSnapshot> plotDocs, Map<String, dynamic>? manualSchedule) {
+  Widget _buildSlotsList(List<QueryDocumentSnapshot> plotDocs,
+      Map<String, dynamic>? manualSchedule, DateTime? dynamicStartDate) {
     final well = widget.well;
     if (well == null) return const SizedBox();
 
     final auth = context.read<AuthProvider>();
     final userHash = auth.user?.id.hashCode.abs() ?? 0;
-    final freq = well.irrigationFrequencyDays > 0 ? well.irrigationFrequencyDays : 1;
+    final freq =
+        well.irrigationFrequencyDays > 0 ? well.irrigationFrequencyDays : 1;
     final diff = _selectedDay!.difference(DateTime.utc(2024, 1, 1)).inDays;
 
     // Find which plots have irrigation on this day
     List<Map<String, dynamic>> irrigatingPlots = [];
 
-    if (well.fairnessRule == FairnessRule.manual && manualSchedule != null) {
-      final dayOffset = manualSchedule['dayOffset'] as int;
-      if (diff % freq == dayOffset) {
-        if (plotDocs.isEmpty) {
-          irrigatingPlots.add({
-            'name': 'موعدك (يدوي)',
-            'colorIndex': 0,
-            'manualSchedule': manualSchedule,
-          });
-        } else {
-          for (int i = 0; i < plotDocs.length; i++) {
-            final data = plotDocs[i].data() as Map<String, dynamic>;
-            irrigatingPlots.add({
-              'name': data['name'] ?? 'قطعة ${i + 1}',
-              'area': data['area'] ?? 0,
-              'colorIndex': i,
-              'manualSchedule': manualSchedule,
-            });
-          }
-        }
+    bool isIrrigationDay() {
+      if (well.fairnessRule == FairnessRule.manual && manualSchedule != null) {
+        final dayOffset = manualSchedule['dayOffset'] as int;
+        final base = DateTime.utc(2024, 1, 1);
+        final diffDays = _selectedDay!.difference(base).inDays;
+        return diffDays % freq == dayOffset;
+      } else if (dynamicStartDate != null) {
+        final target = DateTime.utc(
+            _selectedDay!.year, _selectedDay!.month, _selectedDay!.day);
+        final start = DateTime.utc(dynamicStartDate.year,
+            dynamicStartDate.month, dynamicStartDate.day);
+        if (target.isBefore(start)) return false;
+        final diffDays = target.difference(start).inDays;
+        return diffDays % freq == 0;
       }
-    } else if (plotDocs.isEmpty) {
-      final dayOffset = userHash % freq;
-      if (diff % freq == dayOffset) {
-        irrigatingPlots.add({'name': 'أرضك', 'colorIndex': 0});
-      }
-    } else {
-      for (int i = 0; i < plotDocs.length; i++) {
-        final plotHash = (userHash + i * 7) % freq;
-        if (diff % freq == plotHash) {
+      return false;
+    }
+
+    if (isIrrigationDay()) {
+      if (plotDocs.isEmpty) {
+        irrigatingPlots.add({
+          'name': manualSchedule != null ? 'موعدك (يدوي)' : 'أرضك (جدول آلي)',
+          'colorIndex': 0,
+          'manualSchedule': manualSchedule,
+        });
+      } else {
+        for (int i = 0; i < plotDocs.length; i++) {
           final data = plotDocs[i].data() as Map<String, dynamic>;
           irrigatingPlots.add({
             'name': data['name'] ?? 'قطعة ${i + 1}',
             'area': data['area'] ?? 0,
             'colorIndex': i,
+            'manualSchedule': manualSchedule,
           });
         }
       }
@@ -295,15 +298,19 @@ class _IrrigationCalendarState extends State<IrrigationCalendar> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.event_busy_rounded, size: 64, color: Colors.grey.withOpacity(0.3)),
+            Icon(Icons.event_busy_rounded,
+                size: 64, color: Colors.grey.withOpacity(0.3)),
             const SizedBox(height: 16),
-            const Text('لا توجد مواعيد ري في هذا اليوم', style: TextStyle(color: Colors.grey)),
+            const Text('لا توجد مواعيد ري في هذا اليوم',
+                style: TextStyle(color: Colors.grey)),
           ],
         ),
       );
     }
 
     return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       itemCount: irrigatingPlots.length,
       itemBuilder: (context, index) =>
@@ -311,8 +318,8 @@ class _IrrigationCalendarState extends State<IrrigationCalendar> {
     );
   }
 
-  Widget _buildTimelineSlot(
-      BuildContext context, int index, Well well, Map<String, dynamic> plotInfo) {
+  Widget _buildTimelineSlot(BuildContext context, int index, Well well,
+      Map<String, dynamic> plotInfo) {
     final auth = Provider.of<AuthProvider>(context);
     final user = auth.user;
     final colorIndex = plotInfo['colorIndex'] as int;
@@ -320,27 +327,33 @@ class _IrrigationCalendarState extends State<IrrigationCalendar> {
     final plotName = plotInfo['name'] as String;
 
     final userHash = user?.id.hashCode.abs() ?? 0;
-    
+
     int hours = well.hoursPerPerson.toInt();
     int timePrefix = 6;
 
     if (well.fairnessRule == FairnessRule.proportional) {
-      double totalArea = well.irrigatedAreaFeddan > 0 ? well.irrigatedAreaFeddan : 1;
+      double totalArea =
+          well.irrigatedAreaFeddan > 0 ? well.irrigatedAreaFeddan : 1;
       double plotArea = (plotInfo['area'] as num?)?.toDouble() ?? 1.0;
-      int totalHoursAvailable = 24 * (well.irrigationFrequencyDays > 0 ? well.irrigationFrequencyDays : 1);
+      int totalHoursAvailable = 24 *
+          (well.irrigationFrequencyDays > 0 ? well.irrigationFrequencyDays : 1);
       hours = ((plotArea / totalArea) * totalHoursAvailable).round();
       if (hours < 1) hours = 1;
-      final startHourOffset = (userHash + colorIndex * 3) % (16 - (hours > 0 ? hours : 1));
+      final startHourOffset =
+          (userHash + colorIndex * 3) % (16 - (hours > 0 ? hours : 1));
       timePrefix = 6 + startHourOffset;
-    } else if (well.fairnessRule == FairnessRule.manual && plotInfo['manualSchedule'] != null) {
+    } else if (well.fairnessRule == FairnessRule.manual &&
+        plotInfo['manualSchedule'] != null) {
       final schedule = plotInfo['manualSchedule'] as Map<String, dynamic>;
-      hours = (schedule['durationHours'] as num?)?.toInt() ?? well.hoursPerPerson.toInt();
+      hours = (schedule['durationHours'] as num?)?.toInt() ??
+          well.hoursPerPerson.toInt();
       int baseTimePrefix = (schedule['startHour'] as num?)?.toInt() ?? 6;
       timePrefix = baseTimePrefix + (colorIndex * hours);
       if (timePrefix > 23) timePrefix = timePrefix % 24;
     } else {
       hours = plotInfo['manualHours'] ?? well.hoursPerPerson.toInt();
-      final startHourOffset = (userHash + colorIndex * 3) % (16 - (hours > 0 ? hours : 1));
+      final startHourOffset =
+          (userHash + colorIndex * 3) % (16 - (hours > 0 ? hours : 1));
       timePrefix = 6 + startHourOffset;
     }
 
@@ -385,14 +398,15 @@ class _IrrigationCalendarState extends State<IrrigationCalendar> {
               ],
             ),
           ),
-          // Content Card  
+          // Content Card
           Expanded(
             child: Padding(
               padding: const EdgeInsets.only(bottom: 24),
               child: NabaCard(
                 padding: const EdgeInsets.all(16),
                 onTap: () {},
-                border: Border.all(color: plotColor.withOpacity(0.3), width: 1.5),
+                border:
+                    Border.all(color: plotColor.withOpacity(0.3), width: 1.5),
                 child: Row(
                   textDirection: TextDirection.rtl,
                   children: [
@@ -438,8 +452,8 @@ class _IrrigationCalendarState extends State<IrrigationCalendar> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.end,
                             children: [
-                              _buildMiniBadge(
-                                  '${well.hoursPerPerson} ساعة', Icons.access_time_rounded),
+                              _buildMiniBadge('${well.hoursPerPerson} ساعة',
+                                  Icons.access_time_rounded),
                               const SizedBox(width: 8),
                               _buildMiniBadge(plotName, Icons.landscape_rounded,
                                   color: plotColor),

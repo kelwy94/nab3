@@ -1,14 +1,19 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
-
 import '../models/types.dart';
 import '../providers/auth_provider.dart';
+import '../providers/job_provider.dart';
 import '../theme.dart';
 import '../widgets/naba_widgets.dart';
 import 'job_details_screen.dart';
 import 'settings_screen.dart';
 import 'wallet_screen.dart';
+import '../widgets/service_requests_panel.dart';
 
 class EquipmentOwnerDashboard extends StatefulWidget {
   const EquipmentOwnerDashboard({super.key});
@@ -30,6 +35,7 @@ class _EquipmentOwnerDashboardState extends State<EquipmentOwnerDashboard> {
         children: const [
           _MyEquipmentTab(),
           _RentalRequestsTab(),
+          ServiceRequestsPanel(),
           WalletScreen(),
           _EquipmentProfileTab(),
         ],
@@ -53,9 +59,10 @@ class _EquipmentOwnerDashboardState extends State<EquipmentOwnerDashboard> {
               children: [
                 _buildNavItem(0, Icons.agriculture_rounded, 'معداتي'),
                 _buildNavItem(1, Icons.assignment_rounded, 'الطلبات'),
+                _buildNavItem(2, Icons.apps_rounded, 'الخدمات'),
                 _buildNavItem(
-                    2, Icons.account_balance_wallet_rounded, 'الماليات'),
-                _buildNavItem(3, Icons.person_rounded, 'حسابي'),
+                    3, Icons.account_balance_wallet_rounded, 'الماليات'),
+                _buildNavItem(4, Icons.person_rounded, 'حسابي'),
               ],
             ),
           ),
@@ -295,153 +302,361 @@ class _MyEquipmentTab extends StatelessWidget {
   }
 
   void _showAddEquipmentDialog(BuildContext context) {
-    final nameCtrl = TextEditingController();
-    final modelCtrl = TextEditingController();
-    final rateCtrl = TextEditingController();
-    final customTypeCtrl = TextEditingController();
-    String selectedType = 'جرار';
-
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setModalState) => Container(
-          height: MediaQuery.of(context).size.height * 0.8,
-          decoration: const BoxDecoration(
-            color: NabaTheme.background,
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(32),
-              topRight: Radius.circular(32),
-            ),
-          ),
-          padding: const EdgeInsets.all(24),
-          child: Directionality(
-            textDirection: TextDirection.rtl,
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.grey.withOpacity(0.3),
-                        borderRadius: BorderRadius.circular(2),
+      builder: (ctx) => const AddEquipmentDialog(),
+    );
+  }
+}
+
+class AddEquipmentDialog extends StatefulWidget {
+  const AddEquipmentDialog({super.key});
+
+  @override
+  State<AddEquipmentDialog> createState() => _AddEquipmentDialogState();
+}
+
+class _AddEquipmentDialogState extends State<AddEquipmentDialog> {
+  final _modelCtrl = TextEditingController();
+  final _rateCtrl = TextEditingController();
+  final _customTypeCtrl = TextEditingController();
+  String _selectedType = 'جرار';
+  bool _isUploading = false;
+  List<XFile> _selectedImages = [];
+  final ImagePicker _picker = ImagePicker();
+  final Set<String> _selectedAttachments = {};
+  String _pricingUnit = 'ساعة';
+
+  Future<void> _pickImages() async {
+    try {
+      final picked = await _picker.pickMultiImage();
+      if (picked.isNotEmpty) {
+        setState(() {
+          _selectedImages.addAll(picked);
+          if (_selectedImages.length > 4) {
+            _selectedImages = _selectedImages.sublist(0, 4);
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('Error picking image: $e');
+    }
+  }
+
+  void _removeImage(int index) {
+    setState(() {
+      _selectedImages.removeAt(index);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.85,
+      decoration: const BoxDecoration(
+        color: NabaTheme.background,
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(32),
+          topRight: Radius.circular(32),
+        ),
+      ),
+      padding: const EdgeInsets.all(24),
+      child: Directionality(
+        textDirection: TextDirection.rtl,
+        child: _isUploading
+            ? Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: const [
+                  CircularProgressIndicator(color: NabaTheme.primary),
+                  SizedBox(height: 16),
+                  Text('جاري حفظ البيانات...',
+                      style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: NabaTheme.primary)),
+                ],
+              )
+            : SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.withOpacity(0.3),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 24),
-                  const Text('إضافة معدة جديدة',
-                      style:
-                          TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                      textAlign: TextAlign.center),
-                  const SizedBox(height: 24),
-                  const Text('اسم المعدة',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: nameCtrl,
-                    decoration: const InputDecoration(
-                        hintText: 'مثلاً: جرار نيوهولاند 75 حصان'),
-                  ),
-                  const SizedBox(height: 20),
-                  const Text('نوع المعدة',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  DropdownButtonFormField<String>(
-                    initialValue: selectedType,
-                    items: [
-                      'جرار',
-                      'حفار',
-                      'لودر',
-                      'سيارة نقل جامبو',
-                      'ربع نقل',
-                      'ماكينة رش',
-                      'ماكينة ري',
-                      'محراث',
-                      'كومباين حصاد',
-                      'موتور مياه',
-                      'أخرى'
-                    ]
-                        .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                        .toList(),
-                    onChanged: (v) =>
-                        setModalState(() => selectedType = v ?? 'جرار'),
-                  ),
-                  if (selectedType == 'أخرى') ...[
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 24),
+                    const Text('إضافة معدة جديدة',
+                        style: TextStyle(
+                            fontSize: 22, fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center),
+                    const SizedBox(height: 24),
+                    const Text('صور المعدة (بحد أقصى 4 صور)',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        ...List.generate(_selectedImages.length, (index) {
+                          return Stack(
+                            children: [
+                              Container(
+                                width: 80,
+                                height: 80,
+                                decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                        color: Colors.grey.shade300)),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: kIsWeb
+                                      ? Image.network(
+                                          _selectedImages[index].path,
+                                          fit: BoxFit.cover)
+                                      : Image.file(
+                                          File(_selectedImages[index].path),
+                                          fit: BoxFit.cover),
+                                ),
+                              ),
+                              Positioned(
+                                top: -8,
+                                right: -8,
+                                child: IconButton(
+                                  icon: const Icon(Icons.cancel,
+                                      color: Colors.red),
+                                  onPressed: () => _removeImage(index),
+                                ),
+                              )
+                            ],
+                          );
+                        }),
+                        if (_selectedImages.length < 4)
+                          InkWell(
+                            onTap: _pickImages,
+                            borderRadius: BorderRadius.circular(12),
+                            child: Container(
+                              width: 80,
+                              height: 80,
+                              decoration: BoxDecoration(
+                                color: NabaTheme.primary.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: NabaTheme.primary),
+                              ),
+                              child: const Icon(Icons.add_a_photo,
+                                  color: NabaTheme.primary),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    const Text('نوع المعدة',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<String>(
+                      initialValue: _selectedType,
+                      items: [
+                        'جرار',
+                        'لودر كبير',
+                        'لودر صغير',
+                        'سيارة ربع نقل',
+                        'سيارة جامبو',
+                        'حفار',
+                        'بلدوزر',
+                        'كلارك',
+                        'خباطة آبار',
+                        'بريمة آبار',
+                        'أخرى'
+                      ]
+                          .map(
+                              (e) => DropdownMenuItem(value: e, child: Text(e)))
+                          .toList(),
+                      onChanged: (v) {
+                        setState(() {
+                          _selectedType = v ?? 'جرار';
+                          _selectedAttachments.clear();
+                        });
+                      },
+                    ),
+                    if (_selectedType == 'جرار') ...[
+                      const SizedBox(height: 16),
+                      const Text('المرفقات المتوفرة',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          'جرار فقط',
+                          'مكبس',
+                          'دراسة',
+                          'قصابية',
+                          'ليذر',
+                          'محراث',
+                          'فجاج',
+                          'بتانة',
+                          'لمامة',
+                          'حشاشة',
+                          'سطارة'
+                        ].map((att) {
+                          final isSelected = _selectedAttachments.contains(att);
+                          return ChoiceChip(
+                            label: Text(att),
+                            selected: isSelected,
+                            selectedColor: NabaTheme.primary.withOpacity(0.2),
+                            onSelected: (selected) {
+                              setState(() {
+                                if (selected) {
+                                  _selectedAttachments.add(att);
+                                } else {
+                                  _selectedAttachments.remove(att);
+                                }
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                    if (_selectedType == 'أخرى') ...[
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _customTypeCtrl,
+                        decoration:
+                            const InputDecoration(hintText: 'اكتب نوع المعدة'),
+                      ),
+                    ],
+                    const SizedBox(height: 20),
+                    const Text('الموديل / سنة الصنع',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
                     TextField(
-                      controller: customTypeCtrl,
-                      decoration:
-                          const InputDecoration(hintText: 'اكتب نوع المعدة'),
+                      controller: _modelCtrl,
+                      decoration: const InputDecoration(hintText: '2023'),
+                    ),
+                    const SizedBox(height: 20),
+                    const Text('سعر الإيجار للمعدة (ج.م)',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    Row(
+                      textDirection: TextDirection.rtl,
+                      children: [
+                        Expanded(
+                          flex: 2,
+                          child: TextField(
+                            controller: _rateCtrl,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(hintText: '150'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 1,
+                          child: DropdownButtonFormField<String>(
+                            value: _pricingUnit,
+                            decoration: const InputDecoration(
+                              contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 8),
+                            ),
+                            items: ['ساعة', 'فدان']
+                                .map((e) => DropdownMenuItem(
+                                    value: e, child: Text('/ $e')))
+                                .toList(),
+                            onChanged: (v) => setState(() => _pricingUnit = v!),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 32),
+                    NabaButton(
+                      text: 'حفظ المعدة',
+                      icon: Icons.save_rounded,
+                      onPressed: () async {
+                        if (_rateCtrl.text.isEmpty || _modelCtrl.text.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text('يرجى ملء جميع الحقول المطلوبة')),
+                          );
+                          return;
+                        }
+
+                        setState(() => _isUploading = true);
+
+                        final finalType = _selectedType == 'أخرى'
+                            ? _customTypeCtrl.text.isNotEmpty
+                                ? _customTypeCtrl.text
+                                : 'أخرى'
+                            : _selectedType;
+                        final user =
+                            Provider.of<AuthProvider>(context, listen: false)
+                                .user;
+
+                        try {
+                          final docRef = await FirebaseFirestore.instance
+                              .collection('equipment')
+                              .add({
+                            'ownerId': user?.id,
+                            'ownerName': user?.fullName,
+                            'ownerPhone': user?.phone,
+                            'name': finalType,
+                            'type': finalType,
+                            'model': _modelCtrl.text,
+                            'hourlyRate': double.tryParse(_rateCtrl.text) ?? 0,
+                            'priceUnit': _pricingUnit,
+                            if (finalType == 'جرار')
+                              'attachments': _selectedAttachments.toList(),
+                            'status': 'available',
+                            'createdAt': FieldValue.serverTimestamp(),
+                            'images': [],
+                          });
+
+                          List<String> imageUrls = [];
+                          for (int i = 0; i < _selectedImages.length; i++) {
+                            final image = _selectedImages[i];
+                            final bytes = await image.readAsBytes();
+                            final storageRef = FirebaseStorage.instance
+                                .ref()
+                                .child('equipment_images/${docRef.id}/img_$i');
+
+                            final uploadTask = await storageRef.putData(bytes,
+                                SettableMetadata(contentType: 'image/jpeg'));
+                            final url = await uploadTask.ref.getDownloadURL();
+                            imageUrls.add(url);
+                          }
+
+                          if (imageUrls.isNotEmpty) {
+                            await docRef.update({'images': imageUrls});
+                          }
+
+                          if (context.mounted) {
+                            Navigator.pop(context);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text('تم إضافة المعدة بنجاح!')),
+                            );
+                          }
+                        } catch (e) {
+                          debugPrint('Error uploading equipment: $e');
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text(
+                                      'فشل الرفع، يرجى المحاولة مرة أخرى!')),
+                            );
+                            setState(() => _isUploading = false);
+                          }
+                        }
+                      },
                     ),
                   ],
-                  const SizedBox(height: 20),
-                  const Text('الموديل / سنة الصنع',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: modelCtrl,
-                    decoration: const InputDecoration(hintText: '2023'),
-                  ),
-                  const SizedBox(height: 20),
-                  const Text('سعر الإيجار بالساعة (ج.م)',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: rateCtrl,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(hintText: '150'),
-                  ),
-                  const SizedBox(height: 32),
-                  NabaButton(
-                    text: 'حفظ المعدة',
-                    icon: Icons.save_rounded,
-                    onPressed: () async {
-                      if (nameCtrl.text.isEmpty || rateCtrl.text.isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text('يرجى ملء جميع الحقول المطلوبة')),
-                        );
-                        return;
-                      }
-                      final finalType = selectedType == 'أخرى'
-                          ? customTypeCtrl.text.isNotEmpty
-                              ? customTypeCtrl.text
-                              : 'أخرى'
-                          : selectedType;
-                      final user =
-                          Provider.of<AuthProvider>(context, listen: false)
-                              .user;
-                      await FirebaseFirestore.instance
-                          .collection('equipment')
-                          .add({
-                        'ownerId': user?.id,
-                        'ownerName': user?.fullName,
-                        'ownerPhone': user?.phone,
-                        'name': nameCtrl.text,
-                        'type': finalType,
-                        'model': modelCtrl.text,
-                        'hourlyRate': double.tryParse(rateCtrl.text) ?? 0,
-                        'status': 'available',
-                        'createdAt': FieldValue.serverTimestamp(),
-                      });
-                      if (context.mounted) {
-                        Navigator.pop(ctx);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text('تم إضافة المعدة بنجاح!')),
-                        );
-                      }
-                    },
-                  ),
-                ],
+                ),
               ),
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -456,202 +671,193 @@ class _RentalRequestsTab extends StatelessWidget {
     final user = context.watch<AuthProvider>().user;
     return Scaffold(
       backgroundColor: NabaTheme.background,
-      appBar: const NabaAppBar(title: 'طلبات التأجير', showBackButton: false),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('rental_requests')
-            .where('equipmentOwnerId', isEqualTo: user?.id)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
+      appBar: const NabaAppBar(
+          title: 'سوق الطلبات والمناقصات', showBackButton: false),
+      body: Consumer<JobProvider>(
+        builder: (context, jobProvider, child) {
+          // Equipment jobs only
+          final equipmentJobs =
+              jobProvider.jobs.where((j) => (j.type == 'equipment')).toList();
 
-          final docs = snapshot.data?.docs ?? [];
+          final requestedJobs = equipmentJobs
+              .where((j) =>
+                  j.status == JobStatus.requested &&
+                  j.requesterUserId != user?.id)
+              .toList();
 
-          if (docs.isEmpty) {
-            return const Center(
+          final ongoingTasks = equipmentJobs
+              .where((j) =>
+                  j.assignedUserId == user?.id &&
+                  (j.status == JobStatus.accepted ||
+                      j.status == JobStatus.inProgress))
+              .toList();
+
+          final finishedPendingPayment = equipmentJobs
+              .where((j) =>
+                  j.assignedUserId == user?.id &&
+                  j.status == JobStatus.completed)
+              .toList();
+
+          final workHistory = equipmentJobs
+              .where((j) =>
+                  j.assignedUserId == user?.id &&
+                  (j.status == JobStatus.paid ||
+                      j.status == JobStatus.reviewed))
+              .toList();
+
+          return RefreshIndicator(
+            onRefresh: () async => jobProvider.fetchJobs(),
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(20),
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Icon(Icons.inbox_rounded, size: 64, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text('لا توجد طلبات تأجير حالياً',
-                      style: TextStyle(color: Colors.grey, fontSize: 18)),
+                  // Ongoing Tasks
+                  if (ongoingTasks.isNotEmpty) ...[
+                    _buildSectionTitle('طلبات يتم تنفيذها الآن',
+                        Icons.play_circle_fill, Colors.blue.shade700),
+                    const SizedBox(height: 12),
+                    ...ongoingTasks.map((job) => Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: _buildJobCard(
+                              context,
+                              job,
+                              job.status == JobStatus.inProgress
+                                  ? 'جاري التنفيذ'
+                                  : 'تم القبول - توجه للموقع',
+                              Colors.blue),
+                        )),
+                    const SizedBox(height: 24),
+                  ],
+
+                  // Pending Payment
+                  if (finishedPendingPayment.isNotEmpty) ...[
+                    _buildSectionTitle('طلبات بانتظار الدفع',
+                        Icons.hourglass_top_rounded, Colors.orange.shade700),
+                    const SizedBox(height: 12),
+                    ...finishedPendingPayment.map((job) => Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: _buildJobCard(context, job,
+                              'انتهى العمل - بانتظار الدفع', Colors.orange),
+                        )),
+                    const SizedBox(height: 24),
+                  ],
+
+                  // Available Jobs
+                  _buildSectionTitle('طلبات معدات متاحة في السوق',
+                      Icons.handshake_outlined, NabaTheme.primary),
+                  const SizedBox(height: 12),
+                  if (jobProvider.isLoading)
+                    const Center(child: CircularProgressIndicator())
+                  else if (requestedJobs.isEmpty)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(32),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.grey.shade200),
+                      ),
+                      child: Column(
+                        children: [
+                          Icon(Icons.inbox_rounded,
+                              size: 48, color: Colors.grey.shade300),
+                          const SizedBox(height: 12),
+                          Text(
+                              'لا توجد طلبات معدات حالياً. سيصلك تنبيه فور توفرها.',
+                              style: TextStyle(color: Colors.grey.shade500),
+                              textAlign: TextAlign.center),
+                        ],
+                      ),
+                    )
+                  else
+                    ...requestedJobs.map((job) => Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: _buildJobCard(context, job,
+                              'متاح لتقديم عرض سعر', NabaTheme.primary),
+                        )),
+
+                  const SizedBox(height: 28),
+
+                  // History
+                  if (workHistory.isNotEmpty) ...[
+                    _buildSectionTitle(
+                        'سجل التأجير', Icons.history_rounded, Colors.purple),
+                    const SizedBox(height: 12),
+                    ...workHistory.reversed.take(5).map((job) => Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child:
+                              _buildJobCard(context, job, 'منتهي', Colors.grey),
+                        )),
+                  ]
                 ],
               ),
-            );
-          }
-
-          return ListView.builder(
-            padding: const EdgeInsets.all(24),
-            itemCount: docs.length,
-            itemBuilder: (context, index) {
-              final data = docs[index].data() as Map<String, dynamic>;
-              final docId = docs[index].id;
-              final requesterName = data['requesterName'] ?? 'مزارع';
-              final equipmentName = data['equipmentName'] ?? 'معدة';
-              final duration = data['duration'] ?? '1 يوم';
-              final price = data['totalPrice'] ?? 0;
-              final status = data['status'] ?? 'pending';
-
-              if (status != 'pending') {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: InkWell(
-                    onTap: data['jobId'] != null
-                        ? () {
-                            // Find the job object from provider if possible, or just navigate
-                            // For simplicity, we can fetch it or just use a placeholder
-                            // But usually, we want to navigate to the job details
-                            FirebaseFirestore.instance
-                                .collection('jobs')
-                                .doc(data['jobId'])
-                                .get()
-                                .then((doc) {
-                              if (doc.exists) {
-                                // Create a Job object from data
-                                final j = doc.data()!;
-                                final job = Job(
-                                  id: doc.id,
-                                  requesterUserId: j['requesterUserId'] ?? '',
-                                  assignedUserId: j['assignedUserId'],
-                                  type: j['type'] ?? 'equipment',
-                                  serviceType: j['serviceType'] ?? '',
-                                  location: const {'lat': 0.0, 'lng': 0.0},
-                                  startTime:
-                                      (j['startTime'] as Timestamp).toDate(),
-                                  endTime: (j['endTime'] as Timestamp).toDate(),
-                                  status: JobStatus.values.firstWhere(
-                                      (e) => e.toString() == j['status'],
-                                      orElse: () => JobStatus.requested),
-                                  price: (j['price'] as num?)?.toDouble(),
-                                  notes: j['notes'] ?? '',
-                                  address: j['address'],
-                                );
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => JobDetailsScreen(job: job),
-                                  ),
-                                );
-                              }
-                            });
-                          }
-                        : null,
-                    child: NabaCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Chip(
-                                label: Text(
-                                    status == 'accepted'
-                                        ? 'مقبول - تتبع'
-                                        : 'مرفوض',
-                                    style: const TextStyle(
-                                        color: Colors.white, fontSize: 11)),
-                                backgroundColor: status == 'accepted'
-                                    ? Colors.green
-                                    : Colors.red,
-                              ),
-                              Text(equipmentName,
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16)),
-                            ],
-                          ),
-                          Text('الطالب: $requesterName • $duration',
-                              style: TextStyle(
-                                  color: Colors.grey.shade600, fontSize: 13)),
-                        ],
-                      ),
-                    ),
-                  ),
-                );
-              }
-
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: NabaCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text('$price ج.م',
-                              style: const TextStyle(
-                                  color: NabaTheme.primary,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 18)),
-                          Text(equipmentName,
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.bold, fontSize: 16)),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Text('الطالب: $requesterName • المدة: $duration',
-                          style: TextStyle(
-                              color: Colors.grey.shade600, fontSize: 13)),
-                      const SizedBox(height: 20),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: () async {
-                                await FirebaseFirestore.instance
-                                    .collection('rental_requests')
-                                    .doc(docId)
-                                    .update({'status': 'rejected'});
-                              },
-                              child: const Text('رفض'),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: ElevatedButton(
-                              onPressed: () async {
-                                final batch =
-                                    FirebaseFirestore.instance.batch();
-
-                                // 1. Update Rental Request
-                                final reqRef = FirebaseFirestore.instance
-                                    .collection('rental_requests')
-                                    .doc(docId);
-                                batch.update(reqRef, {'status': 'accepted'});
-
-                                // 2. Update linked Job if exists
-                                if (data['jobId'] != null) {
-                                  final jobRef = FirebaseFirestore.instance
-                                      .collection('jobs')
-                                      .doc(data['jobId']);
-                                  batch.update(jobRef, {
-                                    'status': JobStatus.accepted.toString(),
-                                    'assignedUserId': user?.id,
-                                    'acceptedAt': FieldValue.serverTimestamp(),
-                                  });
-                                }
-
-                                await batch.commit();
-                              },
-                              style: ElevatedButton.styleFrom(
-                                  backgroundColor: NabaTheme.primary,
-                                  foregroundColor: Colors.white),
-                              child: const Text('قبول'),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
+            ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title, IconData icon, Color color) {
+    return Row(
+      textDirection: TextDirection.rtl,
+      children: [
+        Icon(icon, color: color, size: 20),
+        const SizedBox(width: 8),
+        Text(title,
+            style: TextStyle(
+                fontSize: 16, fontWeight: FontWeight.bold, color: color)),
+      ],
+    );
+  }
+
+  Widget _buildJobCard(
+      BuildContext context, Job job, String badgeText, Color badgeColor) {
+    return InkWell(
+      onTap: () => Navigator.push(context,
+          MaterialPageRoute(builder: (_) => JobDetailsScreen(job: job))),
+      child: NabaCard(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: badgeColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(badgeText,
+                      style: TextStyle(
+                          color: badgeColor,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold)),
+                ),
+                Text(job.serviceType,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 16)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Text(job.address?.isNotEmpty == true ? job.address! : 'لم يحدد',
+                    style:
+                        TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+                const SizedBox(width: 4),
+                Icon(Icons.location_on_outlined,
+                    size: 14, color: Colors.grey.shade500),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

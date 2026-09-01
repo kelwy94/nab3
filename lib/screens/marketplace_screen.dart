@@ -1,77 +1,295 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../data/delivery_data.dart';
 import '../providers/app_state_provider.dart';
 import '../providers/auth_provider.dart';
 import '../theme.dart';
 import '../widgets/naba_widgets.dart';
 import '../providers/job_provider.dart';
 import '../models/types.dart';
+import '../utils/guest_utils.dart';
 import 'request_worker_screen.dart';
 import 'request_equipment_screen.dart';
 import 'job_details_screen.dart';
 import 'cart_screen.dart';
 import 'product_details_screen.dart';
+import 'orders_history_screen.dart';
 
-class MarketplaceScreen extends StatelessWidget {
-  const MarketplaceScreen({super.key});
+class MarketplaceScreen extends StatefulWidget {
+  final bool showAppBar;
+  const MarketplaceScreen({super.key, this.showAppBar = true});
+
+  @override
+  State<MarketplaceScreen> createState() => _MarketplaceScreenState();
+}
+
+class _MarketplaceScreenState extends State<MarketplaceScreen> {
+  String? _selectedDistrict;
+  bool _initialized = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_initialized) {
+      final auth = Provider.of<AuthProvider>(context, listen: false);
+      final userDistrict = auth.user?.extraData?['district'] as String?;
+      _selectedDistrict = userDistrict;
+      _initialized = true;
+    }
+  }
+
+  String? get _userDistrict {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    return auth.user?.extraData?['district'] as String?;
+  }
+
+  bool get _isCrossDistrict =>
+      _selectedDistrict != null &&
+      _userDistrict != null &&
+      _selectedDistrict != _userDistrict;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: NabaTheme.background,
-      appBar: NabaAppBar(
-        title: 'سوق نبع',
-        showBackButton: false,
-        actions: [
-          Stack(
-            alignment: Alignment.center,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.shopping_cart_outlined),
-                onPressed: () {
-                  Navigator.push(context,
-                      MaterialPageRoute(builder: (_) => const CartScreen()));
-                },
-              ),
-              Positioned(
-                right: 8,
-                top: 8,
-                child: Consumer<AppStateProvider>(
-                  builder: (context, appState, child) {
-                    if (appState.cart.isEmpty) return const SizedBox.shrink();
-                    return Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(
-                        color: Colors.red,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Text(
-                        '${appState.cart.length}',
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold),
-                      ),
-                    );
+      appBar: widget.showAppBar
+          ? NabaAppBar(
+              title: 'سوق نبع',
+              showBackButton: false,
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.receipt_long_rounded),
+                  tooltip: 'مشترياتي وتتبعها',
+                  onPressed: () {
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const OrdersHistoryScreen()));
                   },
                 ),
-              ),
-            ],
+                Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.shopping_cart_outlined),
+                      onPressed: () {
+                        Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => const CartScreen()));
+                      },
+                    ),
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: Consumer<AppStateProvider>(
+                        builder: (context, appState, child) {
+                          if (appState.cart.isEmpty)
+                            return const SizedBox.shrink();
+                          return Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: const BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Text(
+                              '${appState.cart.length}',
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            )
+          : null,
+      body: Column(
+        children: [
+          // District Selector
+          _buildDistrictSelector(),
+
+          // Cross-District Warning Banner
+          if (_isCrossDistrict) _buildCrossDistrictBanner(),
+
+          // Products Grid
+          Expanded(child: _buildProductGrid()),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDistrictSelector() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
-      body: const ProductCatalog(),
+      child: Row(
+        textDirection: TextDirection.rtl,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: NabaTheme.primary.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.location_on_rounded,
+                color: NabaTheme.primary, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: _selectedDistrict,
+                isExpanded: true,
+                hint: const Text('اختر المركز',
+                    textDirection: TextDirection.rtl,
+                    style: TextStyle(color: Colors.grey)),
+                icon: const Icon(Icons.keyboard_arrow_down_rounded,
+                    color: NabaTheme.primary),
+                items: kDistricts.map((district) {
+                  final isUserDistrict = district == _userDistrict;
+                  return DropdownMenuItem(
+                    value: district,
+                    child: Row(
+                      textDirection: TextDirection.rtl,
+                      children: [
+                        Text(district,
+                            style: TextStyle(
+                              fontWeight: isUserDistrict
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                              color: isUserDistrict
+                                  ? NabaTheme.primary
+                                  : Colors.black87,
+                            )),
+                        if (isUserDistrict) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: NabaTheme.primary.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Text('مركزك',
+                                style: TextStyle(
+                                    fontSize: 10,
+                                    color: NabaTheme.primary,
+                                    fontWeight: FontWeight.bold)),
+                          ),
+                        ],
+                      ],
+                    ),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() => _selectedDistrict = value);
+                },
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
-}
 
-class ProductCatalog extends StatelessWidget {
-  const ProductCatalog({super.key});
+  Widget _buildCrossDistrictBanner() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.orange.shade600, Colors.orange.shade400],
+        ),
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.orange.withOpacity(0.25),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Row(
+        textDirection: TextDirection.rtl,
+        children: [
+          const Icon(Icons.info_outline_rounded, color: Colors.white, size: 22),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              '⚠️ أنت تتصفح سوق $_selectedDistrict. خدمة التوصيل بين المراكز غير متاحة حالياً — التنسيق يكون مباشرة مع البائع.',
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildProductGrid() {
     final products = Provider.of<AppStateProvider>(context).products;
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final allUsers = authProvider.allUsers;
+
+    // Filter products by selected district
+    List<CatalogItem> filteredProducts;
+    if (_selectedDistrict == null) {
+      filteredProducts = products;
+    } else {
+      filteredProducts = products.where((p) {
+        // Find seller's district from allUsers
+        final seller =
+            allUsers.where((u) => u.id == p.sellerUserId).firstOrNull;
+        if (seller == null) return true; // Show if seller not found (fallback)
+        final sellerDistrict = seller.extraData?['district'] as String?;
+        if (sellerDistrict == null)
+          return true; // Show if seller has no district
+        return sellerDistrict == _selectedDistrict;
+      }).toList();
+    }
+
+    if (filteredProducts.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.storefront_outlined,
+                size: 64, color: Colors.grey.shade300),
+            const SizedBox(height: 16),
+            Text(
+              _selectedDistrict != null
+                  ? 'لا توجد منتجات في $_selectedDistrict حالياً'
+                  : 'لا توجد منتجات',
+              style: TextStyle(
+                  color: Colors.grey.shade500,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+      );
+    }
+
     return GridView.builder(
       padding: const EdgeInsets.all(24),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -80,9 +298,9 @@ class ProductCatalog extends StatelessWidget {
         mainAxisSpacing: 16,
         childAspectRatio: 0.75,
       ),
-      itemCount: products.length,
+      itemCount: filteredProducts.length,
       itemBuilder: (context, index) {
-        final p = products[index];
+        final p = filteredProducts[index];
         return _buildProductCard(context, p);
       },
     );
@@ -92,9 +310,10 @@ class ProductCatalog extends StatelessWidget {
     return NabaCard(
       padding: EdgeInsets.zero,
       onTap: () {
-        Navigator.push(context, MaterialPageRoute(
-          builder: (_) => ProductDetailsScreen(product: p)
-        ));
+        Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (_) => ProductDetailsScreen(product: p)));
       },
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -136,6 +355,10 @@ class ProductCatalog extends StatelessWidget {
                             color: Colors.white, size: 16),
                       ),
                       onPressed: () {
+                        if (context.read<AuthProvider>().isGuest) {
+                          GuestUtils.showGuestLoginPrompt(context);
+                          return;
+                        }
                         context.read<AppStateProvider>().addToCart(p);
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
@@ -165,7 +388,7 @@ class ProductCatalog extends StatelessWidget {
       return const Center(
           child: Icon(Icons.image_outlined, color: Colors.grey, size: 40));
     }
-    
+
     try {
       String cleanBase64 = base64String;
       if (cleanBase64.contains(',')) {
@@ -205,8 +428,14 @@ class ServicesList extends StatelessWidget {
           'ري، تقليم، مكافحة آفات، جني محصول',
           Icons.engineering_rounded,
           Colors.blue.shade700,
-          () => Navigator.push(context,
-              MaterialPageRoute(builder: (_) => const RequestWorkerScreen())),
+          () {
+            if (Provider.of<AuthProvider>(context, listen: false).isGuest) {
+              GuestUtils.showGuestLoginPrompt(context);
+              return;
+            }
+            Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const RequestWorkerScreen()));
+          },
         ),
         const SizedBox(height: 20),
         _serviceCard(
@@ -215,10 +444,16 @@ class ServicesList extends StatelessWidget {
           'جرارات، حفارات، مواتير ري، حفار ليزر',
           Icons.agriculture_rounded,
           Colors.orange.shade700,
-          () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (_) => const RequestEquipmentScreen())),
+          () {
+            if (Provider.of<AuthProvider>(context, listen: false).isGuest) {
+              GuestUtils.showGuestLoginPrompt(context);
+              return;
+            }
+            Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => const RequestEquipmentScreen()));
+          },
         ),
         const SizedBox(height: 32),
         const MyActiveRequests(),

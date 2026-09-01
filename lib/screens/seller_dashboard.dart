@@ -16,6 +16,7 @@ import 'settings_screen.dart';
 import 'wallet_screen.dart';
 import 'map_picker_screen.dart';
 import 'package:latlong2/latlong.dart';
+import '../widgets/service_requests_panel.dart';
 
 class SellerDashboard extends StatefulWidget {
   const SellerDashboard({super.key});
@@ -43,7 +44,7 @@ class _SellerDashboardState extends State<SellerDashboard>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final sellerId = context.read<AuthProvider>().user!.id;
       context.read<CatalogProvider>().listenToSellerData(sellerId);
@@ -91,6 +92,7 @@ class _SellerDashboardState extends State<SellerDashboard>
           tabs: const [
             Tab(text: 'المنتجات'),
             Tab(text: 'الطلبات'),
+            Tab(text: 'الخدمات'),
             Tab(text: 'حسابي'),
           ],
         ),
@@ -100,6 +102,7 @@ class _SellerDashboardState extends State<SellerDashboard>
         children: [
           _buildProductsTab(),
           _buildOrdersTab(),
+          const ServiceRequestsPanel(),
           _buildProfileTab(),
         ],
       ),
@@ -163,7 +166,8 @@ class _SellerDashboardState extends State<SellerDashboard>
           alignment: Alignment.center,
           children: [
             IconButton(
-              icon: const Icon(Icons.notifications_outlined, color: NabaTheme.primary),
+              icon: const Icon(Icons.notifications_outlined,
+                  color: NabaTheme.primary),
               onPressed: () => _showNotifications(sellerId),
             ),
             if (unreadCount > 0)
@@ -238,9 +242,16 @@ class _SellerDashboardState extends State<SellerDashboard>
                         final data = doc.data() as Map<String, dynamic>;
                         final isRead = data['isRead'] ?? false;
                         return ListTile(
-                          title: Text(data['title'] ?? '', textAlign: TextAlign.right, style: TextStyle(fontWeight: isRead ? FontWeight.normal : FontWeight.bold)),
-                          subtitle: Text(data['body'] ?? '', textAlign: TextAlign.right),
-                          leading: Icon(Icons.notifications_active_rounded, color: isRead ? Colors.grey : NabaTheme.primary),
+                          title: Text(data['title'] ?? '',
+                              textAlign: TextAlign.right,
+                              style: TextStyle(
+                                  fontWeight: isRead
+                                      ? FontWeight.normal
+                                      : FontWeight.bold)),
+                          subtitle: Text(data['body'] ?? '',
+                              textAlign: TextAlign.right),
+                          leading: Icon(Icons.notifications_active_rounded,
+                              color: isRead ? Colors.grey : NabaTheme.primary),
                           onTap: () {
                             if (!isRead) {
                               doc.reference.update({'isRead': true});
@@ -453,8 +464,11 @@ class _SellerDashboardState extends State<SellerDashboard>
     // Calculate today's sales
     final now = DateTime.now();
     final todayStart = DateTime(now.year, now.month, now.day);
-    final todayOrders = orders.where((o) =>
-        o.createdAt.isAfter(todayStart) || o.createdAt.isAtSameMomentAs(todayStart)).toList();
+    final todayOrders = orders
+        .where((o) =>
+            o.createdAt.isAfter(todayStart) ||
+            o.createdAt.isAtSameMomentAs(todayStart))
+        .toList();
     final todaySalesTotal = todayOrders.fold(0.0, (sum, o) => sum + o.total);
 
     return Container(
@@ -475,7 +489,12 @@ class _SellerDashboardState extends State<SellerDashboard>
         children: [
           _stat('طلبيات نشطة', activeCount.toString(),
               Icons.local_shipping_rounded),
-          _stat('مبيعات اليوم', todaySalesTotal > 0 ? '${todaySalesTotal.toStringAsFixed(0)} ج' : '0', Icons.payments_rounded),
+          _stat(
+              'مبيعات اليوم',
+              todaySalesTotal > 0
+                  ? '${todaySalesTotal.toStringAsFixed(0)} ج'
+                  : '0',
+              Icons.payments_rounded),
           _stat('التقييم', _getSellerRating(), Icons.star_rounded),
         ],
       ),
@@ -581,7 +600,8 @@ class _SellerDashboardState extends State<SellerDashboard>
                             ? 'تجهيز الطلب'
                             : o.status == OrderStatus.preparing
                                 ? 'في الطريق إليك'
-                                : o.status == OrderStatus.completed && o.deliveryWorkerId != null
+                                : o.status == OrderStatus.completed &&
+                                        o.deliveryWorkerId != null
                                     ? 'تقييم المندوب'
                                     : 'مكتمل',
                         onPressed: o.status == OrderStatus.deliveryAccepted
@@ -591,8 +611,10 @@ class _SellerDashboardState extends State<SellerDashboard>
                             : o.status == OrderStatus.preparing
                                 ? () => context
                                     .read<CatalogProvider>()
-                                    .updateOrderStatus(o.id, OrderStatus.outForDelivery)
-                                : o.status == OrderStatus.completed && o.deliveryWorkerId != null
+                                    .updateOrderStatus(
+                                        o.id, OrderStatus.outForDelivery)
+                                : o.status == OrderStatus.completed &&
+                                        o.deliveryWorkerId != null
                                     ? () async {
                                         int selectedRating = 5;
                                         await showDialog(
@@ -600,25 +622,48 @@ class _SellerDashboardState extends State<SellerDashboard>
                                           builder: (context) => StatefulBuilder(
                                             builder: (context, setState) {
                                               return AlertDialog(
-                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                                                title: const Text('تقييم المندوب', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold)),
+                                                shape: RoundedRectangleBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            20)),
+                                                title: const Text(
+                                                    'تقييم المندوب',
+                                                    textAlign: TextAlign.center,
+                                                    style: TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.bold)),
                                                 content: Column(
-                                                  mainAxisSize: MainAxisSize.min,
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
                                                   children: [
-                                                    const Text('ما هو تقييمك لسرعة وأداء مندوب التوصيل؟', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
+                                                    const Text(
+                                                        'ما هو تقييمك لسرعة وأداء مندوب التوصيل؟',
+                                                        textAlign:
+                                                            TextAlign.center,
+                                                        style: TextStyle(
+                                                            color:
+                                                                Colors.grey)),
                                                     const SizedBox(height: 24),
                                                     Row(
-                                                      mainAxisAlignment: MainAxisAlignment.center,
-                                                      children: List.generate(5, (index) {
+                                                      mainAxisAlignment:
+                                                          MainAxisAlignment
+                                                              .center,
+                                                      children: List.generate(5,
+                                                          (index) {
                                                         return IconButton(
                                                           icon: Icon(
-                                                            index < selectedRating ? Icons.star_rounded : Icons.star_border_rounded,
+                                                            index < selectedRating
+                                                                ? Icons
+                                                                    .star_rounded
+                                                                : Icons
+                                                                    .star_border_rounded,
                                                             color: Colors.amber,
                                                             size: 40,
                                                           ),
                                                           onPressed: () {
                                                             setState(() {
-                                                              selectedRating = index + 1;
+                                                              selectedRating =
+                                                                  index + 1;
                                                             });
                                                           },
                                                         );
@@ -627,37 +672,113 @@ class _SellerDashboardState extends State<SellerDashboard>
                                                   ],
                                                 ),
                                                 actions: [
-                                                  TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
+                                                  TextButton(
+                                                      onPressed: () =>
+                                                          Navigator.pop(
+                                                              context),
+                                                      child:
+                                                          const Text('إلغاء')),
                                                   ElevatedButton(
-                                                    style: ElevatedButton.styleFrom(
-                                                      backgroundColor: NabaTheme.primary,
-                                                      foregroundColor: Colors.white,
-                                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                                    style: ElevatedButton
+                                                        .styleFrom(
+                                                      backgroundColor:
+                                                          NabaTheme.primary,
+                                                      foregroundColor:
+                                                          Colors.white,
+                                                      shape:
+                                                          RoundedRectangleBorder(
+                                                              borderRadius:
+                                                                  BorderRadius
+                                                                      .circular(
+                                                                          12)),
                                                     ),
                                                     onPressed: () async {
                                                       Navigator.pop(context);
                                                       try {
-                                                        final workerDoc = FirebaseFirestore.instance.collection('users').doc(o.deliveryWorkerId);
-                                                        final snapshot = await workerDoc.get();
+                                                        final workerDoc =
+                                                            FirebaseFirestore
+                                                                .instance
+                                                                .collection(
+                                                                    'users')
+                                                                .doc(o
+                                                                    .deliveryWorkerId);
+                                                        final snapshot =
+                                                            await workerDoc
+                                                                .get();
                                                         if (snapshot.exists) {
-                                                          final Map<String, dynamic> dataMap = snapshot.data() as Map<String, dynamic>? ?? {};
-                                                          final Map<String, dynamic> extraData = dataMap['extraData'] is Map ? dataMap['extraData'] as Map<String, dynamic> : {};
-                                                          final double currentRating = extraData['rating'] != null ? (extraData['rating'] as num).toDouble() : 5.0;
-                                                          final int ratingCount = extraData['ratingCount'] != null ? (extraData['ratingCount'] as num).toInt() : 1;
-                                                          final newRating = ((currentRating * ratingCount) + selectedRating) / (ratingCount + 1);
-                                                          await workerDoc.set({
-                                                            'extraData': {
-                                                              'rating': newRating,
-                                                              'ratingCount': ratingCount + 1,
-                                                            }
-                                                          }, SetOptions(merge: true));
+                                                          final Map<String,
+                                                                  dynamic>
+                                                              dataMap =
+                                                              snapshot.data() as Map<
+                                                                      String,
+                                                                      dynamic>? ??
+                                                                  {};
+                                                          final Map<String,
+                                                                  dynamic>
+                                                              extraData =
+                                                              dataMap['extraData']
+                                                                      is Map
+                                                                  ? dataMap[
+                                                                          'extraData']
+                                                                      as Map<
+                                                                          String,
+                                                                          dynamic>
+                                                                  : {};
+                                                          final double
+                                                              currentRating =
+                                                              extraData['rating'] !=
+                                                                      null
+                                                                  ? (extraData[
+                                                                              'rating']
+                                                                          as num)
+                                                                      .toDouble()
+                                                                  : 5.0;
+                                                          final int
+                                                              ratingCount =
+                                                              extraData['ratingCount'] !=
+                                                                      null
+                                                                  ? (extraData[
+                                                                              'ratingCount']
+                                                                          as num)
+                                                                      .toInt()
+                                                                  : 1;
+                                                          final newRating =
+                                                              ((currentRating *
+                                                                          ratingCount) +
+                                                                      selectedRating) /
+                                                                  (ratingCount +
+                                                                      1);
+                                                          await workerDoc.set(
+                                                              {
+                                                                'extraData': {
+                                                                  'rating':
+                                                                      newRating,
+                                                                  'ratingCount':
+                                                                      ratingCount +
+                                                                          1,
+                                                                }
+                                                              },
+                                                              SetOptions(
+                                                                  merge: true));
                                                         }
-                                                        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إرسال تقييمك للمندوب بنجاح!')));
+                                                        if (context.mounted)
+                                                          ScaffoldMessenger.of(
+                                                                  context)
+                                                              .showSnackBar(
+                                                                  const SnackBar(
+                                                                      content: Text(
+                                                                          'تم إرسال تقييمك للمندوب بنجاح!')));
                                                       } catch (e) {
-                                                        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('حدث خطأ: $e')));
+                                                        if (context.mounted)
+                                                          ScaffoldMessenger.of(
+                                                                  context)
+                                                              .showSnackBar(SnackBar(
+                                                                  content: Text(
+                                                                      'حدث خطأ: $e')));
                                                       }
                                                     },
-                                                    child: const Text('إرسال التقييم'),
+                                                    child: const Text(
+                                                        'إرسال التقييم'),
                                                   ),
                                                 ],
                                               );
@@ -666,7 +787,8 @@ class _SellerDashboardState extends State<SellerDashboard>
                                         );
                                       }
                                     : null,
-                        isPrimary: o.status == OrderStatus.deliveryAccepted || o.status == OrderStatus.preparing,
+                        isPrimary: o.status == OrderStatus.deliveryAccepted ||
+                            o.status == OrderStatus.preparing,
                       ),
               ),
               if (o.status == OrderStatus.outForDelivery ||
@@ -728,9 +850,8 @@ class _SellerDashboardState extends State<SellerDashboard>
     }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(10)),
+      decoration:
+          BoxDecoration(color: bg, borderRadius: BorderRadius.circular(10)),
       child: Text(label,
           style: TextStyle(
               color: text, fontSize: 11, fontWeight: FontWeight.bold)),
@@ -754,12 +875,12 @@ class _SellerDashboardState extends State<SellerDashboard>
   Widget _buildProfileTab() {
     final user = context.watch<AuthProvider>().user;
     if (user == null) return const Center(child: CircularProgressIndicator());
-    
+
     final extraData = user.extraData ?? {};
     final shopName = extraData['shopName'] ?? '';
     final commercialReg = extraData['commercialReg'] ?? '';
     final category = extraData['category'] ?? '';
-    
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -769,15 +890,24 @@ class _SellerDashboardState extends State<SellerDashboard>
             child: CircleAvatar(
               radius: 40,
               backgroundColor: NabaTheme.primary,
-              child: Icon(Icons.storefront_rounded, size: 40, color: Colors.white),
+              child:
+                  Icon(Icons.storefront_rounded, size: 40, color: Colors.white),
             ),
           ),
           const SizedBox(height: 16),
-          Text(shopName, textAlign: TextAlign.center, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-          Text(user.fullName, textAlign: TextAlign.center, style: const TextStyle(fontSize: 16, color: Colors.grey)),
+          Text(shopName,
+              textAlign: TextAlign.center,
+              style:
+                  const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+          Text(user.fullName,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 16, color: Colors.grey)),
           const SizedBox(height: 32),
-          
-          const Text('بيانات المحل', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: NabaTheme.primary)),
+          const Text('بيانات المحل',
+              style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: NabaTheme.primary)),
           const SizedBox(height: 16),
           ListTile(
             leading: const Icon(Icons.phone_rounded, color: NabaTheme.primary),
@@ -785,18 +915,21 @@ class _SellerDashboardState extends State<SellerDashboard>
             subtitle: Text(user.phone),
           ),
           ListTile(
-            leading: const Icon(Icons.document_scanner_rounded, color: NabaTheme.primary),
+            leading: const Icon(Icons.document_scanner_rounded,
+                color: NabaTheme.primary),
             title: const Text('السجل التجاري'),
             subtitle: Text(commercialReg),
           ),
           ListTile(
-            leading: const Icon(Icons.category_rounded, color: NabaTheme.primary),
+            leading:
+                const Icon(Icons.category_rounded, color: NabaTheme.primary),
             title: const Text('التصنيف'),
             subtitle: Text(category),
           ),
           const Divider(),
           ListTile(
-            leading: const Icon(Icons.location_on_rounded, color: NabaTheme.primary),
+            leading:
+                const Icon(Icons.location_on_rounded, color: NabaTheme.primary),
             title: const Text('موقع المحل على الخريطة'),
             subtitle: const Text('اضغط لتحديث موقع المحل'),
             trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
@@ -804,15 +937,15 @@ class _SellerDashboardState extends State<SellerDashboard>
               LatLng? initLoc;
               if (extraData['location'] != null) {
                 initLoc = LatLng(
-                  (extraData['location']['lat'] as num).toDouble(),
-                  (extraData['location']['lng'] as num).toDouble()
-                );
+                    (extraData['location']['lat'] as num).toDouble(),
+                    (extraData['location']['lng'] as num).toDouble());
               }
               final result = await Navigator.push<LatLng>(
                 context,
-                MaterialPageRoute(builder: (_) => MapPickerScreen(initialLocation: initLoc)),
+                MaterialPageRoute(
+                    builder: (_) => MapPickerScreen(initialLocation: initLoc)),
               );
-              
+
               if (result != null && mounted) {
                 try {
                   final newExtraData = Map<String, dynamic>.from(extraData);
@@ -820,14 +953,17 @@ class _SellerDashboardState extends State<SellerDashboard>
                     'lat': result.latitude,
                     'lng': result.longitude,
                   };
-                  
-                  await FirebaseFirestore.instance.collection('users').doc(user.id).update({
+
+                  await FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(user.id)
+                      .update({
                     'extraData': newExtraData,
                   });
-                  
+
                   // Reload user
                   await context.read<AuthProvider>().reloadUser();
-                  
+
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('تم تحديث الموقع بنجاح')),
@@ -848,4 +984,3 @@ class _SellerDashboardState extends State<SellerDashboard>
     );
   }
 }
-

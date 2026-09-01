@@ -19,6 +19,8 @@ import 'marketplace_screen.dart';
 import 'orders_history_screen.dart';
 import 'request_worker_screen.dart';
 import 'request_equipment_screen.dart';
+import 'consultation_market_screen.dart';
+import 'farmer_consultations_screen.dart';
 import 'settings_screen.dart';
 import 'wallet_screen.dart';
 import 'well_create_screen.dart';
@@ -46,6 +48,7 @@ class _FarmerDashboardState extends State<FarmerDashboard> {
     LandPlotsTab(),
     WellManagementScreen(),
     MarketplaceScreen(),
+    FarmerConsultationsScreen(),
     ProfileScreen(),
   ];
 
@@ -74,7 +77,9 @@ class _FarmerDashboardState extends State<FarmerDashboard> {
                 _buildNavItem(1, Icons.landscape_rounded, 'الأراضي'),
                 _buildNavItem(2, Icons.water_drop_rounded, 'البئر'),
                 _buildNavItem(3, Icons.shopping_bag_rounded, 'السوق'),
-                _buildNavItem(4, Icons.person_rounded, 'حسابي'),
+                _buildNavItem(
+                    4, Icons.assignment_turned_in_rounded, 'استشاراتي'),
+                _buildNavItem(5, Icons.person_rounded, 'حسابي'),
               ],
             ),
           ),
@@ -139,7 +144,7 @@ class FarmerHomeTab extends StatelessWidget {
     final freq =
         well.irrigationFrequencyDays > 0 ? well.irrigationFrequencyDays : 1;
     final dayOffset = (userHash + plotIndex * 7) % freq;
-    
+
     // Normalize today to UTC midnight to match TableCalendar's behavior exactly
     final now = DateTime.now();
     final today = DateTime.utc(now.year, now.month, now.day);
@@ -403,6 +408,8 @@ class FarmerHomeTab extends StatelessWidget {
                           builder: (_) => const WellSearchScreen()));
                 },
               ),
+              const SizedBox(height: 32),
+              _buildQuickActionsAndTracking(context, auth),
             ],
           ),
         ),
@@ -428,8 +435,12 @@ class FarmerHomeTab extends StatelessWidget {
             .where('wellId', isEqualTo: wells.first.id)
             .snapshots(),
         builder: (context, memberSnapshot) {
-          final memberDoc = memberSnapshot.data?.docs.isNotEmpty == true ? memberSnapshot.data!.docs.first : null;
-          final manualSchedule = memberDoc != null ? (memberDoc.data() as Map<String, dynamic>)['manualSchedule'] : null;
+          final memberDoc = memberSnapshot.data?.docs.isNotEmpty == true
+              ? memberSnapshot.data!.docs.first
+              : null;
+          final manualSchedule = memberDoc != null
+              ? (memberDoc.data() as Map<String, dynamic>)['manualSchedule']
+              : null;
 
           return StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance
@@ -443,14 +454,17 @@ class FarmerHomeTab extends StatelessWidget {
               // Find the soonest next irrigation across all plots
               List<Map<String, dynamic>> nextDates = [];
 
-              if (wells.first.fairnessRule == FairnessRule.manual && manualSchedule != null) {
+              if (wells.first.fairnessRule == FairnessRule.manual &&
+                  manualSchedule != null) {
                 final dayOffset = manualSchedule['dayOffset'] as int;
-                final freq = wells.first.irrigationFrequencyDays > 0 ? wells.first.irrigationFrequencyDays : 1;
-                
+                final freq = wells.first.irrigationFrequencyDays > 0
+                    ? wells.first.irrigationFrequencyDays
+                    : 1;
+
                 final now = DateTime.now();
                 final today = DateTime.utc(now.year, now.month, now.day);
                 final baseDate = DateTime.utc(2024, 1, 1);
-                
+
                 DateTime? nextDate;
                 for (int i = 0; i <= freq; i++) {
                   final checkDate = today.add(Duration(days: i));
@@ -460,7 +474,7 @@ class FarmerHomeTab extends StatelessWidget {
                     break;
                   }
                 }
-                
+
                 if (nextDate != null) {
                   nextDates.add({
                     'date': nextDate,
@@ -494,230 +508,272 @@ class FarmerHomeTab extends StatelessWidget {
                 }
               }
 
-          // Sort by nearest date
-          nextDates.sort((a, b) =>
-              (a['date'] as DateTime).compareTo(b['date'] as DateTime));
+              // Sort by nearest date
+              nextDates.sort((a, b) =>
+                  (a['date'] as DateTime).compareTo(b['date'] as DateTime));
 
-          return Column(
-            children: [
-              // Banners for each plot's next irrigation
-              if (nextDates.isNotEmpty)
-                ...nextDates.take(3).map((info) {
-                  final nextDate = info['date'] as DateTime;
-                  final plotName = info['name'] as String;
-                  final plotColor = info['color'] as Color;
-                  final isToday = nextDate.year == DateTime.now().year &&
-                      nextDate.month == DateTime.now().month &&
-                      nextDate.day == DateTime.now().day;
+              return SingleChildScrollView(
+                  child: Column(
+                children: [
+                  // Banners for each plot's next irrigation
+                  if (nextDates.isNotEmpty)
+                    ...nextDates.take(3).map((info) {
+                      final nextDate = info['date'] as DateTime;
+                      final plotName = info['name'] as String;
+                      final plotColor = info['color'] as Color;
+                      final isToday = nextDate.year == DateTime.now().year &&
+                          nextDate.month == DateTime.now().month &&
+                          nextDate.day == DateTime.now().day;
 
-                  return Container(
-                    width: double.infinity,
-                    margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [plotColor, plotColor.withOpacity(0.7)],
-                      ),
-                      borderRadius: BorderRadius.circular(14),
-                      boxShadow: [
-                        BoxShadow(
-                          color: plotColor.withOpacity(0.25),
-                          blurRadius: 10,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      textDirection: TextDirection.rtl,
-                      children: [
-                        Icon(
-                          isToday
-                              ? Icons.water_drop_rounded
-                              : Icons.calendar_today_rounded,
-                          color: Colors.white,
-                          size: 22,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            isToday
-                                ? '🌊 ري $plotName اليوم!'
-                                : '📅 ري $plotName - يوم ${nextDate.day}/${nextDate.month}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                            ),
+                      return Container(
+                        width: double.infinity,
+                        margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [plotColor, plotColor.withOpacity(0.7)],
                           ),
+                          borderRadius: BorderRadius.circular(14),
+                          boxShadow: [
+                            BoxShadow(
+                              color: plotColor.withOpacity(0.25),
+                              blurRadius: 10,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  );
-                }),
-              const SizedBox(height: 8),
-              // Quick Actions
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _buildQuickActionCard(
-                        context,
-                        title: 'طلب معدة',
-                        icon: Icons.agriculture_rounded,
-                        color: Colors.orange.shade700,
-                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RequestEquipmentScreen())),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildQuickActionCard(
-                        context,
-                        title: 'طلب عامل',
-                        icon: Icons.engineering_rounded,
-                        color: Colors.blue.shade700,
-                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RequestWorkerScreen())),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 8),
-              // Active Tracking Section
-              StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('jobs')
-                    .where('requesterUserId', isEqualTo: auth.user?.id)
-                    .where('status', whereIn: [
-                  JobStatus.accepted.toString(),
-                  JobStatus.inProgress.toString(),
-                  JobStatus.completed.toString(),
-                  JobStatus.paid.toString()
-                ]).snapshots(),
-                builder: (context, jobSnap) {
-                  final jobDocs = jobSnap.data?.docs ?? [];
-                  if (jobDocs.isEmpty) return const SizedBox.shrink();
-
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      const Padding(
-                        padding: EdgeInsets.fromLTRB(16, 20, 16, 8),
-                        child: Text(
-                          'تتبع الطلبات الجارية',
-                          style: TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                      SizedBox(
-                        height: 100,
-                        child: ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          reverse: true, // RTL
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          itemCount: jobDocs.length,
-                          itemBuilder: (context, index) {
-                            final data =
-                                jobDocs[index].data() as Map<String, dynamic>;
-                            final status = data['status'] ?? '';
-                            final type = data['serviceType'] ?? '';
-
-                            Color statusColor = Colors.orange;
-                            if (status.contains('inProgress'))
-                              statusColor = NabaTheme.primary;
-                            if (status.contains('completed'))
-                              statusColor = Colors.green;
-                            if (status.contains('paid'))
-                              statusColor = Colors.teal;
-
-                            return GestureDetector(
-                              onTap: () {
-                                final job = Job(
-                                  id: jobDocs[index].id,
-                                  requesterUserId: data['requesterUserId'],
-                                  assignedUserId: data['assignedUserId'],
-                                  type: data['type'] ?? 'worker',
-                                  serviceType: data['serviceType'] ?? '',
-                                  location: const {'lat': 0.0, 'lng': 0.0},
-                                  startTime:
-                                      (data['startTime'] as Timestamp).toDate(),
-                                  endTime:
-                                      (data['endTime'] as Timestamp).toDate(),
-                                  status: JobStatus.values.firstWhere(
-                                      (e) => e.toString() == status,
-                                      orElse: () => JobStatus.requested),
-                                  price: (data['price'] as num?)?.toDouble(),
-                                  notes: data['notes'] ?? '',
-                                  address: data['address'],
-                                );
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (_) =>
-                                          JobDetailsScreen(job: job)),
-                                );
-                              },
-                              child: Container(
-                                width: 140,
-                                margin: const EdgeInsets.only(left: 12),
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
+                        child: Row(
+                          textDirection: TextDirection.rtl,
+                          children: [
+                            Icon(
+                              isToday
+                                  ? Icons.water_drop_rounded
+                                  : Icons.calendar_today_rounded,
+                              color: Colors.white,
+                              size: 22,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                isToday
+                                    ? '🌊 ري $plotName اليوم!'
+                                    : '📅 ري $plotName - يوم ${nextDate.day}/${nextDate.month}',
+                                style: const TextStyle(
                                   color: Colors.white,
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(
-                                      color: statusColor.withOpacity(0.3)),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: statusColor.withOpacity(0.05),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                  ],
-                                ),
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.track_changes_rounded,
-                                        color: statusColor, size: 24),
-                                    const SizedBox(height: 6),
-                                    Text(
-                                      type,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 13),
-                                    ),
-                                    Text(
-                                      _getStatusLabel(status),
-                                      style: TextStyle(
-                                          color: statusColor, fontSize: 11),
-                                    ),
-                                  ],
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
                                 ),
                               ),
-                            );
-                          },
+                            ),
+                          ],
                         ),
-                      ),
-                    ],
-                  );
-                },
-              ),
-              const SizedBox(height: 16),
-              // Calendar
-              Expanded(
-                child: IrrigationCalendar(
-                  well: wells.isNotEmpty ? wells.first : null,
-                ),
-              ),
-            ],
-          );
+                      );
+                    }),
+                  _buildQuickActionsAndTracking(context, auth),
+                  const SizedBox(height: 16),
+                  // Calendar
+                  IrrigationCalendar(
+                    well: wells.isNotEmpty ? wells.first : null,
+                  ),
+                ],
+              ));
             },
           );
         },
       ),
+    );
+  }
+
+  Widget _buildQuickActionsAndTracking(
+      BuildContext context, AuthProvider auth) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: 8),
+// Quick Actions
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: _buildQuickActionCard(
+                  context,
+                  title: 'طلب معدة',
+                  icon: Icons.agriculture_rounded,
+                  color: Colors.orange.shade700,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const RequestEquipmentScreen())),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildQuickActionCard(
+                  context,
+                  title: 'طلب عامل',
+                  icon: Icons.engineering_rounded,
+                  color: Colors.blue.shade700,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const RequestWorkerScreen())),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: _buildQuickActionCard(
+                  context,
+                  title: 'مشترياتي وتتبعها',
+                  icon: Icons.shopping_bag_rounded,
+                  color: Colors.teal.shade500,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const OrdersHistoryScreen())),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildQuickActionCard(
+                  context,
+                  title: 'استشارات هندسية',
+                  icon: Icons.workspace_premium_rounded,
+                  color: Colors.teal.shade500,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const ConsultationMarketScreen())),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+// Active Tracking Section
+        StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('jobs')
+              .where('requesterUserId', isEqualTo: auth.user?.id)
+              .where('status', whereIn: [
+            JobStatus.accepted.toString(),
+            JobStatus.inProgress.toString(),
+            JobStatus.completed.toString(),
+            JobStatus.paid.toString()
+          ]).snapshots(),
+          builder: (context, jobSnap) {
+            final jobDocs = jobSnap.data?.docs ?? [];
+            if (jobDocs.isEmpty) return const SizedBox.shrink();
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(16, 20, 16, 8),
+                  child: Text(
+                    'تتبع الطلبات الجارية',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                SizedBox(
+                  height: 100,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    reverse: true, // RTL
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: jobDocs.length,
+                    itemBuilder: (context, index) {
+                      final data =
+                          jobDocs[index].data() as Map<String, dynamic>;
+                      final status = data['status'] ?? '';
+                      final type = data['serviceType'] ?? '';
+
+                      Color statusColor = Colors.orange;
+                      if (status.contains('inProgress'))
+                        statusColor = NabaTheme.primary;
+                      if (status.contains('completed'))
+                        statusColor = Colors.green;
+                      if (status.contains('paid')) statusColor = Colors.teal;
+
+                      return GestureDetector(
+                        onTap: () {
+                          final job = Job(
+                            id: jobDocs[index].id,
+                            requesterUserId: data['requesterUserId'],
+                            assignedUserId: data['assignedUserId'],
+                            type: data['type'] ?? 'worker',
+                            serviceType: data['serviceType'] ?? '',
+                            location: const {'lat': 0.0, 'lng': 0.0},
+                            startTime:
+                                (data['startTime'] as Timestamp).toDate(),
+                            endTime: (data['endTime'] as Timestamp).toDate(),
+                            status: JobStatus.values.firstWhere(
+                                (e) => e.toString() == status,
+                                orElse: () => JobStatus.requested),
+                            price: (data['price'] as num?)?.toDouble(),
+                            notes: data['notes'] ?? '',
+                            address: data['address'],
+                          );
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => JobDetailsScreen(job: job)),
+                          );
+                        },
+                        child: Container(
+                          width: 140,
+                          margin: const EdgeInsets.only(left: 12),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            border:
+                                Border.all(color: statusColor.withOpacity(0.3)),
+                            boxShadow: [
+                              BoxShadow(
+                                color: statusColor.withOpacity(0.05),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.track_changes_rounded,
+                                  color: statusColor, size: 24),
+                              const SizedBox(height: 6),
+                              Text(
+                                type,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 13),
+                              ),
+                              Text(
+                                _getStatusLabel(status),
+                                style:
+                                    TextStyle(color: statusColor, fontSize: 11),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ],
     );
   }
 
@@ -761,7 +817,9 @@ class FarmerHomeTab extends StatelessWidget {
             child: Icon(icon, color: Colors.white, size: 32),
           ),
           const SizedBox(height: 12),
-          Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+          Text(title,
+              style:
+                  const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
         ],
       ),
     );
@@ -1038,11 +1096,15 @@ class LandPlotsTab extends StatelessWidget {
     final areaCtrl = TextEditingController();
     final cropsCtrl = TextEditingController();
     final customWellCtrl = TextEditingController();
-    
+
     // Fetch all wells
     final wellSnap = await FirebaseFirestore.instance.collection('wells').get();
-    final allWellsNames = wellSnap.docs.map((doc) => (doc.data()['wellName'] ?? '') as String).where((n) => n.isNotEmpty).toSet().toList();
-    
+    final allWellsNames = wellSnap.docs
+        .map((doc) => (doc.data()['wellName'] ?? '') as String)
+        .where((n) => n.isNotEmpty)
+        .toSet()
+        .toList();
+
     String? selectedWell;
     if (allWellsNames.isNotEmpty) {
       selectedWell = allWellsNames.first;
@@ -1116,8 +1178,10 @@ class LandPlotsTab extends StatelessWidget {
                   DropdownButtonFormField<String>(
                     value: selectedWell,
                     items: [
-                      ...allWellsNames.map((name) => DropdownMenuItem(value: name, child: Text(name))),
-                      const DropdownMenuItem(value: 'أخرى', child: Text('أخرى (إدخال يدوي)')),
+                      ...allWellsNames.map((name) =>
+                          DropdownMenuItem(value: name, child: Text(name))),
+                      const DropdownMenuItem(
+                          value: 'أخرى', child: Text('أخرى (إدخال يدوي)')),
                     ],
                     onChanged: (v) => setModalState(() => selectedWell = v),
                     decoration: const InputDecoration(hintText: 'اختر البئر'),
@@ -1126,7 +1190,8 @@ class LandPlotsTab extends StatelessWidget {
                     const SizedBox(height: 12),
                     TextField(
                       controller: customWellCtrl,
-                      decoration: const InputDecoration(hintText: 'اكتب اسم البئر هنا'),
+                      decoration:
+                          const InputDecoration(hintText: 'اكتب اسم البئر هنا'),
                     ),
                   ],
                   const SizedBox(height: 20),
@@ -1150,8 +1215,10 @@ class LandPlotsTab extends StatelessWidget {
                         );
                         return;
                       }
-                      
-                      final finalWellName = (selectedWell == 'أخرى') ? customWellCtrl.text.trim() : (selectedWell ?? '');
+
+                      final finalWellName = (selectedWell == 'أخرى')
+                          ? customWellCtrl.text.trim()
+                          : (selectedWell ?? '');
                       if (finalWellName.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
@@ -1160,7 +1227,9 @@ class LandPlotsTab extends StatelessWidget {
                         return;
                       }
 
-                      final user = Provider.of<AuthProvider>(context, listen: false).user;
+                      final user =
+                          Provider.of<AuthProvider>(context, listen: false)
+                              .user;
                       await FirebaseFirestore.instance
                           .collection('land_plots')
                           .add({
@@ -1177,7 +1246,8 @@ class LandPlotsTab extends StatelessWidget {
                         Navigator.pop(ctx);
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                              content: Text('تم إرسال طلب إضافة قطعة الأرض للإدارة!')),
+                              content: Text(
+                                  'تم إرسال طلب إضافة قطعة الأرض للإدارة!')),
                         );
                       }
                     },

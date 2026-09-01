@@ -1,9 +1,12 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:excel/excel.dart' as ex;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' as intl;
 import 'package:provider/provider.dart';
+import 'package:universal_html/html.dart' as html;
 
 import '../models/types.dart';
 import '../providers/auth_provider.dart';
@@ -31,7 +34,7 @@ class _AdminDashboardState extends State<AdminDashboard>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 6, vsync: this);
+    _tabController = TabController(length: 8, vsync: this);
     _tabController.addListener(() {
       setState(() {});
     });
@@ -180,8 +183,10 @@ class _AdminDashboardState extends State<AdminDashboard>
                       _buildOverviewTab(),
                       _buildUsersTab(),
                       _buildJobsTab(),
+                      _buildShopsTab(),
                       _buildWellsTab(),
                       _buildLandPlotsTab(),
+                      _buildComplaintsTab(),
                       _buildDataExplorerTab(),
                     ],
                   ),
@@ -199,6 +204,12 @@ class _AdminDashboardState extends State<AdminDashboard>
       title: const Text('لوحة التحكم',
           style: TextStyle(fontWeight: FontWeight.bold)),
       actions: [
+        if (_isUnlocked)
+          IconButton(
+            icon: const Icon(Icons.download),
+            tooltip: 'تصدير كل البيانات',
+            onPressed: _exportAllData,
+          ),
         IconButton(
           icon: const Icon(Icons.settings),
           onPressed: () => Navigator.push(
@@ -221,12 +232,15 @@ class _AdminDashboardState extends State<AdminDashboard>
         unselectedLabelColor: NabaTheme.textSecondary,
         labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
         onTap: (index) => setState(() {}),
+        isScrollable: true,
         tabs: const [
           Tab(text: 'إحصائيات', height: 36),
           Tab(text: 'المستخدمين', height: 36),
           Tab(text: 'المهام', height: 36),
+          Tab(text: 'المحلات', height: 36),
           Tab(text: 'الآبار', height: 36),
           Tab(text: 'الأراضي', height: 36),
+          Tab(text: 'الشكاوى', height: 36),
           Tab(text: 'البيانات', height: 36),
         ],
       ),
@@ -324,6 +338,22 @@ class _AdminDashboardState extends State<AdminDashboard>
               .where((u) => u.status == AccountStatus.pending)
               .map((u) => _buildUserApprovalItem(u)),
         ],
+        if (allUsers.any((u) =>
+            u.extraData != null &&
+            u.extraData!['pendingSpecialization'] != null)) ...[
+          const SizedBox(height: 32),
+          _buildSectionHeader('طلبات تخصصات جديدة'),
+          const SizedBox(height: 12),
+          ...allUsers
+              .where((u) =>
+                  u.extraData != null &&
+                  u.extraData!['pendingSpecialization'] != null)
+              .map((u) {
+            debugPrint(
+                'Rendering specialty approval for user: ${u.fullName} - ${u.extraData?['pendingSpecialization']}');
+            return _buildSpecialtyApprovalItem(u);
+          }),
+        ],
         const SizedBox(height: 32),
         _buildSectionHeader('النشاط الأخير'),
         const SizedBox(height: 16),
@@ -332,6 +362,152 @@ class _AdminDashboardState extends State<AdminDashboard>
         else
           ...allUsers.take(10).map((u) => _buildActivityItem(u)),
       ],
+    );
+  }
+
+  Widget _buildComplaintsTab() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('complaints')
+          .orderBy('createdAt', descending: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Center(
+              child: Text('خطأ: ${snapshot.error}',
+                  textDirection: TextDirection.rtl));
+        }
+
+        final docs = snapshot.data?.docs ?? [];
+        if (docs.isEmpty) {
+          return const Center(
+            child: Text('لا توجد شكاوى حالياً.',
+                style: TextStyle(fontSize: 18, color: Colors.grey),
+                textDirection: TextDirection.rtl),
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(24),
+          itemCount: docs.length,
+          itemBuilder: (context, index) {
+            final data = docs[index].data() as Map<String, dynamic>;
+            final cId = docs[index].id;
+            // Parse status text
+            final statusStr = data['status'] as String? ?? 'newComplaint';
+            String statusTitle;
+            Color statusColor;
+            switch (statusStr) {
+              case 'underReview':
+                statusTitle = 'قيد المراجعة';
+                statusColor = Colors.orange;
+                break;
+              case 'resolved':
+                statusTitle = 'تم الحل';
+                statusColor = Colors.green;
+                break;
+              case 'rejected':
+                statusTitle = 'مرفوضة';
+                statusColor = Colors.red;
+                break;
+              default:
+                statusTitle = 'جديدة';
+                statusColor = Colors.blue;
+            }
+
+            return Card(
+              margin: const EdgeInsets.only(bottom: 16),
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Chip(
+                          label: Text(statusTitle,
+                              style: const TextStyle(
+                                  color: Colors.white, fontSize: 12)),
+                          backgroundColor: statusColor,
+                        ),
+                        Text(
+                          data['type'] == 'irrigation_conflict'
+                              ? 'شكوى رياي (تعارض جدول)'
+                              : 'شكوى عامة',
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 16),
+                          textDirection: TextDirection.rtl,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'التفاصيل: ${data['details'] ?? ""}',
+                      textDirection: TextDirection.rtl,
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Text('من مستخدم ID: ${data['fromUserId']}'),
+                      ],
+                    ),
+                    const Divider(height: 32),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        DropdownButton<String>(
+                          value: statusStr,
+                          items: const [
+                            DropdownMenuItem(
+                                value: 'newComplaint',
+                                child: Text('جديدة',
+                                    textDirection: TextDirection.rtl)),
+                            DropdownMenuItem(
+                                value: 'underReview',
+                                child: Text('قيد المراجعة',
+                                    textDirection: TextDirection.rtl)),
+                            DropdownMenuItem(
+                                value: 'resolved',
+                                child: Text('تم الحل',
+                                    textDirection: TextDirection.rtl)),
+                            DropdownMenuItem(
+                                value: 'rejected',
+                                child: Text('مرفوضة',
+                                    textDirection: TextDirection.rtl)),
+                          ],
+                          onChanged: (val) {
+                            if (val != null) {
+                              FirebaseFirestore.instance
+                                  .collection('complaints')
+                                  .doc(cId)
+                                  .update({'status': val});
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                      content: Text('تم تحديث حالة الشكوى')));
+                            }
+                          },
+                        ),
+                        const Text('تغيير الحالة:',
+                            textDirection: TextDirection.rtl,
+                            style: TextStyle(fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -421,6 +597,124 @@ class _AdminDashboardState extends State<AdminDashboard>
     );
   }
 
+  Widget _buildSpecialtyApprovalItem(User u) {
+    final requestedSpec = u.extraData!['pendingSpecialization'].toString();
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade50,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.blue.shade100),
+      ),
+      child: Column(
+        children: [
+          Row(
+            textDirection: TextDirection.rtl,
+            children: [
+              CircleAvatar(
+                backgroundColor: Colors.blue.shade100,
+                child: Text(u.fullName[0],
+                    style: const TextStyle(color: Colors.blue)),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(u.fullName,
+                        style: const TextStyle(fontWeight: FontWeight.bold)),
+                    Text('طلب تخصص: $requestedSpec',
+                        style: const TextStyle(
+                            fontSize: 13,
+                            color: Colors.blue,
+                            fontWeight: FontWeight.bold)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () async {
+                    final newExtra =
+                        Map<String, dynamic>.from(u.extraData ?? {});
+                    final currentSpecs = List<String>.from(
+                        newExtra['workerSpecializations'] ?? []);
+                    if (!currentSpecs.contains(requestedSpec)) {
+                      currentSpecs.add(requestedSpec);
+                    }
+                    newExtra['workerSpecializations'] = currentSpecs;
+                    newExtra.remove('pendingSpecialization');
+                    await context
+                        .read<AuthProvider>()
+                        .updateUserStatus(u.id, {'extraData': newExtra});
+
+                    // Send notification
+                    await FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(u.id)
+                        .collection('notifications')
+                        .add({
+                      'title': 'تمت الموافقة على طلبك',
+                      'body':
+                          'تمت الموافقة على إضافة تخصص "$requestedSpec" لملفك الشخصي بنجاح.',
+                      'timestamp': FieldValue.serverTimestamp(),
+                      'isRead': false,
+                    });
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text('موافقة وإضافة'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () async {
+                    final newExtra =
+                        Map<String, dynamic>.from(u.extraData ?? {});
+                    newExtra.remove('pendingSpecialization');
+                    await context
+                        .read<AuthProvider>()
+                        .updateUserStatus(u.id, {'extraData': newExtra});
+
+                    // Send notification
+                    await FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(u.id)
+                        .collection('notifications')
+                        .add({
+                      'title': 'نتيجة مراجعة التخصص',
+                      'body':
+                          'عذراً، لم تتم الموافقة على إضافة تخصص "$requestedSpec".',
+                      'timestamp': FieldValue.serverTimestamp(),
+                      'isRead': false,
+                    });
+                  },
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.red,
+                    side: const BorderSide(color: Colors.red),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text('رفض الطلب'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   // ignore: unused_element
   Widget _buildVibrantStatCard(
       String label, String value, IconData icon, Color color) {
@@ -494,46 +788,64 @@ class _AdminDashboardState extends State<AdminDashboard>
 
   Widget _buildUsersTab() {
     final allUsers = context.watch<AuthProvider>().allUsers;
-    final filteredUsers = _showOnlyPending
-        ? allUsers.where((u) => u.status == AccountStatus.pending).toList()
-        : allUsers;
 
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'إجمالي: ${filteredUsers.length}',
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              Row(
-                children: [
-                  const Text('بانتظار الموافقة فقط',
-                      style: TextStyle(fontSize: 12)),
-                  Switch(
-                    value: _showOnlyPending,
-                    activeThumbColor: NabaTheme.primary,
-                    onChanged: (val) => setState(() => _showOnlyPending = val),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            itemCount: filteredUsers.length,
-            itemBuilder: (context, index) {
-              final u = filteredUsers[index];
-              return _buildUserCard(u);
-            },
-          ),
-        ),
-      ],
+    final categories = [
+      {
+        'role': UserRole.farmer,
+        'icon': Icons.agriculture,
+        'color': Colors.green
+      },
+      {'role': UserRole.worker, 'icon': Icons.work, 'color': Colors.orange},
+      {
+        'role': UserRole.equipmentOwner,
+        'icon': Icons.precision_manufacturing,
+        'color': Colors.blue
+      },
+      {'role': UserRole.seller, 'icon': Icons.store, 'color': Colors.purple},
+      {
+        'role': UserRole.deliveryWorker,
+        'icon': Icons.local_shipping,
+        'color': Colors.red
+      },
+      {
+        'role': UserRole.engineer,
+        'icon': Icons.engineering,
+        'color': Colors.indigo
+      },
+      {
+        'role': UserRole.admin,
+        'icon': Icons.admin_panel_settings,
+        'color': Colors.grey
+      },
+    ];
+
+    return GridView.builder(
+      padding: const EdgeInsets.all(24),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+        childAspectRatio: 1.2,
+      ),
+      itemCount: categories.length,
+      itemBuilder: (context, index) {
+        final cat = categories[index];
+        final role = cat['role'] as UserRole;
+        final icon = cat['icon'] as IconData;
+        final color = cat['color'] as Color;
+
+        final roleUsers = allUsers.where((u) => u.role == role).toList();
+        final pendingCount =
+            roleUsers.where((u) => u.status == AccountStatus.pending).length;
+
+        return _buildClassicStatCard(
+          _getRoleName(role),
+          '${roleUsers.length} (${pendingCount} معلق)',
+          icon,
+          color,
+          onTap: () => _showRoleUsersSheet(role, roleUsers),
+        );
+      },
     );
   }
 
@@ -614,7 +926,27 @@ class _AdminDashboardState extends State<AdminDashboard>
                       ),
                       textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _showEditUserSheet(u);
+                        },
+                        icon: const Icon(Icons.edit, size: 20),
+                        label: const Text('تعديل البيانات'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: NabaTheme.primary,
+                          side: const BorderSide(color: NabaTheme.primary),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
                     _buildDetailCard(
                       'المعلومات الأساسية',
                       [
@@ -937,55 +1269,125 @@ class _AdminDashboardState extends State<AdminDashboard>
             final hasEditRequest =
                 w.pendingEdits != null && w.pendingEdits!.isNotEmpty;
 
-            return Card(
-              margin: const EdgeInsets.only(bottom: 12),
-              color: hasEditRequest ? Colors.orange.shade50 : Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: BorderSide(
-                    color: hasEditRequest ? Colors.orange : Colors.transparent),
-              ),
-              child: ListTile(
-                contentPadding: const EdgeInsets.all(16),
-                leading:
-                    const Icon(Icons.water_drop, color: Colors.blue, size: 32),
-                title: Text(w.wellName,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 18),
-                    textAlign: TextAlign.right),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                        'المساحة: ${w.irrigatedAreaFeddan} فدان  |  العمق: ${w.depthMeters}م',
-                        textAlign: TextAlign.right),
-                    if (hasEditRequest) ...[
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                            color: Colors.orange.shade100,
-                            borderRadius: BorderRadius.circular(8)),
-                        child: const Text('يوجد طلب تعديل بيانات جديد',
-                            style: TextStyle(
-                                color: Colors.deepOrange,
-                                fontWeight: FontWeight.bold),
-                            textAlign: TextAlign.right),
+            return FutureBuilder<DocumentSnapshot>(
+              future: FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(w.adminUserId)
+                  .get(),
+              builder: (context, userSnap) {
+                final farmerName = userSnap.data?.data() != null
+                    ? (userSnap.data!.data()
+                            as Map<String, dynamic>)['fullName'] ??
+                        'غير معروف'
+                    : '...';
+                final farmerPhone = userSnap.data?.data() != null
+                    ? (userSnap.data!.data()
+                            as Map<String, dynamic>)['phone'] ??
+                        ''
+                    : '';
+                final farmerAddress = userSnap.data?.data() != null
+                    ? (userSnap.data!.data()
+                            as Map<String, dynamic>)['address'] ??
+                        ''
+                    : '';
+
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  color: hasEditRequest ? Colors.orange.shade50 : Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(
+                        color: hasEditRequest
+                            ? Colors.orange
+                            : Colors.transparent),
+                  ),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () => _showWellDetailsSheet(w),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Row(
+                            textDirection: TextDirection.rtl,
+                            children: [
+                              const Icon(Icons.water_drop,
+                                  color: Colors.blue, size: 32),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(w.wellName,
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 18)),
+                                    Text(
+                                        'المساحة: ${w.irrigatedAreaFeddan} فدان  |  العمق: ${w.depthMeters}م',
+                                        style: const TextStyle(
+                                            fontSize: 12,
+                                            color: NabaTheme.textSecondary)),
+                                  ],
+                                ),
+                              ),
+                              if (hasEditRequest)
+                                ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.orange),
+                                  onPressed: () =>
+                                      _showEditRequestReviewDialog(w),
+                                  child: const Text('مراجعة الطلب',
+                                      style: TextStyle(color: Colors.white)),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: NabaTheme.primary.withOpacity(0.05),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Row(
+                              textDirection: TextDirection.rtl,
+                              children: [
+                                const Icon(Icons.person,
+                                    size: 16, color: NabaTheme.primary),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'المنشئ: $farmerName${farmerPhone.isNotEmpty ? ' • $farmerPhone' : ''}${farmerAddress.isNotEmpty ? ' • $farmerAddress' : ''}',
+                                    style: const TextStyle(
+                                        fontSize: 12,
+                                        color: NabaTheme.textSecondary),
+                                    textAlign: TextAlign.right,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (hasEditRequest) ...[
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                  color: Colors.orange.shade100,
+                                  borderRadius: BorderRadius.circular(8)),
+                              child: const Text('يوجد طلب تعديل بيانات جديد',
+                                  style: TextStyle(
+                                      color: Colors.deepOrange,
+                                      fontWeight: FontWeight.bold),
+                                  textAlign: TextAlign.right),
+                            ),
+                          ],
+                        ],
                       ),
-                    ],
-                  ],
-                ),
-                trailing: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                      backgroundColor:
-                          hasEditRequest ? Colors.orange : NabaTheme.primary),
-                  onPressed: () => hasEditRequest
-                      ? _showEditRequestReviewDialog(w)
-                      : _showWellReviewDialog(w),
-                  child: Text(hasEditRequest ? 'مراجعة الطلب' : 'تعديل البئر',
-                      style: const TextStyle(color: Colors.white)),
-                ),
-              ),
+                    ),
+                  ),
+                );
+              },
             );
           },
         );
@@ -1113,9 +1515,12 @@ class _AdminDashboardState extends State<AdminDashboard>
                                 textAlign: TextAlign.right),
                             if (data['manualSchedule'] != null)
                               Text(
-                                'الموعد: اليوم ${data['manualSchedule']['dayOffset'] + 1}، ${data['manualSchedule']['startHour']}:00 (${data['manualSchedule']['durationHours']} ساعة)',
-                                style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 12),
-                                textAlign: TextAlign.right),
+                                  'الموعد: اليوم ${data['manualSchedule']['dayOffset'] + 1}، ${data['manualSchedule']['startHour']}:00 (${data['manualSchedule']['durationHours']} ساعة)',
+                                  style: const TextStyle(
+                                      color: Colors.orange,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12),
+                                  textAlign: TextAlign.right),
                           ],
                         ),
                       ),
@@ -1901,7 +2306,7 @@ class _AdminDashboardState extends State<AdminDashboard>
       case UserRole.farmer:
         return 'مزارع';
       case UserRole.worker:
-        return 'عامل';
+        return 'عامل زراعي / فني';
       case UserRole.seller:
         return 'تاجر';
       case UserRole.equipmentOwner:
@@ -1911,7 +2316,9 @@ class _AdminDashboardState extends State<AdminDashboard>
       case UserRole.admin:
         return 'مسؤول';
       case UserRole.deliveryWorker:
-        return 'عامل توصيل';
+        return 'عامل توصيل / نقل';
+      case UserRole.engineer:
+        return 'مهندس استشاري';
     }
   }
 
@@ -2010,14 +2417,16 @@ class _AdminDashboardState extends State<AdminDashboard>
                           Expanded(
                             child: ElevatedButton.icon(
                               onPressed: () => _showReviewPlotDialog(doc),
-                              icon: const Icon(Icons.rate_review_rounded, size: 20),
+                              icon: const Icon(Icons.rate_review_rounded,
+                                  size: 20),
                               label: const Text('مراجعة الطلب'),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.orange,
                                 foregroundColor: Colors.white,
                                 shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12)),
-                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 12),
                               ),
                             ),
                           ),
@@ -2065,10 +2474,12 @@ class _AdminDashboardState extends State<AdminDashboard>
       },
     );
   }
+
   void _showReviewPlotDialog(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
     final nameCtrl = TextEditingController(text: data['name'] ?? '');
-    final areaCtrl = TextEditingController(text: (data['area'] ?? 0).toString());
+    final areaCtrl =
+        TextEditingController(text: (data['area'] ?? 0).toString());
     final wellCtrl = TextEditingController(text: data['wellName'] ?? '');
     final cropsCtrl = TextEditingController(text: data['crops'] ?? '');
 
@@ -2078,42 +2489,71 @@ class _AdminDashboardState extends State<AdminDashboard>
         return Directionality(
           textDirection: TextDirection.rtl,
           child: AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            title: const Text('مراجعة طلب قطعة أرض', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: const Text('مراجعة طلب قطعة أرض',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('المالك', style: TextStyle(color: Colors.grey, fontSize: 12)),
-                  Text(data['ownerName'] ?? 'غير معروف', style: const TextStyle(fontWeight: FontWeight.bold)),
+                  const Text('المالك',
+                      style: TextStyle(color: Colors.grey, fontSize: 12)),
+                  Text(data['ownerName'] ?? 'غير معروف',
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 16),
-                  TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'اسم القطعة', border: OutlineInputBorder())),
+                  TextField(
+                      controller: nameCtrl,
+                      decoration: const InputDecoration(
+                          labelText: 'اسم القطعة',
+                          border: OutlineInputBorder())),
                   const SizedBox(height: 12),
-                  TextField(controller: areaCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'المساحة (فدان)', border: OutlineInputBorder())),
+                  TextField(
+                      controller: areaCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                          labelText: 'المساحة (فدان)',
+                          border: OutlineInputBorder())),
                   const SizedBox(height: 12),
-                  TextField(controller: wellCtrl, decoration: const InputDecoration(labelText: 'البئر المرتبط', border: OutlineInputBorder())),
+                  TextField(
+                      controller: wellCtrl,
+                      decoration: const InputDecoration(
+                          labelText: 'البئر المرتبط',
+                          border: OutlineInputBorder())),
                   const SizedBox(height: 12),
-                  TextField(controller: cropsCtrl, decoration: const InputDecoration(labelText: 'المحاصيل', border: OutlineInputBorder())),
+                  TextField(
+                      controller: cropsCtrl,
+                      decoration: const InputDecoration(
+                          labelText: 'المحاصيل', border: OutlineInputBorder())),
                 ],
               ),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('إلغاء', style: TextStyle(color: Colors.grey)),
+                child:
+                    const Text('إلغاء', style: TextStyle(color: Colors.grey)),
               ),
               OutlinedButton(
                 onPressed: () async {
-                  await FirebaseFirestore.instance.collection('land_plots').doc(doc.id).update({'status': 'rejected'});
+                  await FirebaseFirestore.instance
+                      .collection('land_plots')
+                      .doc(doc.id)
+                      .update({'status': 'rejected'});
                   if (context.mounted) Navigator.pop(context);
                 },
-                style: OutlinedButton.styleFrom(foregroundColor: Colors.red, side: const BorderSide(color: Colors.red)),
+                style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.red,
+                    side: const BorderSide(color: Colors.red)),
                 child: const Text('رفض'),
               ),
               ElevatedButton(
                 onPressed: () async {
-                  await FirebaseFirestore.instance.collection('land_plots').doc(doc.id).update({
+                  await FirebaseFirestore.instance
+                      .collection('land_plots')
+                      .doc(doc.id)
+                      .update({
                     'status': 'approved',
                     'name': nameCtrl.text,
                     'area': double.tryParse(areaCtrl.text) ?? 0,
@@ -2122,7 +2562,9 @@ class _AdminDashboardState extends State<AdminDashboard>
                   });
                   if (context.mounted) Navigator.pop(context);
                 },
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white),
                 child: const Text('حفظ وموافقة'),
               ),
             ],
@@ -2130,5 +2572,1224 @@ class _AdminDashboardState extends State<AdminDashboard>
         );
       },
     );
+  }
+
+  // ============== SHOPS TAB ==============
+
+  Widget _buildShopsTab() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .where('role', isEqualTo: UserRole.seller.toString())
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.store_outlined, size: 64, color: Colors.grey),
+                SizedBox(height: 16),
+                Text('لا توجد محلات مسجلة',
+                    style: TextStyle(fontSize: 18, color: Colors.grey)),
+              ],
+            ),
+          );
+        }
+        final sellers = snapshot.data!.docs;
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: sellers.length,
+          itemBuilder: (context, index) {
+            final data = sellers[index].data() as Map<String, dynamic>;
+            final sellerId = sellers[index].id;
+            final fullName = data['fullName'] ?? 'بدون اسم';
+            final phone = data['phone'] ?? '';
+            final address = data['address'] ?? '';
+            final extra = data['extraData'] as Map<String, dynamic>?;
+            final shopName = extra?['shopName'] ?? 'محل بدون اسم';
+
+            return Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: () => _showShopDetailSheet(
+                    sellerId, shopName, fullName, phone, address),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    textDirection: TextDirection.rtl,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: const Icon(Icons.store_rounded,
+                            color: Colors.orange, size: 28),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(shopName,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 16)),
+                            const SizedBox(height: 4),
+                            Text('صاحب المحل: $fullName',
+                                style: const TextStyle(
+                                    fontSize: 13,
+                                    color: NabaTheme.textSecondary)),
+                            if (phone.isNotEmpty)
+                              Text(
+                                  '$phone${address.isNotEmpty ? ' • $address' : ''}',
+                                  style: const TextStyle(
+                                      fontSize: 12, color: Colors.blue)),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.chevron_left, color: Colors.grey),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showShopDetailSheet(String sellerId, String shopName, String ownerName,
+      String phone, String address) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.85,
+        maxChildSize: 0.95,
+        minChildSize: 0.5,
+        builder: (_, controller) => Container(
+          decoration: const BoxDecoration(
+            color: NabaTheme.background,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+          ),
+          child: Column(
+            children: [
+              Container(
+                margin: const EdgeInsets.symmetric(vertical: 12),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Expanded(
+                child: ListView(
+                  controller: controller,
+                  padding: const EdgeInsets.all(24),
+                  children: [
+                    // Shop header
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                              color: Colors.black.withOpacity(0.03),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4)),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Row(
+                            textDirection: TextDirection.rtl,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.orange.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                child: const Icon(Icons.store_rounded,
+                                    color: Colors.orange, size: 30),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(shopName,
+                                        style: const TextStyle(
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.bold)),
+                                    const SizedBox(height: 4),
+                                    Text('صاحب المحل: $ownerName',
+                                        style: const TextStyle(
+                                            color: NabaTheme.textSecondary)),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          if (phone.isNotEmpty)
+                            _buildInfoRow(Icons.phone, phone),
+                          if (address.isNotEmpty)
+                            _buildInfoRow(Icons.location_on, address),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    const Text('منتجات المحل',
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.right),
+                    const SizedBox(height: 12),
+                    // Products list
+                    StreamBuilder<QuerySnapshot>(
+                      stream: FirebaseFirestore.instance
+                          .collection('catalog')
+                          .where('sellerUserId', isEqualTo: sellerId)
+                          .snapshots(),
+                      builder: (context, prodSnap) {
+                        if (!prodSnap.hasData) {
+                          return const Center(
+                              child: CircularProgressIndicator());
+                        }
+                        final products = prodSnap.data!.docs;
+                        if (products.isEmpty) {
+                          return Container(
+                            padding: const EdgeInsets.all(32),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: const Center(
+                              child: Text('لا توجد منتجات لهذا المحل',
+                                  style: TextStyle(color: Colors.grey)),
+                            ),
+                          );
+                        }
+                        return Column(
+                          children: products.map((doc) {
+                            final p = doc.data() as Map<String, dynamic>;
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 10),
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: Row(
+                                textDirection: TextDirection.rtl,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: Colors.green.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: const Icon(
+                                        Icons.shopping_bag_outlined,
+                                        color: Colors.green,
+                                        size: 22),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.end,
+                                      children: [
+                                        Text(p['name'] ?? 'بدون اسم',
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 14)),
+                                        Text(
+                                            '${p['price'] ?? 0} ج.م • ${p['category'] ?? ''} • ${p['unit'] ?? ''}',
+                                            style: const TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.grey)),
+                                      ],
+                                    ),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.delete_outline,
+                                        color: Colors.red),
+                                    onPressed: () => _confirmDeleteProduct(
+                                        doc.id, p['name'] ?? ''),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(IconData icon, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Row(
+        textDirection: TextDirection.rtl,
+        children: [
+          Icon(icon, size: 16, color: NabaTheme.textSecondary),
+          const SizedBox(width: 8),
+          Text(text,
+              style: const TextStyle(
+                  fontSize: 13, color: NabaTheme.textSecondary)),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDeleteProduct(String productId, String productName) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('تأكيد حذف المنتج', textAlign: TextAlign.right),
+        content: Text('هل أنت متأكد من حذف "$productName"؟',
+            textAlign: TextAlign.right),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('إلغاء')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () {
+              FirebaseFirestore.instance
+                  .collection('catalog')
+                  .doc(productId)
+                  .delete();
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('تم حذف المنتج بنجاح')),
+              );
+            },
+            child: const Text('حذف', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============== WELL DETAILS SHEET ==============
+
+  void _showWellDetailsSheet(Well w) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.9,
+        maxChildSize: 0.95,
+        minChildSize: 0.5,
+        builder: (_, controller) => Container(
+          decoration: const BoxDecoration(
+            color: NabaTheme.background,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+          ),
+          child: Column(
+            children: [
+              Container(
+                margin: const EdgeInsets.symmetric(vertical: 12),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Expanded(
+                child: ListView(
+                  controller: controller,
+                  padding: const EdgeInsets.all(24),
+                  children: [
+                    // Well Info Card
+                    _buildDetailCard(
+                      'بيانات البئر',
+                      [
+                        'الاسم: ${w.wellName}',
+                        'المساحة المروية: ${w.irrigatedAreaFeddan} فدان',
+                        'العمق: ${w.depthMeters} متر',
+                        'معدل التدفق: ${w.flowRateM3PerHour ?? "غير محدد"} م³/ساعة',
+                        'عدد المشتركين: ${w.participantCount}',
+                        'دورة الري: ${w.irrigationFrequencyDays} يوم',
+                        'ساعات الري للفرد: ${w.hoursPerPerson} ساعة',
+                      ],
+                      Icons.water_drop_outlined,
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Farmer (Creator) Info
+                    FutureBuilder<DocumentSnapshot>(
+                      future: FirebaseFirestore.instance
+                          .collection('users')
+                          .doc(w.adminUserId)
+                          .get(),
+                      builder: (context, userSnap) {
+                        if (!userSnap.hasData ||
+                            userSnap.data?.data() == null) {
+                          return const SizedBox.shrink();
+                        }
+                        final userData =
+                            userSnap.data!.data() as Map<String, dynamic>;
+                        return _buildDetailCard(
+                          'المزارع المنشئ (صاحب البئر)',
+                          [
+                            'الاسم: ${userData['fullName'] ?? "غير معروف"}',
+                            'الهاتف: ${userData['phone'] ?? "غير مسجل"}',
+                            'العنوان: ${userData['address'] ?? "غير مسجل"}',
+                          ],
+                          Icons.person_outline,
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Edit Well button
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _showWellReviewDialog(w);
+                        },
+                        icon: const Icon(Icons.edit),
+                        label: const Text('تعديل بيانات البئر'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: NabaTheme.primary,
+                          side: const BorderSide(color: NabaTheme.primary),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Subscribers Section
+                    const Text('المشتركين في البئر',
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.right),
+                    const SizedBox(height: 12),
+                    StreamBuilder<QuerySnapshot>(
+                      stream: FirebaseFirestore.instance
+                          .collection('well_members')
+                          .where('wellId', isEqualTo: w.id)
+                          .snapshots(),
+                      builder: (context, memberSnap) {
+                        if (!memberSnap.hasData) {
+                          return const Center(
+                              child: CircularProgressIndicator());
+                        }
+                        final members = memberSnap.data!.docs;
+                        if (members.isEmpty) {
+                          return Container(
+                            padding: const EdgeInsets.all(32),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: const Center(
+                              child: Text('لا يوجد مشتركين في هذا البئر',
+                                  style: TextStyle(color: Colors.grey)),
+                            ),
+                          );
+                        }
+                        return Column(
+                          children: members.map((memberDoc) {
+                            final mData =
+                                memberDoc.data() as Map<String, dynamic>;
+                            final memberStatus = mData['status'] ?? 'pending';
+                            final landArea = mData['landAreaFeddan'] ?? 0;
+                            final schedule = mData['manualSchedule']
+                                as Map<String, dynamic>?;
+
+                            return FutureBuilder<DocumentSnapshot>(
+                              future: FirebaseFirestore.instance
+                                  .collection('users')
+                                  .doc(mData['userId'])
+                                  .get(),
+                              builder: (context, userSnap) {
+                                final userName = userSnap.data?.data() != null
+                                    ? (userSnap.data!.data() as Map<String,
+                                            dynamic>)['fullName'] ??
+                                        'غير معروف'
+                                    : '...';
+                                final userPhone = userSnap.data?.data() != null
+                                    ? (userSnap.data!.data()
+                                            as Map<String, dynamic>)['phone'] ??
+                                        ''
+                                    : '';
+                                final userAddress =
+                                    userSnap.data?.data() != null
+                                        ? (userSnap.data!.data() as Map<String,
+                                                dynamic>)['address'] ??
+                                            ''
+                                        : '';
+
+                                Color statusColor;
+                                String statusText;
+                                switch (memberStatus) {
+                                  case 'approved':
+                                    statusColor = Colors.green;
+                                    statusText = 'مقبول';
+                                    break;
+                                  case 'rejected':
+                                    statusColor = Colors.red;
+                                    statusText = 'مرفوض';
+                                    break;
+                                  default:
+                                    statusColor = Colors.orange;
+                                    statusText = 'معلق';
+                                }
+
+                                return Container(
+                                  margin: const EdgeInsets.only(bottom: 10),
+                                  padding: const EdgeInsets.all(14),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                        color: statusColor.withOpacity(0.2)),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Row(
+                                        textDirection: TextDirection.rtl,
+                                        children: [
+                                          CircleAvatar(
+                                            radius: 18,
+                                            backgroundColor:
+                                                statusColor.withOpacity(0.1),
+                                            child: Icon(Icons.person,
+                                                color: statusColor, size: 20),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.end,
+                                              children: [
+                                                Text(userName,
+                                                    style: const TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        fontSize: 14)),
+                                                if (userPhone.isNotEmpty)
+                                                  Text(
+                                                      '$userPhone${userAddress.isNotEmpty ? ' • $userAddress' : ''}',
+                                                      style: const TextStyle(
+                                                          fontSize: 12,
+                                                          color: Colors.blue)),
+                                              ],
+                                            ),
+                                          ),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 10, vertical: 4),
+                                            decoration: BoxDecoration(
+                                              color:
+                                                  statusColor.withOpacity(0.1),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                            ),
+                                            child: Text(statusText,
+                                                style: TextStyle(
+                                                    color: statusColor,
+                                                    fontSize: 12,
+                                                    fontWeight:
+                                                        FontWeight.bold)),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Container(
+                                        width: double.infinity,
+                                        padding: const EdgeInsets.all(10),
+                                        decoration: BoxDecoration(
+                                          color: Colors.grey.shade50,
+                                          borderRadius:
+                                              BorderRadius.circular(10),
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.end,
+                                          children: [
+                                            Text(
+                                                'المساحة المروية: $landArea فدان',
+                                                style: const TextStyle(
+                                                    fontSize: 12)),
+                                            if (schedule != null) ...[
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                  'موعد الري: اليوم ${(schedule['dayOffset'] ?? 0) + 1}، الساعة ${schedule['startHour'] ?? 0}:00 (${schedule['durationHours'] ?? 0} ساعة)',
+                                                  style: const TextStyle(
+                                                      fontSize: 12,
+                                                      color: Colors.orange,
+                                                      fontWeight:
+                                                          FontWeight.bold)),
+                                            ],
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      SizedBox(
+                                        width: double.infinity,
+                                        child: OutlinedButton.icon(
+                                          onPressed: () =>
+                                              _showEditMemberDialog(
+                                                  memberDoc.id,
+                                                  mData,
+                                                  userName),
+                                          icon:
+                                              const Icon(Icons.edit, size: 16),
+                                          label: const Text(
+                                              'تعديل بيانات المشترك'),
+                                          style: OutlinedButton.styleFrom(
+                                            foregroundColor: Colors.blue,
+                                            side: const BorderSide(
+                                                color: Colors.blue),
+                                            padding: const EdgeInsets.symmetric(
+                                                vertical: 8),
+                                            shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(10)),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            );
+                          }).toList(),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showEditMemberDialog(
+      String memberId, Map<String, dynamic> memberData, String userName) {
+    final landAreaCtrl = TextEditingController(
+        text: (memberData['landAreaFeddan'] ?? 0).toString());
+    final schedule = memberData['manualSchedule'] as Map<String, dynamic>?;
+    final dayOffsetCtrl =
+        TextEditingController(text: (schedule?['dayOffset'] ?? 0).toString());
+    final startHourCtrl =
+        TextEditingController(text: (schedule?['startHour'] ?? 6).toString());
+    final durationCtrl = TextEditingController(
+        text: (schedule?['durationHours'] ?? 1).toString());
+    String currentStatus = memberData['status'] ?? 'pending';
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return Directionality(
+              textDirection: TextDirection.rtl,
+              child: AlertDialog(
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20)),
+                title: Text('تعديل بيانات: $userName',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 16)),
+                content: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('حالة العضوية',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 13)),
+                      const SizedBox(height: 8),
+                      DropdownButtonFormField<String>(
+                        value: currentStatus,
+                        decoration: const InputDecoration(
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 10),
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                              value: 'pending', child: Text('معلق')),
+                          DropdownMenuItem(
+                              value: 'approved', child: Text('مقبول')),
+                          DropdownMenuItem(
+                              value: 'rejected', child: Text('مرفوض')),
+                        ],
+                        onChanged: (val) {
+                          if (val != null) {
+                            setDialogState(() => currentStatus = val);
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      const Text('المساحة المروية (فدان)',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 13)),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: landAreaCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          border: OutlineInputBorder(),
+                          hintText: 'مثال: 5.0',
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Row(
+                              children: [
+                                Icon(Icons.schedule,
+                                    size: 18, color: Colors.blue),
+                                SizedBox(width: 8),
+                                Text('موعد الري',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                        color: Colors.blue)),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            TextField(
+                              controller: dayOffsetCtrl,
+                              keyboardType: TextInputType.number,
+                              decoration: const InputDecoration(
+                                border: OutlineInputBorder(),
+                                labelText: 'رقم اليوم في الدورة (يبدأ من 0)',
+                                contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 10),
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            TextField(
+                              controller: startHourCtrl,
+                              keyboardType: TextInputType.number,
+                              decoration: const InputDecoration(
+                                border: OutlineInputBorder(),
+                                labelText: 'ساعة البداية (0-23)',
+                                contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 10),
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            TextField(
+                              controller: durationCtrl,
+                              keyboardType: TextInputType.number,
+                              decoration: const InputDecoration(
+                                border: OutlineInputBorder(),
+                                labelText: 'مدة الري (بالساعات)',
+                                contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 10),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('إلغاء',
+                        style: TextStyle(color: Colors.grey)),
+                  ),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: NabaTheme.primary,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () async {
+                      final updatedData = <String, dynamic>{
+                        'status': currentStatus,
+                        'landAreaFeddan':
+                            double.tryParse(landAreaCtrl.text) ?? 0,
+                        'manualSchedule': {
+                          'dayOffset': int.tryParse(dayOffsetCtrl.text) ?? 0,
+                          'startHour': int.tryParse(startHourCtrl.text) ?? 6,
+                          'durationHours': int.tryParse(durationCtrl.text) ?? 1,
+                        },
+                      };
+                      await FirebaseFirestore.instance
+                          .collection('well_members')
+                          .doc(memberId)
+                          .update(updatedData);
+                      if (context.mounted) {
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text('تم حفظ التعديلات بنجاح')),
+                        );
+                      }
+                    },
+                    child: const Text('حفظ التعديلات'),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showRoleUsersSheet(UserRole role, List<User> roleUsers) {
+    bool showOnlyPending = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            final filteredUsers = showOnlyPending
+                ? roleUsers
+                    .where((u) => u.status == AccountStatus.pending)
+                    .toList()
+                : roleUsers;
+
+            return DraggableScrollableSheet(
+              initialChildSize: 0.9,
+              maxChildSize: 0.95,
+              minChildSize: 0.5,
+              builder: (_, controller) => Container(
+                decoration: const BoxDecoration(
+                  color: NabaTheme.background,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+                ),
+                child: Column(
+                  children: [
+                    Container(
+                      margin: const EdgeInsets.symmetric(vertical: 12),
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 24, vertical: 12),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'إجمالي: ${filteredUsers.length}',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          Row(
+                            children: [
+                              const Text('بانتظار الموافقة فقط',
+                                  style: TextStyle(fontSize: 12)),
+                              Switch(
+                                value: showOnlyPending,
+                                activeThumbColor: NabaTheme.primary,
+                                onChanged: (val) {
+                                  setSheetState(() => showOnlyPending = val);
+                                },
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    Text(
+                      'المستخدمين المسجلين كـ ${_getRoleName(role)}',
+                      style: const TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 12),
+                    Expanded(
+                      child: ListView.builder(
+                        controller: controller,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 12),
+                        itemCount: filteredUsers.length,
+                        itemBuilder: (context, index) {
+                          return _buildUserCard(filteredUsers[index]);
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showEditUserSheet(User u) {
+    final nameCtrl = TextEditingController(text: u.fullName);
+    final phoneCtrl = TextEditingController(text: u.phone);
+    final addressCtrl = TextEditingController(text: u.address);
+    final emailCtrl = TextEditingController(text: u.email ?? '');
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Padding(
+          padding:
+              EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+          child: Container(
+            decoration: const BoxDecoration(
+              color: NabaTheme.background,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+            ),
+            padding: const EdgeInsets.all(24),
+            child: SingleChildScrollView(
+              child: Directionality(
+                textDirection: TextDirection.rtl,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                      margin: const EdgeInsets.only(bottom: 24),
+                    ),
+                    Text(
+                      'تعديل بيانات: ${u.fullName}',
+                      style: const TextStyle(
+                          fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 24),
+                    TextField(
+                      controller: nameCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'الاسم الكامل',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: phoneCtrl,
+                      keyboardType: TextInputType.phone,
+                      decoration: const InputDecoration(
+                        labelText: 'رقم الهاتف',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: emailCtrl,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: const InputDecoration(
+                        labelText: 'البريد الإلكتروني',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: addressCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'العنوان (المحافظة/المركز/قرية)',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          backgroundColor: NabaTheme.primary,
+                        ),
+                        onPressed: () async {
+                          if (nameCtrl.text.trim().isEmpty ||
+                              phoneCtrl.text.trim().isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text('الاسم ورقم الهاتف مطلوبان')),
+                            );
+                            return;
+                          }
+                          final updatedData = {
+                            'fullName': nameCtrl.text.trim(),
+                            'phone': phoneCtrl.text.trim(),
+                            'email': emailCtrl.text.trim().isEmpty
+                                ? null
+                                : emailCtrl.text.trim(),
+                            'address': addressCtrl.text.trim(),
+                          };
+
+                          await FirebaseFirestore.instance
+                              .collection('users')
+                              .doc(u.id)
+                              .update(updatedData);
+
+                          if (context.mounted) {
+                            Navigator.pop(context);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('تم الحفظ بنجاح')),
+                            );
+                          }
+                        },
+                        child: const Text(
+                          'حفظ التعديلات',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _exportAllData() async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: Card(
+          child: Padding(
+            padding: EdgeInsets.all(32.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('جاري تجميع البيانات وتجهيز الملف\nالرجاء الانتظار...',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    try {
+      final excel = ex.Excel.createExcel();
+
+      final db = FirebaseFirestore.instance;
+
+      // 1. Fetch Users
+      final usersSnap = await db.collection('users').get();
+      final allFirebaseUsers = usersSnap.docs;
+
+      final rolesMap = {
+        'farmer': 'المزارعين',
+        'worker': 'العمال',
+        'equipmentOwner': 'أصحاب المعدات',
+        'seller': 'أصحاب المحلات',
+        'deliveryWorker': 'عمال التوصيل',
+        'admin': 'المسؤولين',
+      };
+
+      bool isFirstSheet = true;
+      final defaultSheetName = excel.getDefaultSheet() ?? 'Sheet1';
+
+      for (final roleEntry in rolesMap.entries) {
+        final roleId = roleEntry.key;
+        final sheetName = roleEntry.value;
+        final users = allFirebaseUsers.where((u) {
+          final r = u.data()['role']?.toString() ?? '';
+          return r == roleId || r == 'UserRole.$roleId';
+        }).toList();
+
+        // Ensure sheet exists and has headers, even if empty
+        final ex.Sheet sheetObject;
+        if (isFirstSheet) {
+          excel.rename(defaultSheetName, sheetName);
+          sheetObject = excel[sheetName];
+          excel.setDefaultSheet(sheetName);
+          isFirstSheet = false;
+        } else {
+          sheetObject = excel[sheetName];
+        }
+
+        sheetObject.appendRow([
+          ex.TextCellValue('الاسم'),
+          ex.TextCellValue('رقم الهاتف'),
+          ex.TextCellValue('البريد'),
+          ex.TextCellValue('العنوان'),
+          ex.TextCellValue('تاريخ الانضمام'),
+          ex.TextCellValue('الحالة'),
+        ]);
+
+        for (var u in users) {
+          final data = u.data();
+          final createdAt = data['createdAt'] as Timestamp?;
+          final dateStr = createdAt != null
+              ? intl.DateFormat('yyyy-MM-dd HH:mm').format(createdAt.toDate())
+              : '';
+          sheetObject.appendRow([
+            ex.TextCellValue(data['fullName']?.toString() ?? ''),
+            ex.TextCellValue(data['phone']?.toString() ?? ''),
+            ex.TextCellValue(data['email']?.toString() ?? ''),
+            ex.TextCellValue(data['address']?.toString() ?? ''),
+            ex.TextCellValue(dateStr),
+            ex.TextCellValue(data['status']?.toString() ?? ''),
+          ]);
+        }
+      }
+
+      // 2. Fetch Catalog (Products)
+      final catalogSnap = await db.collection('catalog').get();
+      ex.Sheet catalogSheet = excel['المنتجات'];
+      catalogSheet.appendRow([
+        ex.TextCellValue('اسم المنتج'),
+        ex.TextCellValue('السعر'),
+        ex.TextCellValue('الوصف'),
+        ex.TextCellValue('اسم المحل (صاحب المنتج)'),
+        ex.TextCellValue('رقم التليفون'),
+      ]);
+
+      for (var p in catalogSnap.docs) {
+        final data = p.data();
+        final sellerId = data['sellerUserId']?.toString() ?? '';
+
+        String sellerName = '';
+        String sellerPhone = '';
+        if (sellerId.isNotEmpty) {
+          try {
+            final sellerDoc =
+                allFirebaseUsers.firstWhere((doc) => doc.id == sellerId);
+            sellerName = sellerDoc.data()['fullName']?.toString() ?? '';
+            sellerPhone = sellerDoc.data()['phone']?.toString() ?? '';
+          } catch (_) {}
+        }
+
+        catalogSheet.appendRow([
+          ex.TextCellValue(data['name']?.toString() ?? ''),
+          ex.TextCellValue(data['price']?.toString() ?? ''),
+          ex.TextCellValue(data['description']?.toString() ?? ''),
+          ex.TextCellValue(sellerName),
+          ex.TextCellValue(sellerPhone),
+        ]);
+      }
+
+      // 3. Fetch Wells
+      final wellsSnap = await db.collection('wells').get();
+      ex.Sheet wellsSheet = excel['الآبار'];
+      wellsSheet.appendRow([
+        ex.TextCellValue('المساحة الإجمالية'),
+        ex.TextCellValue('عمق البئر'),
+        ex.TextCellValue('عدد المشتركين'),
+        ex.TextCellValue('دورة الري'),
+        ex.TextCellValue('اسم المزرعة / البئر'),
+        ex.TextCellValue('اسم المنشئ'),
+        ex.TextCellValue('هاتف المنشئ'),
+      ]);
+
+      for (var w in wellsSnap.docs) {
+        final data = w.data();
+        final adminId = data['adminUserId']?.toString() ?? '';
+
+        String creatorName = '';
+        String creatorPhone = '';
+        if (adminId.isNotEmpty) {
+          try {
+            final sellerDoc =
+                allFirebaseUsers.firstWhere((doc) => doc.id == adminId);
+            creatorName = sellerDoc.data()['fullName']?.toString() ?? '';
+            creatorPhone = sellerDoc.data()['phone']?.toString() ?? '';
+          } catch (_) {}
+        }
+
+        wellsSheet.appendRow([
+          ex.TextCellValue(data['totalArea']?.toString() ?? ''),
+          ex.TextCellValue(data['depth']?.toString() ?? ''),
+          ex.TextCellValue(data['subscribersCount']?.toString() ?? ''),
+          ex.TextCellValue(data['irrigationCycleDays']?.toString() ?? ''),
+          ex.TextCellValue(data['farmName']?.toString() ?? ''),
+          ex.TextCellValue(creatorName),
+          ex.TextCellValue(creatorPhone),
+        ]);
+      }
+
+      final List<int>? fileBytes = excel.encode();
+      if (fileBytes != null) {
+        final blob = html.Blob([fileBytes]);
+        final url = html.Url.createObjectUrlFromBlob(blob);
+        html.AnchorElement(href: url)
+          ..setAttribute("download",
+              "نبع_كل_البيانات_${intl.DateFormat('yyyy-MM-dd').format(DateTime.now())}.xlsx")
+          ..click();
+        html.Url.revokeObjectUrl(url);
+      }
+
+      if (context.mounted) {
+        Navigator.pop(context); // Close loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تم تصدير البيانات بنجاح')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.pop(context); // Close loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('حدث خطأ أثناء التصدير: $e')),
+        );
+      }
+    }
   }
 }

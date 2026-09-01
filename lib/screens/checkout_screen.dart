@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../data/delivery_data.dart';
 import '../providers/app_state_provider.dart';
 import '../providers/auth_provider.dart';
 import '../theme.dart';
@@ -18,7 +19,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   bool _isProcessing = false;
   bool _leaveAtDoor = false;
   String _selectedPaymentMethod = 'الدفع عند الاستلام';
-  
+
   final List<String> _paymentMethods = [
     'الدفع عند الاستلام',
     'تحويل بنكي',
@@ -81,6 +82,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
     if (cart.isEmpty || user == null) return;
 
+    final buyerDistrict = user.extraData?['district'] as String?;
+    final buyerVillage = user.extraData?['village'] as String?;
+
     setState(() => _isProcessing = true);
 
     // Group items by seller
@@ -91,7 +95,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
     final sellerIds = itemsBySeller.keys.toList();
     final totalSellers = sellerIds.length;
-    const deliveryFeePerSeller = 20.0;
     bool allSuccess = true;
 
     // Process each seller one by one
@@ -100,11 +103,64 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       final sellerItems = itemsBySeller[sellerId]!;
       double sellerSubtotal = sellerItems.fold(0.0,
           (sum, item) => sum + (item.price * appState.getQuantity(item.id)));
-      double sellerTotal = sellerSubtotal + deliveryFeePerSeller;
 
-      // Fetch this seller's info
+      // Fetch seller info to check district
       final sellerData = await _fetchSellerInfo(sellerId);
       if (!mounted) return;
+      final sellerDistrict = (sellerData?['extraData']
+          as Map<String, dynamic>?)?['district'] as String?;
+
+      // Check if cross-district
+      final isCrossDistrict = buyerDistrict != null &&
+          sellerDistrict != null &&
+          buyerDistrict != sellerDistrict;
+
+      if (isCrossDistrict) {
+        // Block order - show warning and stop
+        if (mounted) {
+          await showDialog(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20)),
+              icon: Icon(Icons.local_shipping_outlined,
+                  color: Colors.orange.shade700, size: 48),
+              title: const Text('خدمة التوصيل غير متاحة',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              content: Text(
+                'هذا المنتج من مركز "$sellerDistrict" وأنت مسجل في مركز "$buyerDistrict".\n\nخدمة التوصيل بين المراكز غير متاحة حالياً. يمكنك التنسيق مباشرة مع البائع.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 14, height: 1.6),
+              ),
+              actions: [
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: NabaTheme.primary,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text('فهمت'),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+        allSuccess = false;
+        break;
+      }
+
+      // Calculate delivery fee based on buyer's village
+      final deliveryFeePerSeller =
+          getDeliveryFee(buyerDistrict, buyerVillage) ?? 20.0;
+      double sellerTotal = sellerSubtotal + deliveryFeePerSeller;
+
+      // Use already-fetched seller info
 
       final payInfo = _extractPaymentInfo(sellerData);
 
@@ -148,7 +204,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   })
               .toList(),
         });
-        
+
         // Remove items from cart
         for (var item in sellerItems) {
           final qty = appState.getQuantity(item.id);
@@ -160,7 +216,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       }
 
       // If not Cash on Delivery, show payment proof dialog
-      
 
       final sellerLabel = totalSellers > 1
           ? '${payInfo.name} (${i + 1} من $totalSellers)'
@@ -265,13 +320,27 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppStateProvider>();
+    final authProvider = context.watch<AuthProvider>();
+    final buyerDistrict = authProvider.user?.extraData?['district'] as String?;
+    final buyerVillage = authProvider.user?.extraData?['village'] as String?;
     final cart = appState.cart;
     final subtotal = cart.fold(
         0.0, (sum, item) => sum + (item.price * appState.getQuantity(item.id)));
-    // Delivery fee: 20 EGP per unique seller
+    // Delivery fee based on buyer's village
     final uniqueSellers = cart.map((e) => e.sellerUserId).toSet().length;
-    final deliveryFee = uniqueSellers * 20.0;
+    final feePerSeller = getDeliveryFee(buyerDistrict, buyerVillage) ?? 20.0;
+    final deliveryFee = uniqueSellers * feePerSeller;
     final total = subtotal + deliveryFee;
+
+    // Check if any seller is from a different district
+    final hasCrossDistrict = buyerDistrict != null &&
+        cart.any((item) {
+          final seller = authProvider.allUsers
+              .where((u) => u.id == item.sellerUserId)
+              .firstOrNull;
+          final sellerDistrict = seller?.extraData?['district'] as String?;
+          return sellerDistrict != null && sellerDistrict != buyerDistrict;
+        });
     final itemCount =
         cart.fold(0, (sum, item) => sum + appState.getQuantity(item.id));
     final selectedAddress = appState.selectedAddress;
@@ -289,6 +358,37 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       body: ListView(
         padding: const EdgeInsets.only(bottom: 100),
         children: [
+          // Cross-District Warning
+          if (hasCrossDistrict)
+            Container(
+              margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.red.shade600, Colors.orange.shade600],
+                ),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Row(
+                textDirection: TextDirection.rtl,
+                children: [
+                  Icon(Icons.warning_amber_rounded,
+                      color: Colors.white, size: 24),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      '⚠️ بعض المنتجات من مركز مختلف. التوصيل بين المراكز غير متاح حالياً — لن يتم إتمام الطلب.',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
           // Address Section
           _buildSectionCard(
             icon: Icons.location_on,
@@ -420,14 +520,19 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   onTap: () => setState(() => _selectedPaymentMethod = method),
                   child: Container(
                     margin: const EdgeInsets.only(bottom: 8),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 12),
                     decoration: BoxDecoration(
                       border: Border.all(
-                        color: isSelected ? NabaTheme.primary : Colors.grey.shade300,
+                        color: isSelected
+                            ? NabaTheme.primary
+                            : Colors.grey.shade300,
                         width: isSelected ? 2 : 1,
                       ),
                       borderRadius: BorderRadius.circular(12),
-                      color: isSelected ? NabaTheme.primary.withOpacity(0.05) : Colors.white,
+                      color: isSelected
+                          ? NabaTheme.primary.withOpacity(0.05)
+                          : Colors.white,
                     ),
                     child: Row(
                       textDirection: TextDirection.rtl,
@@ -436,13 +541,19 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         Text(method,
                             style: TextStyle(
                               fontSize: 15,
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                              color: isSelected ? NabaTheme.primary : Colors.black87,
+                              fontWeight: isSelected
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                              color: isSelected
+                                  ? NabaTheme.primary
+                                  : Colors.black87,
                             )),
                         if (isSelected)
-                          const Icon(Icons.check_circle, color: NabaTheme.primary, size: 20)
+                          const Icon(Icons.check_circle,
+                              color: NabaTheme.primary, size: 20)
                         else
-                          Icon(Icons.circle_outlined, color: Colors.grey.shade400, size: 20),
+                          Icon(Icons.circle_outlined,
+                              color: Colors.grey.shade400, size: 20),
                       ],
                     ),
                   ),

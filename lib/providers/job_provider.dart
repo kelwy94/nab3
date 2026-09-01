@@ -36,16 +36,45 @@ class JobProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  void _listenToJobs() {
+  void _listenToJobs() async {
     _jobsSub?.cancel();
     _jobsSub = null;
     _isLoading = true;
     if (!_disposed) notifyListeners();
 
-    _jobsSub = _firestore
-        .collection('jobs')
-        .snapshots()
-        .listen((snapshot) {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      _jobs = [];
+      _isLoading = false;
+      if (!_disposed) notifyListeners();
+      return;
+    }
+
+    final userDoc = await _firestore.collection('users').doc(user.uid).get();
+    if (!userDoc.exists) {
+      _isLoading = false;
+      if (!_disposed) notifyListeners();
+      return;
+    }
+
+    final role = userDoc.data()?['role'];
+    Query<Map<String, dynamic>> query;
+    if (role == 'UserRole.farmer' || role == 'farmer') {
+      query = _firestore
+          .collection('jobs')
+          .where('requesterUserId', isEqualTo: user.uid);
+    } else if (role == 'UserRole.worker' ||
+        role == 'worker' ||
+        role == 'UserRole.equipmentOwner' ||
+        role == 'equipmentOwner') {
+      query = _firestore.collection('jobs').where(Filter.or(
+          Filter('assignedUserId', isEqualTo: user.uid),
+          Filter('status', isEqualTo: JobStatus.requested.toString())));
+    } else {
+      query = _firestore.collection('jobs');
+    }
+
+    _jobsSub = query.snapshots().listen((snapshot) {
       List<Job> parsed = [];
       for (var doc in snapshot.docs) {
         try {
@@ -57,17 +86,21 @@ class JobProvider with ChangeNotifier {
             type: data['type'] ?? 'worker',
             serviceType: data['serviceType'] ?? '',
             location: data['location'] != null
-                ? Map<String, double>.from((data['location'] as Map).map((k, v) => MapEntry(k.toString(), (v as num).toDouble())))
+                ? Map<String, double>.from((data['location'] as Map).map(
+                    (k, v) => MapEntry(k.toString(), (v as num).toDouble())))
                 : {'lat': 0.0, 'lng': 0.0},
             startTime:
                 (data['startTime'] as Timestamp?)?.toDate() ?? DateTime.now(),
             endTime: (data['endTime'] as Timestamp?)?.toDate() ??
                 DateTime.now().add(const Duration(hours: 1)),
             status: JobStatus.values.firstWhere(
-                (e) => e.toString() == data['status'] || e.toString().split('.').last == (data['status'] ?? ''),
+                (e) =>
+                    e.toString() == data['status'] ||
+                    e.toString().split('.').last == (data['status'] ?? ''),
                 orElse: () => JobStatus.requested),
-            price:
-                data['price'] != null ? (data['price'] as num).toDouble() : null,
+            price: data['price'] != null
+                ? (data['price'] as num).toDouble()
+                : null,
             notes: data['notes'] ?? '',
             address: data['address'],
             workerRating: data['workerRating'] != null
@@ -270,6 +303,94 @@ class JobProvider with ChangeNotifier {
       debugPrint('Error in confirmPaymentAndTransfer: $e');
       rethrow;
     }
+  }
+
+  Stream<List<JobBid>> getJobBidsStream(String jobId) {
+    return _firestore
+        .collection('jobs')
+        .doc(jobId)
+        .collection('bids')
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        return JobBid(
+          id: doc.id,
+          jobId: jobId,
+          workerUserId: data['workerUserId'] ?? '',
+          workerName: data['workerName'] ?? '',
+          currentPrice: (data['currentPrice'] as num?)?.toDouble() ?? 0.0,
+          status: BidStatus.values.firstWhere((e) => e.name == data['status'],
+              orElse: () => BidStatus.pending),
+          lastProposedByUserId: data['lastProposedByUserId'] ?? '',
+          createdAt:
+              (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+        );
+      }).toList();
+    });
+  }
+
+  Future<void> submitBid({
+    required String jobId,
+    required String workerUserId,
+    required String workerName,
+    required double price,
+  }) async {
+    final batch = _firestore.batch();
+    // Using workerUserId as doc ID limits 1 bid per worker per job, which is correct
+    final bidRef = _firestore
+        .collection('jobs')
+        .doc(jobId)
+        .collection('bids')
+        .doc(workerUserId);
+
+    batch.set(bidRef, {
+      'workerUserId': workerUserId,
+      'workerName': workerName,
+      'currentPrice': price,
+      'status': BidStatus.pending.name,
+      'lastProposedByUserId': workerUserId,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+
+    await batch.commit();
+  }
+
+  Future<void> updateBidPrice(
+      String jobId, String bidId, double newPrice, String authorId) async {
+    await _firestore
+        .collection('jobs')
+        .doc(jobId)
+        .collection('bids')
+        .doc(bidId)
+        .update({
+      'currentPrice': newPrice,
+      'status': BidStatus.counterOffered.name,
+      'lastProposedByUserId': authorId,
+    });
+  }
+
+  Future<void> acceptBid(
+      String jobId, String bidId, String workerId, double finalPrice) async {
+    final batch = _firestore.batch();
+
+    final bidRef =
+        _firestore.collection('jobs').doc(jobId).collection('bids').doc(bidId);
+    batch.update(bidRef, {
+      'status': BidStatus.accepted.name,
+      'currentPrice': finalPrice,
+    });
+
+    final jobRef = _firestore.collection('jobs').doc(jobId);
+    batch.update(jobRef, {
+      'status': JobStatus.accepted.toString(),
+      'assignedUserId': workerId,
+      'price': finalPrice,
+      'acceptedAt': FieldValue.serverTimestamp(),
+    });
+
+    await batch.commit();
   }
 
   void seedMockJobs() {

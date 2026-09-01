@@ -8,7 +8,7 @@ import '../theme.dart';
 import '../widgets/naba_widgets.dart';
 import 'asset_management_screen.dart';
 import 'edit_profile_screen.dart';
-import 'farmer_dashboard.dart' show ProfileScreen;
+import 'profile_screen.dart';
 import 'market_reports_screen.dart';
 import 'marketplace_screen.dart';
 import 'request_equipment_screen.dart';
@@ -30,7 +30,7 @@ class _InvestorDashboardState extends State<InvestorDashboard> {
     InvestorHomeTab(),
     InvestorProjectsTab(),
     MarketplaceScreen(),
-    ProfileScreen(),
+    ProfileScreen(isTab: true),
   ];
 
   @override

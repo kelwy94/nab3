@@ -90,8 +90,12 @@ class WellProvider with ChangeNotifier {
         .where('adminUserId', isEqualTo: user.uid)
         .snapshots()
         .listen((snap) {
-      _ownedWells = snap.docs.map(_parseWell).where((w) => w.status == WellStatus.approved).toList();
-      _hasPendingCreation = snap.docs.any((doc) => _parseWell(doc).status == WellStatus.pending);
+      _ownedWells = snap.docs
+          .map(_parseWell)
+          .where((w) => w.status == WellStatus.approved)
+          .toList();
+      _hasPendingCreation =
+          snap.docs.any((doc) => _parseWell(doc).status == WellStatus.pending);
       _isLoading = false;
       if (!_disposed) notifyListeners();
     }, onError: (e) => _handleError(e));
@@ -101,7 +105,8 @@ class WellProvider with ChangeNotifier {
         .collection('well_members')
         .where('userId', isEqualTo: user.uid)
         .snapshots()
-        .listen((snap) => _updateJoinedWells(snap, user.uid), onError: (e) => _handleError(e));
+        .listen((snap) => _updateJoinedWells(snap, user.uid),
+            onError: (e) => _handleError(e));
 
     // 3. Admin logic (All Wells) - Use a more reliable and faster initialization
     if (_forceAdminMode) {
@@ -110,7 +115,8 @@ class WellProvider with ChangeNotifier {
       _firestore.collection('users').doc(user.uid).get().then((userDoc) {
         if (_disposed || _forceAdminMode) return;
         final data = userDoc.data();
-        final isAdmin = data != null && (data['role'] == 'admin' || data['role'] == 'UserRole.admin');
+        final isAdmin = data != null &&
+            (data['role'] == 'admin' || data['role'] == 'UserRole.admin');
         if (isAdmin) {
           _startAdminListener();
         }
@@ -120,7 +126,8 @@ class WellProvider with ChangeNotifier {
 
   void _startAdminListener() {
     if (_adminWellsSub != null) return;
-    _adminWellsSub = _firestore.collection('wells').snapshots().listen((snapshot) {
+    _adminWellsSub =
+        _firestore.collection('wells').snapshots().listen((snapshot) {
       List<Well> parsedWells = [];
       for (var doc in snapshot.docs) {
         try {
@@ -135,7 +142,8 @@ class WellProvider with ChangeNotifier {
   }
 
   // Handle joined wells separately to manage details fetch
-  Future<void> _updateJoinedWells(QuerySnapshot membershipSnap, String userId) async {
+  Future<void> _updateJoinedWells(
+      QuerySnapshot membershipSnap, String userId) async {
     try {
       List<String> approvedWellIds = [];
       bool pendingFlag = false;
@@ -161,7 +169,8 @@ class WellProvider with ChangeNotifier {
       // Fetch well details for the joins
       final wellsSnap = await _firestore
           .collection('wells')
-          .where(FieldPath.documentId, whereIn: approvedWellIds.take(10).toList())
+          .where(FieldPath.documentId,
+              whereIn: approvedWellIds.take(10).toList())
           .get(const GetOptions(source: Source.serverAndCache));
 
       _joinedWells = wellsSnap.docs.map(_parseWell).toList();
@@ -190,29 +199,33 @@ class WellProvider with ChangeNotifier {
     );
   }
 
-
   Well _parseWell(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
     return Well(
       id: doc.id,
       adminUserId: data['adminUserId'] ?? '',
       wellName: data['wellName'] ?? '',
+      district: data['district'],
       location: Map<String, double>.from(data['location'] ?? {}),
       depthMeters: (data['depthMeters'] ?? 0.0).toDouble(),
       irrigatedAreaFeddan: (data['irrigatedAreaFeddan'] ?? 0.0).toDouble(),
-      waterOutput: _parseEnum(WaterOutput.values, data['waterOutput'], WaterOutput.medium),
+      waterOutput: _parseEnum(
+          WaterOutput.values, data['waterOutput'], WaterOutput.medium),
       participantCount: data['participantCount'] ?? 1,
       flowRateM3PerHour: data['flowRateM3PerHour']?.toDouble(),
-      fairnessRule: _parseEnum(FairnessRule.values, data['fairnessRule'], FairnessRule.proportional),
+      fairnessRule: _parseEnum(
+          FairnessRule.values, data['fairnessRule'], FairnessRule.proportional),
       allowedDays: List<String>.from(data['allowedDays'] ?? []),
       allowedHours: Map<String, String>.from(data['allowedHours'] ?? {}),
       slotDuration: data['slotDuration'] ?? 0,
       hoursPerPerson: (data['hoursPerPerson'] ?? 1.0).toDouble(),
       irrigationFrequencyDays: data['irrigationFrequencyDays'] ?? 1,
-      status: _parseEnum(WellStatus.values, data['status'], WellStatus.approved),
+      status:
+          _parseEnum(WellStatus.values, data['status'], WellStatus.approved),
       pendingEdits: data['pendingEdits'] != null
           ? Map<String, dynamic>.from(data['pendingEdits'])
           : null,
+      nextIrrigationDate: (data['nextIrrigationDate'] as Timestamp?)?.toDate(),
     );
   }
 
@@ -262,7 +275,8 @@ class WellProvider with ChangeNotifier {
     }
   }
 
-  Future<bool> inviteParticipantByPhone(String wellId, String phone, {Map<String, dynamic>? manualSchedule}) async {
+  Future<bool> inviteParticipantByPhone(String wellId, String phone,
+      {Map<String, dynamic>? manualSchedule}) async {
     try {
       final query = await _firestore
           .collection('users')
@@ -300,11 +314,44 @@ class WellProvider with ChangeNotifier {
     }
   }
 
+  Future<bool> requestJoinWell(String wellId, String userId,
+      {DateTime? nextIrrigationDate}) async {
+    try {
+      // Check if already requested or joined
+      final existing = await _firestore
+          .collection('well_members')
+          .where('wellId', isEqualTo: wellId)
+          .where('userId', isEqualTo: userId)
+          .get();
+
+      if (existing.docs.isNotEmpty) return true; // Already joined/requested
+
+      final data = <String, dynamic>{
+        'wellId': wellId,
+        'userId': userId,
+        'status': 'pending',
+        'landAreaFeddan': 0.0,
+        'crops': [],
+      };
+
+      if (nextIrrigationDate != null) {
+        data['nextIrrigationDate'] = Timestamp.fromDate(nextIrrigationDate);
+      }
+
+      await _firestore.collection('well_members').add(data);
+      return true;
+    } catch (e) {
+      debugPrint('Error requesting to join well: $e');
+      rethrow;
+    }
+  }
+
   Future<void> addWell(Well well) async {
     try {
       await _firestore.collection('wells').add({
         'adminUserId': well.adminUserId,
         'wellName': well.wellName,
+        'district': well.district,
         'location': well.location,
         'depthMeters': well.depthMeters,
         'irrigatedAreaFeddan': well.irrigatedAreaFeddan,
@@ -319,6 +366,9 @@ class WellProvider with ChangeNotifier {
         'irrigationFrequencyDays': well.irrigationFrequencyDays,
         'status': WellStatus.pending.toString(),
         'createdAt': FieldValue.serverTimestamp(),
+        'nextIrrigationDate': well.nextIrrigationDate != null
+            ? Timestamp.fromDate(well.nextIrrigationDate!)
+            : null,
       });
     } catch (e) {
       debugPrint('Error adding well: $e');

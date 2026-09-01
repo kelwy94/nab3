@@ -30,7 +30,8 @@ class _RequestWorkerScreenState extends State<RequestWorkerScreen> {
       initialDate: _selectedDate,
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
-      builder: (context, child) => Directionality(textDirection: TextDirection.rtl, child: child!),
+      builder: (context, child) =>
+          Directionality(textDirection: TextDirection.rtl, child: child!),
     );
     if (picked != null) {
       setState(() => _selectedDate = picked);
@@ -49,6 +50,9 @@ class _RequestWorkerScreenState extends State<RequestWorkerScreen> {
     'عامل بناء حظائر',
     'عامل حرث وعزق',
     'عامل جني محصول',
+    'عامل جني البلح',
+    'فني نخيل',
+    'فني تركيب وصيانة طاقة شمسية',
   ];
 
   final List<String> _priceUnits = ['بالساعة', 'باليوم', 'يومية'];
@@ -84,7 +88,7 @@ class _RequestWorkerScreenState extends State<RequestWorkerScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: NabaTheme.background,
-      appBar: const NabaAppBar(title: 'طلب عامل زراعي'),
+      appBar: const NabaAppBar(title: 'طلب عامل زراعي / فني'),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 600),
@@ -100,15 +104,18 @@ class _RequestWorkerScreenState extends State<RequestWorkerScreen> {
                       children: [
                         const Text(
                           'ما هو نوع الخدمة التي تحتاجها؟',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold),
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 24),
                         GridView.builder(
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
-                          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: MediaQuery.of(context).size.width > 500 ? 4 : 3,
+                          gridDelegate:
+                              SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount:
+                                MediaQuery.of(context).size.width > 500 ? 4 : 3,
                             crossAxisSpacing: 10,
                             mainAxisSpacing: 10,
                             childAspectRatio: 1.0,
@@ -130,18 +137,30 @@ class _RequestWorkerScreenState extends State<RequestWorkerScreen> {
                           children: [
                             // Price Unit Selector
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 12),
                               decoration: BoxDecoration(
                                 color: NabaTheme.primary.withOpacity(0.08),
                                 borderRadius: BorderRadius.circular(14),
-                                border: Border.all(color: NabaTheme.primary.withOpacity(0.2)),
+                                border: Border.all(
+                                    color: NabaTheme.primary.withOpacity(0.2)),
                               ),
                               child: DropdownButtonHideUnderline(
                                 child: DropdownButton<String>(
                                   value: _priceUnit,
-                                  items: _priceUnits.map((u) => DropdownMenuItem(value: u, child: Text(u, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: NabaTheme.primary)))).toList(),
-                                  onChanged: (v) => setState(() => _priceUnit = v!),
-                                  icon: const Icon(Icons.arrow_drop_down, color: NabaTheme.primary),
+                                  items: _priceUnits
+                                      .map((u) => DropdownMenuItem(
+                                          value: u,
+                                          child: Text(u,
+                                              style: const TextStyle(
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: NabaTheme.primary))))
+                                      .toList(),
+                                  onChanged: (v) =>
+                                      setState(() => _priceUnit = v!),
+                                  icon: const Icon(Icons.arrow_drop_down,
+                                      color: NabaTheme.primary),
                                 ),
                               ),
                             ),
@@ -156,7 +175,9 @@ class _RequestWorkerScreenState extends State<RequestWorkerScreen> {
                                   suffixText: 'ج.م',
                                   filled: true,
                                   fillColor: Colors.grey.shade50,
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                                  border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                      borderSide: BorderSide.none),
                                 ),
                                 onSaved: (v) => _price = v!,
                               ),
@@ -165,7 +186,7 @@ class _RequestWorkerScreenState extends State<RequestWorkerScreen> {
                         ),
 
                         const SizedBox(height: 24),
-                        
+
                         // Work Date
                         _buildFieldLabel('تاريخ العمل'),
                         InkWell(
@@ -177,14 +198,23 @@ class _RequestWorkerScreenState extends State<RequestWorkerScreen> {
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(16),
                               border: Border.all(color: Colors.grey.shade200),
-                              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8, offset: const Offset(0, 2))],
+                              boxShadow: [
+                                BoxShadow(
+                                    color: Colors.black.withOpacity(0.03),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2))
+                              ],
                             ),
                             child: Row(
                               textDirection: TextDirection.rtl,
                               children: [
-                                const Icon(Icons.calendar_today, color: NabaTheme.primary),
+                                const Icon(Icons.calendar_today,
+                                    color: NabaTheme.primary),
                                 const SizedBox(width: 12),
-                                Text(_formatDate(_selectedDate), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                Text(_formatDate(_selectedDate),
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16)),
                               ],
                             ),
                           ),
@@ -199,7 +229,12 @@ class _RequestWorkerScreenState extends State<RequestWorkerScreen> {
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(color: Colors.grey.shade200),
-                            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8, offset: const Offset(0, 2))],
+                            boxShadow: [
+                              BoxShadow(
+                                  color: Colors.black.withOpacity(0.03),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2))
+                            ],
                           ),
                           child: Row(
                             textDirection: TextDirection.rtl,
@@ -210,21 +245,33 @@ class _RequestWorkerScreenState extends State<RequestWorkerScreen> {
                                   onTap: () => _pickTime(true),
                                   borderRadius: BorderRadius.circular(12),
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(vertical: 14),
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 14),
                                     decoration: BoxDecoration(
-                                      color: NabaTheme.primary.withOpacity(0.06),
+                                      color:
+                                          NabaTheme.primary.withOpacity(0.06),
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: Column(
                                       children: [
-                                        Text('من', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                                        Text('من',
+                                            style: TextStyle(
+                                                color: Colors.grey.shade600,
+                                                fontSize: 12)),
                                         const SizedBox(height: 4),
                                         Row(
-                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
                                           children: [
-                                            const Icon(Icons.access_time, color: NabaTheme.primary, size: 18),
+                                            const Icon(Icons.access_time,
+                                                color: NabaTheme.primary,
+                                                size: 18),
                                             const SizedBox(width: 6),
-                                            Text(_formatTime(_startTime), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: NabaTheme.primary)),
+                                            Text(_formatTime(_startTime),
+                                                style: const TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 16,
+                                                    color: NabaTheme.primary)),
                                           ],
                                         ),
                                       ],
@@ -233,8 +280,10 @@ class _RequestWorkerScreenState extends State<RequestWorkerScreen> {
                                 ),
                               ),
                               Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 12),
-                                child: Icon(Icons.arrow_forward, color: Colors.grey.shade400, size: 20),
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 12),
+                                child: Icon(Icons.arrow_forward,
+                                    color: Colors.grey.shade400, size: 20),
                               ),
                               // End Time
                               Expanded(
@@ -242,21 +291,33 @@ class _RequestWorkerScreenState extends State<RequestWorkerScreen> {
                                   onTap: () => _pickTime(false),
                                   borderRadius: BorderRadius.circular(12),
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(vertical: 14),
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 14),
                                     decoration: BoxDecoration(
                                       color: Colors.orange.withOpacity(0.06),
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: Column(
                                       children: [
-                                        Text('إلى', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                                        Text('إلى',
+                                            style: TextStyle(
+                                                color: Colors.grey.shade600,
+                                                fontSize: 12)),
                                         const SizedBox(height: 4),
                                         Row(
-                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
                                           children: [
-                                            Icon(Icons.access_time, color: Colors.orange.shade700, size: 18),
+                                            Icon(Icons.access_time,
+                                                color: Colors.orange.shade700,
+                                                size: 18),
                                             const SizedBox(width: 6),
-                                            Text(_formatTime(_endTime), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.orange.shade700)),
+                                            Text(_formatTime(_endTime),
+                                                style: TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 16,
+                                                    color: Colors
+                                                        .orange.shade700)),
                                           ],
                                         ),
                                       ],
@@ -274,12 +335,16 @@ class _RequestWorkerScreenState extends State<RequestWorkerScreen> {
                           maxLines: 2,
                           textAlign: TextAlign.right,
                           decoration: InputDecoration(
-                            hintText: 'اكتب عنوان المزرعة أو أقرب علامة مميزة...',
+                            hintText:
+                                'اكتب عنوان المزرعة أو أقرب علامة مميزة...',
                             filled: true,
                             fillColor: Colors.grey.shade50,
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: BorderSide.none),
                           ),
-                          validator: (v) => v!.isEmpty ? 'مطلوب إدخال العنوان' : null,
+                          validator: (v) =>
+                              v!.isEmpty ? 'مطلوب إدخال العنوان' : null,
                           onSaved: (v) => _address = v!,
                         ),
                         const SizedBox(height: 20),
@@ -291,7 +356,9 @@ class _RequestWorkerScreenState extends State<RequestWorkerScreen> {
                             hintText: 'مثلاً: نوع المحصول، درجة الصعوبة...',
                             filled: true,
                             fillColor: Colors.grey.shade50,
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: BorderSide.none),
                           ),
                           onSaved: (v) => _notes = v!,
                         ),
@@ -309,12 +376,24 @@ class _RequestWorkerScreenState extends State<RequestWorkerScreen> {
                     if (_formKey.currentState!.validate()) {
                       _formKey.currentState!.save();
 
-                      final auth = Provider.of<AuthProvider>(context, listen: false);
-                      final jobProvider = Provider.of<JobProvider>(context, listen: false);
+                      final auth =
+                          Provider.of<AuthProvider>(context, listen: false);
+                      final jobProvider =
+                          Provider.of<JobProvider>(context, listen: false);
 
                       // Build start/end DateTime from TimeOfDay
-                      final startDt = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day, _startTime.hour, _startTime.minute);
-                      final endDt = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day, _endTime.hour, _endTime.minute);
+                      final startDt = DateTime(
+                          _selectedDate.year,
+                          _selectedDate.month,
+                          _selectedDate.day,
+                          _startTime.hour,
+                          _startTime.minute);
+                      final endDt = DateTime(
+                          _selectedDate.year,
+                          _selectedDate.month,
+                          _selectedDate.day,
+                          _endTime.hour,
+                          _endTime.minute);
 
                       final newJob = Job(
                         id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -335,7 +414,8 @@ class _RequestWorkerScreenState extends State<RequestWorkerScreen> {
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                              content: Text('تم إرسال طلبك بنجاح وهو الآن يظهر في السوق!'),
+                              content: Text(
+                                  'تم إرسال طلبك بنجاح وهو الآن يظهر في السوق!'),
                               backgroundColor: NabaTheme.primary),
                         );
                         Navigator.pop(context);
@@ -369,7 +449,9 @@ class _RequestWorkerScreenState extends State<RequestWorkerScreen> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: isSelected ? Colors.white.withOpacity(0.2) : NabaTheme.primary.withOpacity(0.08),
+                color: isSelected
+                    ? Colors.white.withOpacity(0.2)
+                    : NabaTheme.primary.withOpacity(0.08),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -401,7 +483,10 @@ class _RequestWorkerScreenState extends State<RequestWorkerScreen> {
       padding: const EdgeInsets.only(bottom: 8.0),
       child: Text(
         label,
-        style: const TextStyle(fontWeight: FontWeight.bold, color: NabaTheme.textPrimary, fontSize: 14),
+        style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            color: NabaTheme.textPrimary,
+            fontSize: 14),
         textAlign: TextAlign.right,
       ),
     );
@@ -423,6 +508,10 @@ class _RequestWorkerScreenState extends State<RequestWorkerScreen> {
         return Icons.agriculture_rounded;
       case 'عامل جني محصول':
         return Icons.eco_rounded;
+      case 'فني نخيل':
+        return Icons.engineering_rounded;
+      case 'فني تركيب وصيانة طاقة شمسية':
+        return Icons.solar_power_rounded;
       default:
         return Icons.work_rounded;
     }

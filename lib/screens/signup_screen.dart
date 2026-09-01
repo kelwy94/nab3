@@ -8,7 +8,7 @@ import 'package:provider/provider.dart';
 import '../models/types.dart';
 import '../providers/auth_provider.dart';
 import '../theme.dart';
-import '../widgets/naba_widgets.dart';
+
 import 'map_picker_screen.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -22,49 +22,153 @@ class SignupScreen extends StatefulWidget {
 
 class _SignupScreenState extends State<SignupScreen> {
   final _formKey = GlobalKey<FormState>();
-  late TextEditingController _nameController;
-  late TextEditingController _phoneController;
-  late TextEditingController _passwordController;
-  late TextEditingController _emailController;
-  late TextEditingController _nationalIdController;
-  late TextEditingController _addressController;
-
-  // Role specific controllers
-  late TextEditingController _extra1Controller;
-  late TextEditingController _extra2Controller;
-  late TextEditingController _extra3Controller;
-  late TextEditingController _extra4Controller;
-
+  final PageController _pageController = PageController();
+  int _currentStep = 0;
   bool _isLoading = false;
+
+  // -- Step 1: Personal Info --
+  final _nameController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _nationalIdController = TextEditingController();
+
   Uint8List? _profileImageBytes;
   Uint8List? _idFrontBytes;
   Uint8List? _idBackBytes;
   final ImagePicker _picker = ImagePicker();
-  PaymentMethod? _selectedPaymentMethod;
-  late TextEditingController _paymentDetailsController;
-  late TextEditingController _bankNameController;
+
+  // -- Step 2: Location --
+  String? _selectedGovernorate;
+  String? _selectedDistrict;
+  String? _selectedVillage;
+  final _addressController = TextEditingController();
   LatLng? _selectedLocation;
 
-  Future<void> _pickImage() async {
-    try {
-      final XFile? image = await _picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 512,
-        maxHeight: 512,
-        imageQuality: 70,
-      );
-      if (image != null) {
-        final bytes = await image.readAsBytes();
-        setState(() {
-          _profileImageBytes = bytes;
-        });
-      }
-    } catch (e) {
-      debugPrint('Error picking image: $e');
-    }
+  // -- Step 3: Role Specifics --
+  // Worker
+  final Set<String> _selectedWorkerSpecializations = {};
+  String? _workerType; // 'عامل' or 'فني'
+
+  // Engineer
+  String? _selectedEngineerSpecialization;
+  final Set<String> _selectedEngineerFieldWork = {};
+  final _experienceYearsController = TextEditingController();
+  final _aboutMeController = TextEditingController();
+  Uint8List? _certificateBytes;
+
+  // Equipment Owner
+  String? _selectedEquipmentType;
+  final _equipmentModelController = TextEditingController();
+  final _equipmentRateController = TextEditingController();
+  String _pricingUnit = 'ساعة';
+  final Set<String> _selectedAttachments = {};
+
+  // Farmer
+  final _landAreaController = TextEditingController();
+  final _cropsController = TextEditingController();
+  final _irrigationTypeController = TextEditingController();
+
+  // Delivery / Seller extra controllers
+  final _extra1Controller = TextEditingController(); // ShopName, Delivery Model
+  final _extra2Controller = TextEditingController(); // CommReg, Avg Price
+  String? _selectedCategory; // category for seller / delivery
+  String? _selectedVehicleType;
+
+  // Data Lookups
+  final List<String> _governorates = ['الوادي الجديد'];
+  final List<String> _districts = [
+    'الفرافرة',
+    'الداخلة',
+    'بلاط',
+    'الخارجة',
+    'باريس'
+  ];
+
+  final List<String> _farafraVillages = [
+    'مدينة الفرافرة',
+    'النهضة',
+    'اللواء صبيح',
+    'عثمان بن عفان',
+    'ابوبكر الصديق',
+    'الرواد',
+    'خالد بن الوليد',
+    'ابو هريرة',
+    'ابو منقار'
+  ];
+  final List<String> _dakhlaVillages = [
+    'مدينة موط',
+    'غرب الموهوب',
+    'الموهوب',
+    'القصر',
+    'عزب القصر',
+    'بدخلو',
+    'الراشدة',
+    'الدهوس',
+    'الهنداو'
+  ];
+
+  final List<String> _technicianSpecializations = [
+    'فني نخيل',
+    'فني تركيب طاقة شمسية',
+  ];
+
+  final List<String> _engineerSpecializations = [
+    'مهندس زراعي',
+    'مهندس ميكانيكا',
+    'مهندس ري',
+    'مهندس كهرباء',
+  ];
+
+  final Map<String, List<String>> _engineerFieldWorkMap = {
+    'مهندس زراعي': [
+      'نخيل',
+      'أعلاف ومحاصيل حقلية',
+      'مكافحة آفات وأمراض',
+      'بساتين وفاكهة',
+      'صوب وزراعة محمية'
+    ],
+    'مهندس ميكانيكا': [
+      'صيانة معدات ثقيلة (لوادر، حفارات)',
+      'صيانة جرارات زراعية',
+      'صيانة محركات الديزل',
+      'ميكانيكا محطات ضخ'
+    ],
+    'مهندس ري': [
+      'تصميم شبكات تنقيط/رش',
+      'تركيب وصيانة بيفوتات',
+      'حفر وإدارة آبار المياه',
+      'صيانة طلمبات ومضخات غاطسة'
+    ],
+    'مهندس كهرباء': [
+      'تركيب وصيانة محطات طاقة شمسية',
+      'تصميم وصيانة لوحات تحكم (كنترول)',
+      'صيانة مولدات كهربائية',
+      'شبكات التوصيل للآبار'
+    ],
+  };
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    _nameController.dispose();
+    _phoneController.dispose();
+    _passwordController.dispose();
+    _nationalIdController.dispose();
+    _addressController.dispose();
+    _experienceYearsController.dispose();
+    _aboutMeController.dispose();
+    _equipmentModelController.dispose();
+    _equipmentRateController.dispose();
+    _landAreaController.dispose();
+    _cropsController.dispose();
+    _irrigationTypeController.dispose();
+    _extra1Controller.dispose();
+    _extra2Controller.dispose();
+    super.dispose();
   }
 
-  Future<void> _pickIdImage(bool isFront) async {
+  Future<void> _pickImage(bool isProfile,
+      {bool isFrontId = false, bool isCertificate = false}) async {
     try {
       final XFile? image = await _picker.pickImage(
         source: ImageSource.gallery,
@@ -75,660 +179,776 @@ class _SignupScreenState extends State<SignupScreen> {
       if (image != null) {
         final bytes = await image.readAsBytes();
         setState(() {
-          if (isFront) {
+          if (isProfile)
+            _profileImageBytes = bytes;
+          else if (isCertificate)
+            _certificateBytes = bytes;
+          else if (isFrontId)
             _idFrontBytes = bytes;
-          } else {
+          else
             _idBackBytes = bytes;
-          }
         });
       }
     } catch (e) {
-      debugPrint('Error picking ID image: $e');
+      debugPrint('Error picking image: $e');
     }
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _nameController = TextEditingController();
-    _phoneController = TextEditingController();
-    _passwordController = TextEditingController();
-    _emailController = TextEditingController();
-    _nationalIdController = TextEditingController();
-    _addressController = TextEditingController();
-    _extra1Controller = TextEditingController();
-    _extra2Controller = TextEditingController();
-    _extra3Controller = TextEditingController();
-    _extra4Controller = TextEditingController();
-    _paymentDetailsController = TextEditingController();
-    _bankNameController = TextEditingController();
+  String _getRoleTitle() {
+    switch (widget.role) {
+      case UserRole.farmer:
+        return 'تسجيل كمزارع';
+      case UserRole.worker:
+        return 'تسجيل كعامل';
+      case UserRole.engineer:
+        return 'تسجيل كمهندس/استشاري';
+      case UserRole.equipmentOwner:
+        return 'تسجيل كصاحب معدة';
+      case UserRole.seller:
+        return 'تسجيل كتاجر/מورد';
+      case UserRole.deliveryWorker:
+        return 'تسجيل كمسؤول توصيل';
+      default:
+        return 'إنشاء حساب جديد';
+    }
   }
 
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _phoneController.dispose();
-    _passwordController.dispose();
-    _emailController.dispose();
-    _nationalIdController.dispose();
-    _addressController.dispose();
-    _extra1Controller.dispose();
-    _extra2Controller.dispose();
-    _extra3Controller.dispose();
-    _extra4Controller.dispose();
-    _paymentDetailsController.dispose();
-    _bankNameController.dispose();
-    super.dispose();
+  void _nextStep() {
+    if (_currentStep == 0) {
+      // Validate step 1 manually or via GlobalKey if fields are inside
+      if (_nameController.text.isEmpty ||
+          _phoneController.text.length != 11 ||
+          _passwordController.text.isEmpty ||
+          _nationalIdController.text.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text(
+                  'يرجى تعبئة كافة الحقول في هذه الصفحة بشكل صحيح. تأكد من أن رقم الجوال 11 رقم.'),
+              backgroundColor: Colors.red),
+        );
+        return;
+      }
+    }
+
+    if (_currentStep < 2) {
+      _pageController.nextPage(
+          duration: const Duration(milliseconds: 300), curve: Curves.easeIn);
+      setState(() => _currentStep++);
+    } else {
+      _submit();
+    }
+  }
+
+  void _previousStep() {
+    if (_currentStep > 0) {
+      _pageController.previousPage(
+          duration: const Duration(milliseconds: 300), curve: Curves.easeIn);
+      setState(() => _currentStep--);
+    }
   }
 
   void _submit() async {
-    if (_formKey.currentState!.validate()) {
-      setState(() => _isLoading = true);
+    if (!_formKey.currentState!.validate()) return;
 
-      try {
-        final auth = Provider.of<AuthProvider>(context, listen: false);
+    if (_idFrontBytes == null || _idBackBytes == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('صور البطاقة (الوجهين) مطلوبة للتحقق من هويتك'),
+            backgroundColor: Colors.orange),
+      );
+      return;
+    }
 
-        Map<String, dynamic> extraData = {
-          'email': _emailController.text,
-          'password': _passwordController.text,
-          'location': _selectedLocation != null ? {
-            'lat': _selectedLocation!.latitude,
-            'lng': _selectedLocation!.longitude,
-          } : {
-            'lat': 30.0444, // Default to Cairo if not picked
-            'lng': 31.2357,
-          },
-        };
-        if (widget.role == UserRole.farmer) {
-          extraData.addAll({
-            'landArea': _extra1Controller.text,
-            'crops': _extra2Controller.text,
-            'irrigationType': _extra3Controller.text,
-          });
-        } else if (widget.role == UserRole.seller) {
-          extraData.addAll({
-            'shopName': _extra1Controller.text,
-            'commercialReg': _extra2Controller.text,
-            'category': _extra3Controller.text,
-          });
-        } else if (widget.role == UserRole.equipmentOwner) {
-          extraData.addAll({
-            'equipmentName': _extra1Controller.text,
-            'model': _extra2Controller.text,
-            'equipmentType': _extra3Controller.text,
-            'hourlyRate': _extra4Controller.text,
-          });
-        } else if (widget.role == UserRole.deliveryWorker) {
-          if (_idFrontBytes == null || _idBackBytes == null) {
-            throw Exception('صورة البطاقة (الوجهين) إجبارية لعامل التوصيل');
-          }
-          extraData.addAll({
-            'vehicleType': _extra1Controller.text,
-          });
+    setState(() => _isLoading = true);
+    try {
+      final auth = Provider.of<AuthProvider>(context, listen: false);
+
+      Map<String, dynamic> extraData = {
+        'governorate': _selectedGovernorate,
+        'district': _selectedDistrict,
+        'village': _selectedVillage,
+        'location': _selectedLocation != null
+            ? {
+                'lat': _selectedLocation!.latitude,
+                'lng': _selectedLocation!.longitude
+              }
+            : {'lat': 30.0444, 'lng': 31.2357},
+      };
+
+      if (widget.role == UserRole.farmer) {
+        extraData.addAll({
+          'landArea': _landAreaController.text,
+          'crops': _cropsController.text,
+          'irrigationType': _irrigationTypeController.text,
+        });
+      } else if (widget.role == UserRole.worker) {
+        extraData.addAll({
+          'workerType': _workerType,
+          'workerSpecializations': _selectedWorkerSpecializations.toList(),
+        });
+      } else if (widget.role == UserRole.engineer) {
+        extraData.addAll({
+          'specialization': _selectedEngineerSpecialization,
+          'fieldWorkTypes': _selectedEngineerFieldWork.toList(),
+          'experienceYears': int.tryParse(_experienceYearsController.text) ?? 0,
+          'aboutMe': _aboutMeController.text,
+        });
+        if (_certificateBytes != null) {
+          extraData['certificateImageBase64'] =
+              base64Encode(_certificateBytes!);
         }
-
-        // Add payment info for service providers
-        if (_isServiceProvider) {
-          extraData['paymentMethod'] = _selectedPaymentMethod?.name;
-          if (_selectedPaymentMethod == PaymentMethod.bankAccount) {
-            extraData['paymentDetails'] =
-                '${_bankNameController.text} - ${_paymentDetailsController.text}';
-          } else {
-            extraData['paymentDetails'] = _paymentDetailsController.text;
-          }
-        }
-
-        if (_idFrontBytes != null) {
-          extraData['nationalIdFrontBase64'] = base64Encode(_idFrontBytes!);
-        }
-        if (_idBackBytes != null) {
-          extraData['nationalIdBackBase64'] = base64Encode(_idBackBytes!);
-        }
-
-        String? base64Image;
-        if (_profileImageBytes != null) {
-          base64Image = base64Encode(_profileImageBytes!);
-        }
-
-        final newUser = User(
-          id: 'user_${DateTime.now().millisecondsSinceEpoch}',
-          role: widget.role,
-          fullName: _nameController.text,
-          phone: _phoneController.text,
-          nationalIdHash: _nationalIdController.text,
-          address: _addressController.text,
-          createdAt: DateTime.now(),
-          extraData: extraData,
-          profileImageBase64: base64Image,
-          paymentMethod: _isServiceProvider ? _selectedPaymentMethod : null,
-          paymentDetails:
-              _isServiceProvider ? _paymentDetailsController.text : null,
-        );
-
-        await auth.signup(newUser, _passwordController.text);
-        if (!mounted) return;
-        Navigator.of(context).popUntil((route) => route.isFirst);
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('حدث خطأ: $e')),
-          );
-        }
-      } finally {
-        if (mounted) setState(() => _isLoading = false);
+      } else if (widget.role == UserRole.equipmentOwner) {
+        extraData.addAll({
+          'equipmentType': _selectedEquipmentType,
+          'equipmentName': _selectedEquipmentType,
+          'model': _equipmentModelController.text,
+          'hourlyRate': _equipmentRateController.text,
+          'priceUnit': _pricingUnit,
+          if (_selectedEquipmentType == 'جرار')
+            'attachments': _selectedAttachments.toList(),
+        });
+      } else if (widget.role == UserRole.seller) {
+        extraData.addAll({
+          'shopName': _extra1Controller.text,
+          'commercialReg': _extra2Controller.text,
+          'category': _selectedCategory,
+        });
+      } else if (widget.role == UserRole.deliveryWorker) {
+        extraData.addAll({
+          'deliveryCategory': _selectedCategory,
+          'vehicleType': _selectedVehicleType,
+          'model': _extra1Controller.text,
+          'averageDeliveryPrice': double.tryParse(_extra2Controller.text) ?? 50,
+        });
       }
+
+      final nationalIdHash = _nationalIdController.text; // Simple store for now
+
+      final newUser = User(
+        id: '',
+        role: widget.role,
+        fullName: _nameController.text.trim(),
+        phone: _phoneController.text.trim(),
+        nationalIdHash: nationalIdHash,
+        address: _addressController.text.trim(),
+        createdAt: DateTime.now(),
+        profileImageBase64: _profileImageBytes != null
+            ? base64Encode(_profileImageBytes!)
+            : null,
+        extraData: extraData,
+      );
+
+      // We should ideally upload ID images here or store base64 in extraData for verification
+      extraData['idFrontBase64'] = base64Encode(_idFrontBytes!);
+      extraData['idBackBase64'] = base64Encode(_idBackBytes!);
+
+      await auth.signup(newUser, _passwordController.text);
+      if (mounted)
+        Navigator.pop(context); // Pop back to login or continue to home
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('فشل التسجيل: ${e.toString()}'),
+              backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: NabaTheme.background,
-      appBar: const NabaAppBar(title: 'إنشاء حساب جديد'),
-      body: Directionality(
-        textDirection: TextDirection.rtl,
-        child: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Hero(
-                  tag: 'logo',
-                  child: Text(
-                    'نبع',
-                    style: TextStyle(
-                        fontSize: 48,
-                        fontWeight: FontWeight.bold,
-                        color: NabaTheme.primary),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'التسجيل كـ ${_getRoleName(widget.role)}',
-                  style: const TextStyle(
-                      fontSize: 20, fontWeight: FontWeight.bold),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 32),
-
-                // Profile Photo Placeholder
-                Center(
-                  child: Stack(
-                    children: [
-                      CircleAvatar(
-                        radius: 50,
-                        backgroundColor: Colors.grey.shade200,
-                        backgroundImage: _profileImageBytes != null
-                            ? MemoryImage(_profileImageBytes!)
-                            : null,
-                        child: _profileImageBytes == null
-                            ? Icon(Icons.person_rounded,
-                                size: 50, color: Colors.grey.shade400)
-                            : null,
-                      ),
-                      Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: CircleAvatar(
-                          radius: 18,
-                          backgroundColor: NabaTheme.primary,
-                          child: IconButton(
-                            icon: const Icon(Icons.camera_alt_rounded,
-                                size: 18, color: Colors.white),
-                            onPressed: _pickImage,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                const Text('صورة الملف الشخصي',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey, fontSize: 12)),
-                const SizedBox(height: 32),
-
-                _buildFieldLabel('الاسم الرباعي'),
-                TextFormField(
-                  controller: _nameController,
-                  decoration:
-                      const InputDecoration(hintText: 'الاسم كما في البطاقة'),
-                  validator: (v) => v!.isEmpty ? 'مطلب' : null,
-                ),
-                const SizedBox(height: 20),
-
-                _buildFieldLabel('رقم الهاتف'),
-                TextFormField(
-                  controller: _phoneController,
-                  decoration: const InputDecoration(hintText: '01xxxxxxxxx'),
-                  keyboardType: TextInputType.phone,
-                  validator: (v) => v!.length < 11 ? 'رقم غير صحيح' : null,
-                ),
-                const SizedBox(height: 20),
-
-                _buildFieldLabel('كلمة المرور'),
-                TextFormField(
-                  controller: _passwordController,
-                  decoration: const InputDecoration(hintText: '********'),
-                  obscureText: true,
-                  validator: (v) => v!.length < 6 ? 'كلمة المرور ضعيفة' : null,
-                ),
-                const SizedBox(height: 20),
-
-                _buildFieldLabel('البريد الإلكتروني (اختياري)'),
-                TextFormField(
-                  controller: _emailController,
-                  decoration:
-                      const InputDecoration(hintText: 'example@mail.com'),
-                  keyboardType: TextInputType.emailAddress,
-                ),
-                const SizedBox(height: 20),
-
-                _buildFieldLabel('الرقم القومي (14 رقم)'),
-                TextFormField(
-                  controller: _nationalIdController,
-                  decoration: const InputDecoration(hintText: '2xxxxxxxxxxxxx'),
-                  keyboardType: TextInputType.number,
-                  validator: (v) =>
-                      v!.length != 14 ? 'الرقم القومي غير صحيح' : null,
-                ),
-                const SizedBox(height: 24),
-
-                // ID Photos
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildUploadCard(
-                        'ظهر البطاقة',
-                        Icons.badge_outlined,
-                        imageBytes: _idBackBytes,
-                        onTap: () => _pickIdImage(false),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: _buildUploadCard(
-                        'وجه البطاقة',
-                        Icons.badge_rounded,
-                        imageBytes: _idFrontBytes,
-                        onTap: () => _pickIdImage(true),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 32),
-
-                _buildFieldLabel('العنوان بالتفصيل'),
-                TextFormField(
-                  controller: _addressController,
-                  decoration:
-                      const InputDecoration(hintText: 'المركز، القرية، الشارع'),
-                ),
-                const SizedBox(height: 16),
-
-                _buildLocationPicker(),
-
-                const SizedBox(height: 32),
-                const Divider(),
-                const SizedBox(height: 24),
-                Text(
-                  'بيانات مخصصة لـ ${_getRoleName(widget.role)}',
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: NabaTheme.primary,
-                      fontSize: 18),
-                  textAlign: TextAlign.right,
-                ),
-                const SizedBox(height: 16),
-
-                ..._buildRoleSpecificFields(),
-
-                // Payment Method Section for service providers
-                if (_isServiceProvider) ...[
-                  const SizedBox(height: 32),
-                  const Divider(),
-                  const SizedBox(height: 24),
-                  const Text(
-                    'وسيلة استلام الأجر',
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: NabaTheme.primary,
-                        fontSize: 18),
-                    textAlign: TextAlign.right,
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'اختر الطريقة اللي هتستلم بيها فلوسك عليها',
-                    style: TextStyle(color: Colors.grey, fontSize: 13),
-                    textAlign: TextAlign.right,
-                  ),
-                  const SizedBox(height: 16),
-                  _buildFieldLabel('طريقة الدفع'),
-                  DropdownButtonFormField<PaymentMethod>(
-                    decoration: const InputDecoration(),
-                    initialValue: _selectedPaymentMethod,
-                    items: const [
-                      DropdownMenuItem(
-                          value: PaymentMethod.vodafoneCash,
-                          child: Text('فودافون كاش')),
-                      DropdownMenuItem(
-                          value: PaymentMethod.instaPay,
-                          child: Text('إنستاباي')),
-                      DropdownMenuItem(
-                          value: PaymentMethod.bankAccount,
-                          child: Text('حساب بنكي')),
-                    ],
-                    validator: (v) => v == null ? 'اختر وسيلة الدفع' : null,
-                    onChanged: (v) =>
-                        setState(() => _selectedPaymentMethod = v),
-                  ),
-                  const SizedBox(height: 20),
-                  if (_selectedPaymentMethod == PaymentMethod.bankAccount) ...[
-                    _buildFieldLabel('اسم البنك'),
-                    TextFormField(
-                      controller: _bankNameController,
-                      decoration: const InputDecoration(
-                          hintText: 'مثال: البنك الأهلي المصري'),
-                      validator: (v) => v!.isEmpty ? 'مطلوب' : null,
-                    ),
-                    const SizedBox(height: 16),
-                    _buildFieldLabel('رقم الحساب'),
-                    TextFormField(
-                      controller: _paymentDetailsController,
-                      decoration: const InputDecoration(
-                          hintText: 'أدخل رقم الحساب البنكي'),
-                      keyboardType: TextInputType.number,
-                      validator: (v) => v!.isEmpty ? 'مطلوب' : null,
-                    ),
-                  ] else ...[
-                    _buildFieldLabel(_paymentDetailsLabel),
-                    TextFormField(
-                      controller: _paymentDetailsController,
-                      decoration:
-                          InputDecoration(hintText: _paymentDetailsHint),
-                      keyboardType: TextInputType.text,
-                      validator: (v) => v!.isEmpty ? 'مطلوب' : null,
-                    ),
-                  ],
-                ],
-
-                const SizedBox(height: 48),
-
-                NabaButton(
-                  text: _isLoading ? 'جاري التحميل...' : 'إتمام التسجيل',
-                  onPressed: _isLoading ? null : _submit,
-                  icon: _isLoading ? null : Icons.check_circle_rounded,
-                ),
-                const SizedBox(height: 32),
-                const Text(
-                  'بالتسجيل أنت توافق على شروط الاستخدام وسياسة الخصوصية',
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 20),
-              ],
-            ),
-          ),
-        ),
+      backgroundColor: const Color(0xFFF0F4F8),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: NabaTheme.primary),
+        title: Text(_getRoleTitle(),
+            style: const TextStyle(
+                color: NabaTheme.primary, fontWeight: FontWeight.bold)),
+        centerTitle: true,
       ),
-    );
-  }
-
-  Widget _buildUploadCard(String label, IconData icon,
-      {Uint8List? imageBytes, VoidCallback? onTap}) {
-    return Container(
-      height: 100,
-      decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
-        image: imageBytes != null
-            ? DecorationImage(
-                image: MemoryImage(imageBytes),
-                fit: BoxFit.cover,
-                colorFilter: ColorFilter.mode(
-                    Colors.black.withOpacity(0.3), BlendMode.darken))
-            : null,
-      ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+      body: Form(
+        key: _formKey,
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(imageBytes != null ? Icons.check_circle_rounded : icon,
-                color: imageBytes != null ? Colors.white : NabaTheme.primary,
-                size: 32),
-            const SizedBox(height: 8),
-            Text(imageBytes != null ? 'تم الرفع' : label,
-                style: TextStyle(
-                    fontSize: 12,
-                    color: imageBytes != null ? Colors.white : Colors.grey,
-                    fontWeight: imageBytes != null
-                        ? FontWeight.bold
-                        : FontWeight.normal)),
+            _buildProgressBar(),
+            Expanded(
+              child: PageView(
+                controller: _pageController,
+                physics: const NeverScrollableScrollPhysics(),
+                children: [
+                  _buildStep1(),
+                  _buildStep2(),
+                  _buildStep3(),
+                ],
+              ),
+            ),
+            _buildBottomControls(),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildLocationPicker() {
-    return InkWell(
-      onTap: () async {
-        final result = await Navigator.push<LatLng>(
-          context,
-          MaterialPageRoute(
-            builder: (_) => MapPickerScreen(initialLocation: _selectedLocation),
-          ),
-        );
-        if (result != null) {
-          setState(() {
-            _selectedLocation = result;
-          });
-        }
-      },
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: _selectedLocation != null ? Colors.green.shade50 : Colors.blue.shade50,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: _selectedLocation != null ? Colors.green.shade200 : Colors.blue.shade100),
-        ),
-        child: Row(
-          textDirection: TextDirection.rtl,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
+  Widget _buildProgressBar() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      child: Row(
+        children: List.generate(3, (index) {
+          return Expanded(
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              height: 6,
               decoration: BoxDecoration(
-                color: _selectedLocation != null ? Colors.green.shade400 : Colors.blue.shade400,
+                color: index <= _currentStep
+                    ? NabaTheme.primary
+                    : Colors.grey.shade300,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.location_on_rounded,
-                  color: Colors.white, size: 20),
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Text(
-                _selectedLocation != null ? 'تم تحديد الموقع' : 'تحديد الموقع على الخريطة',
-                textAlign: TextAlign.right,
-                style: TextStyle(color: _selectedLocation != null ? Colors.green.shade700 : Colors.blue, fontWeight: FontWeight.bold),
+          );
+        }).reversed.toList(), // RTL
+      ),
+    );
+  }
+
+  Widget _buildBottomControls() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black12, blurRadius: 10, offset: Offset(0, -2))
+        ],
+      ),
+      child: SafeArea(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          textDirection: TextDirection.rtl,
+          children: [
+            if (_currentStep > 0)
+              TextButton(
+                onPressed: _previousStep,
+                child: const Text('السابق',
+                    style: TextStyle(
+                        color: Colors.grey,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold)),
+              )
+            else
+              const SizedBox(width: 60), // Spacer
+
+            if (_isLoading)
+              const CircularProgressIndicator()
+            else
+              ElevatedButton(
+                onPressed: _nextStep,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: NabaTheme.primary,
+                  foregroundColor: Colors.white,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 40, vertical: 14),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+                child: Text(_currentStep == 2 ? 'تأكيد وحفظ' : 'التالي',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 16)),
               ),
-            ),
-            Icon(Icons.arrow_back_ios_new, size: 14, color: _selectedLocation != null ? Colors.green : Colors.blue),
           ],
         ),
       ),
     );
   }
 
-  List<Widget> _buildRoleSpecificFields() {
-    switch (widget.role) {
-      case UserRole.farmer:
-        return [
-          _buildFieldLabel('مساحة الأرض (فدان)'),
+  Widget _buildStep1() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        children: [
+          const Text('المعلومات الشخصية',
+              style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: NabaTheme.primary)),
+          const SizedBox(height: 24),
+          GestureDetector(
+            onTap: () => _pickImage(true),
+            child: CircleAvatar(
+              radius: 50,
+              backgroundColor: Colors.grey.shade200,
+              backgroundImage: _profileImageBytes != null
+                  ? MemoryImage(_profileImageBytes!)
+                  : null,
+              child: _profileImageBytes == null
+                  ? const Icon(Icons.add_a_photo, size: 40, color: Colors.grey)
+                  : null,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text('صورة شخصية (اختياري)',
+              style: TextStyle(color: Colors.grey)),
+          const SizedBox(height: 24),
+          _buildTextField(
+              _nameController, 'الاسم بالكامل', Icons.person_outline),
+          const SizedBox(height: 16),
           TextFormField(
-            controller: _extra1Controller,
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(hintText: '0.00'),
+            controller: _phoneController,
+            keyboardType: TextInputType.phone,
+            maxLength: 11,
+            validator: (v) => (v == null || v.length != 11)
+                ? 'رقم الموبايل يجب أن يتكون من 11 رقم'
+                : null,
+            decoration: _inputDecoration('رقم الموبايل', Icons.phone_android)
+                .copyWith(counterText: ''),
           ),
-          const SizedBox(height: 20),
-          _buildFieldLabel('المحاصيل الحالية'),
+          const SizedBox(height: 16),
+          _buildTextField(_nationalIdController, 'الرقم القومي (14 رقم)',
+              Icons.credit_card_rounded,
+              keyboardType: TextInputType.number, maxLength: 14),
+          const SizedBox(height: 16),
           TextFormField(
-            controller: _extra2Controller,
-            decoration: const InputDecoration(hintText: 'قمح، شعير، إلخ'),
+            controller: _passwordController,
+            obscureText: true,
+            validator: (v) =>
+                (v == null || v.length < 6) ? 'كلمة المرور قصيرة' : null,
+            decoration: _inputDecoration('كلمة المرور', Icons.lock_outline),
           ),
-          const SizedBox(height: 20),
-          _buildFieldLabel('نوع الري'),
-          DropdownButtonFormField<String>(
-            decoration: const InputDecoration(),
-            items: ['غمر', 'تنقيط', 'رش', 'أخرى']
-                .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                .toList(),
-            onChanged: (v) => _extra3Controller.text = v ?? '',
-          ),
-        ];
-      case UserRole.seller:
-        return [
-          _buildFieldLabel('اسم المحل / النشاط'),
-          TextFormField(
-            controller: _extra1Controller,
-            decoration:
-                const InputDecoration(hintText: 'مثلاً: مؤسسة النيل للبذور'),
-          ),
-          const SizedBox(height: 20),
-          _buildFieldLabel('رقم السجل التجاري'),
-          TextFormField(
-            controller: _extra2Controller,
-            decoration: const InputDecoration(hintText: '1234567'),
-          ),
-          const SizedBox(height: 20),
-          _buildFieldLabel('التصنيف الرئيسي'),
-          DropdownButtonFormField<String>(
-            decoration: const InputDecoration(),
-            items: ['بذور وأسمدة', 'معدات ري', 'أدوات زراعية', 'أخرى']
-                .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                .toList(),
-            onChanged: (v) => _extra3Controller.text = v ?? '',
-          ),
-        ];
-      case UserRole.equipmentOwner:
-        return [
-          _buildFieldLabel('اسم المعدة'),
-          TextFormField(
-            controller: _extra1Controller,
-            decoration:
-                const InputDecoration(hintText: 'مثلاً: جرار نيوهولاند'),
-          ),
-          const SizedBox(height: 20),
-          _buildFieldLabel('سنة الصنع'),
-          TextFormField(
-            controller: _extra2Controller,
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(hintText: '2023'),
-          ),
-          const SizedBox(height: 20),
-          _buildFieldLabel('نوع المعدة'),
-          DropdownButtonFormField<String>(
-            decoration: const InputDecoration(),
-            items: ['جرار', 'حفار', 'ماكينة رش', 'ماكينة ري', 'أخرى']
-                .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                .toList(),
-            onChanged: (v) => _extra3Controller.text = v ?? '',
-          ),
-          const SizedBox(height: 20),
-          _buildFieldLabel('سعر التأجير بالساعة (بالجنيه)'),
-          TextFormField(
-            controller: _extra4Controller,
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(hintText: '0.00'),
-          ),
-        ];
-      case UserRole.deliveryWorker:
-        return [
-          _buildFieldLabel('نوع وسيلة النقل'),
-          DropdownButtonFormField<String>(
-            decoration: const InputDecoration(),
-            items: ['توكتوك', 'موتسيكل', 'سكوتر', 'عجلة']
-                .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                .toList(),
-            onChanged: (v) => _extra1Controller.text = v ?? '',
-            validator: (v) => v == null ? 'مطلوب' : null,
-          ),
-          const SizedBox(height: 20),
-        ];
-      case UserRole.admin:
-        return [];
-      default:
-        return [];
-    }
-  }
-
-  Widget _buildFieldLabel(String label) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0, right: 4),
-      child: Text(
-        label,
-        style: const TextStyle(
-            fontWeight: FontWeight.bold, color: NabaTheme.textPrimary),
-        textAlign: TextAlign.right,
+          const SizedBox(height: 32),
+          const Text('صور البطاقة الشخصية (مطلوب للتوثيق)',
+              style: TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _buildIdUploadButton(true, 'الوجه الأمامي'),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildIdUploadButton(false, 'الوجه الخلفي'),
+              ),
+            ],
+          )
+        ],
       ),
     );
   }
 
-  String _getRoleName(UserRole role) {
-    switch (role) {
-      case UserRole.farmer:
-        return 'مزارع';
-      case UserRole.worker:
-        return 'عامل';
-      case UserRole.seller:
-        return 'تاجر';
-      case UserRole.equipmentOwner:
-        return 'صاحب معدات';
-      case UserRole.investor:
-        return 'مستثمر';
-      case UserRole.deliveryWorker:
-        return 'عامل توصيل';
-      case UserRole.admin:
-        return 'مسؤول';
-    }
+  Widget _buildIdUploadButton(bool isFront, String label) {
+    final hasImage = isFront ? _idFrontBytes != null : _idBackBytes != null;
+    return GestureDetector(
+      onTap: () => _pickImage(false, isFrontId: isFront),
+      child: Container(
+        height: 100,
+        decoration: BoxDecoration(
+          color: hasImage ? Colors.green.shade50 : Colors.grey.shade100,
+          border:
+              Border.all(color: hasImage ? Colors.green : Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: hasImage
+            ? ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.memory(isFront ? _idFrontBytes! : _idBackBytes!,
+                    fit: BoxFit.cover))
+            : Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.camera_alt_outlined, color: Colors.grey.shade600),
+                  const SizedBox(height: 8),
+                  Text(label,
+                      style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold)),
+                ],
+              ),
+      ),
+    );
   }
 
-  bool get _isServiceProvider =>
-      widget.role == UserRole.worker ||
-      widget.role == UserRole.seller ||
-      widget.role == UserRole.deliveryWorker ||
-      widget.role == UserRole.equipmentOwner;
-
-  String get _paymentDetailsLabel {
-    switch (_selectedPaymentMethod) {
-      case PaymentMethod.vodafoneCash:
-        return 'رقم فودافون كاش';
-      case PaymentMethod.instaPay:
-        return 'اسم المستخدم في إنستاباي';
-      case PaymentMethod.bankAccount:
-        return 'رقم الحساب البنكي';
-      default:
-        return 'تفاصيل الحساب';
-    }
+  Widget _buildStep2() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          const Center(
+              child: Text('العنوان والنطاق الجغرافي',
+                  style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: NabaTheme.primary))),
+          const SizedBox(height: 24),
+          DropdownButtonFormField<String>(
+            decoration: _inputDecoration('المحافظة', Icons.map_rounded),
+            value: _selectedGovernorate,
+            items: _governorates
+                .map((e) => DropdownMenuItem(
+                    value: e, child: Text(e, textDirection: TextDirection.rtl)))
+                .toList(),
+            onChanged: (v) => setState(() => _selectedGovernorate = v),
+          ),
+          const SizedBox(height: 16),
+          DropdownButtonFormField<String>(
+            decoration: _inputDecoration(
+                'المركز / المنطقة', Icons.location_city_rounded),
+            value: _selectedDistrict,
+            items: _districts
+                .map((e) => DropdownMenuItem(
+                    value: e, child: Text(e, textDirection: TextDirection.rtl)))
+                .toList(),
+            onChanged: (v) => setState(() {
+              _selectedDistrict = v;
+              _selectedVillage = null;
+            }),
+          ),
+          const SizedBox(height: 16),
+          if (_selectedDistrict == 'الفرافرة' || _selectedDistrict == 'الداخلة')
+            DropdownButtonFormField<String>(
+              decoration:
+                  _inputDecoration('القرية', Icons.location_on_outlined),
+              value: _selectedVillage,
+              items: (_selectedDistrict == 'الفرافرة'
+                      ? _farafraVillages
+                      : _dakhlaVillages)
+                  .map((e) => DropdownMenuItem(
+                      value: e,
+                      child: Text(e, textDirection: TextDirection.rtl)))
+                  .toList(),
+              onChanged: (v) => setState(() => _selectedVillage = v),
+            )
+          else
+            _buildTextField(_addressController, 'القرية / العنوان التفصيلي',
+                Icons.home_work_outlined),
+          const SizedBox(height: 32),
+          const Text('خطوة إضافية لتسهيل الوصول إليك:',
+              style: TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              icon: const Icon(Icons.gps_fixed),
+              label: Text(_selectedLocation == null
+                  ? 'تحديد الموقع تلقائياً عبر GPS'
+                  : 'تم تحديد الموقع بنجاح'),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                side: BorderSide(
+                    color: _selectedLocation == null
+                        ? NabaTheme.primary
+                        : Colors.green),
+                foregroundColor: _selectedLocation == null
+                    ? NabaTheme.primary
+                    : Colors.green,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: () async {
+                final loc = await Navigator.push<LatLng>(context,
+                    MaterialPageRoute(builder: (_) => const MapPickerScreen()));
+                if (loc != null) setState(() => _selectedLocation = loc);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
-  String get _paymentDetailsHint {
-    switch (_selectedPaymentMethod) {
-      case PaymentMethod.vodafoneCash:
-        return '01xxxxxxxxx';
-      case PaymentMethod.instaPay:
-        return 'username@instapay';
-      case PaymentMethod.bankAccount:
-        return 'أدخل رقم الحساب البنكي';
-      default:
-        return 'أدخل بيانات الحساب';
-    }
+  Widget _buildStep3() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Center(
+              child: Text(
+                  'التفاصيل المهنية (${_getRoleTitle().split(' ').last})',
+                  style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: NabaTheme.primary))),
+          const SizedBox(height: 24),
+          if (widget.role == UserRole.farmer) ...[
+            _buildTextField(_landAreaController, 'المساحة المزروعة (بالفدان)',
+                Icons.landscape_rounded,
+                keyboardType: TextInputType.number),
+            const SizedBox(height: 16),
+            _buildTextField(
+                _cropsController, 'أهم المحاصيل', Icons.grass_rounded),
+            const SizedBox(height: 16),
+            _buildTextField(_irrigationTypeController,
+                'طريقة الري المتبعة (غمر / تنقيط)', Icons.water_drop_outlined),
+          ] else if (widget.role == UserRole.worker) ...[
+            DropdownButtonFormField<String>(
+              decoration: _inputDecoration('التخصص', Icons.engineering_rounded),
+              value: _workerType,
+              items: ['عامل', 'فني']
+                  .map((e) => DropdownMenuItem(
+                      value: e,
+                      child: Text(e, textDirection: TextDirection.rtl)))
+                  .toList(),
+              onChanged: (v) => setState(() {
+                _workerType = v;
+                _selectedWorkerSpecializations.clear();
+              }),
+            ),
+            if (_workerType == 'عامل') ...[
+              const SizedBox(height: 16),
+              const Text('اختر مجالات تخصصك (يمكنك اختيار أكثر من تخصص):',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+              Container(
+                decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade200)),
+                child: Column(
+                  children: kWorkerSpecializations
+                      .map((spec) => CheckboxListTile(
+                            title: Text(spec, textDirection: TextDirection.rtl),
+                            value:
+                                _selectedWorkerSpecializations.contains(spec),
+                            activeColor: NabaTheme.primary,
+                            onChanged: (checked) {
+                              setState(() {
+                                if (checked == true)
+                                  _selectedWorkerSpecializations.add(spec);
+                                else
+                                  _selectedWorkerSpecializations.remove(spec);
+                              });
+                            },
+                          ))
+                      .toList(),
+                ),
+              ),
+            ] else if (_workerType == 'فني') ...[
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                decoration: _inputDecoration(
+                    'التخصص الفني', Icons.build_circle_outlined),
+                value: _selectedWorkerSpecializations.isNotEmpty
+                    ? _selectedWorkerSpecializations.first
+                    : null,
+                items: _technicianSpecializations
+                    .map((e) => DropdownMenuItem(
+                        value: e,
+                        child: Text(e, textDirection: TextDirection.rtl)))
+                    .toList(),
+                onChanged: (v) => setState(() {
+                  _selectedWorkerSpecializations.clear();
+                  if (v != null) _selectedWorkerSpecializations.add(v);
+                }),
+              ),
+            ]
+          ] else if (widget.role == UserRole.engineer) ...[
+            DropdownButtonFormField<String>(
+              decoration:
+                  _inputDecoration('التخصص الهندسي', Icons.engineering_rounded),
+              value: _selectedEngineerSpecialization,
+              items: _engineerSpecializations
+                  .map((e) => DropdownMenuItem(
+                      value: e,
+                      child: Text(e, textDirection: TextDirection.rtl)))
+                  .toList(),
+              onChanged: (v) => setState(() {
+                _selectedEngineerSpecialization = v;
+                _selectedEngineerFieldWork.clear();
+              }),
+            ),
+            if (_selectedEngineerSpecialization != null) ...[
+              const SizedBox(height: 16),
+              const Text('طبيعة العمل (يمكن اختيار أكثر من تخصص):',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+              Container(
+                decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade200)),
+                child: Column(
+                  children: (_engineerFieldWorkMap[
+                              _selectedEngineerSpecialization] ??
+                          [])
+                      .map((work) => CheckboxListTile(
+                            title: Text(work, textDirection: TextDirection.rtl),
+                            value: _selectedEngineerFieldWork.contains(work),
+                            activeColor: NabaTheme.primary,
+                            onChanged: (checked) {
+                              setState(() {
+                                if (checked == true)
+                                  _selectedEngineerFieldWork.add(work);
+                                else
+                                  _selectedEngineerFieldWork.remove(work);
+                              });
+                            },
+                          ))
+                      .toList(),
+                ),
+              ),
+            ],
+            const SizedBox(height: 16),
+            _buildTextField(_experienceYearsController, 'سنوات الخبرة',
+                Icons.timer_outlined,
+                keyboardType: TextInputType.number),
+            const SizedBox(height: 16),
+            _buildTextField(_aboutMeController, 'نبذة عنك (اختياري)',
+                Icons.article_outlined),
+          ] else if (widget.role == UserRole.equipmentOwner) ...[
+            DropdownButtonFormField<String>(
+              decoration: _inputDecoration(
+                  'نوع المعدة', Icons.precision_manufacturing_rounded),
+              value: _selectedEquipmentType,
+              items: [
+                'جرار',
+                'سيارة نقل',
+                'حفار',
+                'مولد كهرباء',
+                'طلمبة مياه',
+                'معدة أخرى'
+              ]
+                  .map((e) => DropdownMenuItem(
+                      value: e,
+                      child: Text(e, textDirection: TextDirection.rtl)))
+                  .toList(),
+              onChanged: (v) => setState(() => _selectedEquipmentType = v),
+            ),
+            const SizedBox(height: 16),
+            _buildTextField(_equipmentModelController, 'الموديل / سنة الصنع',
+                Icons.calendar_today_rounded),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                    child: _buildTextField(_equipmentRateController, 'السعر',
+                        Icons.monetization_on_outlined,
+                        keyboardType: TextInputType.number)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    decoration: _inputDecoration('الوحدة', Icons.speed_rounded),
+                    value: _pricingUnit,
+                    items: ['ساعة', 'فدان', 'يوم']
+                        .map((e) => DropdownMenuItem(
+                            value: e,
+                            child: Text(e, textDirection: TextDirection.rtl)))
+                        .toList(),
+                    onChanged: (v) => setState(() => _pricingUnit = v!),
+                  ),
+                ),
+              ],
+            ),
+            if (_selectedEquipmentType == 'جرار') ...[
+              const SizedBox(height: 24),
+              const Text('الملحقات المتاحة (يمكن اختيار أكثر من ملحق):',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                alignment: WrapAlignment.end,
+                children:
+                    ['مقطورة', 'محراث', 'قصابية', 'مكبس قش', 'دراسة', 'عزاقة']
+                        .map((att) => FilterChip(
+                              label: Text(att),
+                              selected: _selectedAttachments.contains(att),
+                              selectedColor: NabaTheme.primary.withOpacity(0.2),
+                              checkmarkColor: NabaTheme.primary,
+                              onSelected: (val) => setState(() => val
+                                  ? _selectedAttachments.add(att)
+                                  : _selectedAttachments.remove(att)),
+                            ))
+                        .toList(),
+              ),
+            ]
+          ] else if (widget.role == UserRole.seller) ...[
+            _buildTextField(
+                _extra1Controller, 'اسم المتجر / الشركة', Icons.store_rounded),
+            const SizedBox(height: 16),
+            _buildTextField(_extra2Controller, 'رقم السجل التجاري (اختياري)',
+                Icons.receipt_long_rounded),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<String>(
+              decoration:
+                  _inputDecoration('نوع المنتجات', Icons.category_rounded),
+              value: _selectedCategory,
+              items: ['بذور', 'أسمدة', 'مبيدات', 'معدات صغيرة']
+                  .map((e) => DropdownMenuItem(
+                      value: e,
+                      child: Text(e, textDirection: TextDirection.rtl)))
+                  .toList(),
+              onChanged: (v) => setState(() => _selectedCategory = v),
+            ),
+          ] else if (widget.role == UserRole.deliveryWorker) ...[
+            DropdownButtonFormField<String>(
+              decoration:
+                  _inputDecoration('تخصص النقل', Icons.local_shipping_rounded),
+              value: _selectedCategory,
+              items: ['محاصيل', 'معدات فك وتركيب', 'أسمدة ومبيدات', 'أخرى']
+                  .map((e) => DropdownMenuItem(
+                      value: e,
+                      child: Text(e, textDirection: TextDirection.rtl)))
+                  .toList(),
+              onChanged: (v) => setState(() => _selectedCategory = v),
+            ),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<String>(
+              decoration:
+                  _inputDecoration('نوع المركبة', Icons.fire_truck_rounded),
+              value: _selectedVehicleType,
+              items: [
+                'موتوسيكل',
+                'سكوتر',
+                'توكتوك',
+                'تروسيكل',
+                'سيارة نقل صغير (دبابة)',
+                'سيارة نقل كبير (جامبو)',
+                'جرار بمقطورة'
+              ]
+                  .map((e) => DropdownMenuItem(
+                      value: e,
+                      child: Text(e, textDirection: TextDirection.rtl)))
+                  .toList(),
+              onChanged: (v) => setState(() => _selectedVehicleType = v),
+            ),
+            const SizedBox(height: 16),
+            _buildTextField(
+                _extra1Controller, 'الموديل', Icons.directions_car_rounded),
+          ]
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTextField(
+      TextEditingController controller, String label, IconData icon,
+      {TextInputType keyboardType = TextInputType.text, int? maxLength}) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: keyboardType,
+      maxLength: maxLength,
+      validator: (v) => (v == null || v.isEmpty) ? 'هذا الحقل مطلوب' : null,
+      decoration: _inputDecoration(label, icon).copyWith(counterText: ''),
+    );
+  }
+
+  InputDecoration _inputDecoration(String label, IconData icon) {
+    return InputDecoration(
+      labelText: label,
+      prefixIcon: Icon(icon, color: NabaTheme.primary),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+      enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: Colors.grey.shade300)),
+      filled: true,
+      fillColor: Colors.white,
+    );
   }
 }

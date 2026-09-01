@@ -8,6 +8,7 @@ import '../providers/job_provider.dart';
 import '../theme.dart';
 import '../widgets/naba_widgets.dart';
 import '../widgets/payment_proof_dialog.dart';
+import 'job_bids_screen.dart';
 import 'dart:ui' as ui;
 
 class JobDetailsScreen extends StatefulWidget {
@@ -169,16 +170,21 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
                     width: 32,
                     height: 32,
                     decoration: BoxDecoration(
-                      color: isCompleted ? NabaTheme.primary : Colors.grey.shade300,
+                      color: isCompleted
+                          ? NabaTheme.primary
+                          : Colors.grey.shade300,
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: isCompleted ? NabaTheme.primary : Colors.grey.shade400,
+                        color: isCompleted
+                            ? NabaTheme.primary
+                            : Colors.grey.shade400,
                         width: 2,
                       ),
                     ),
                     child: Center(
                       child: isCompleted
-                          ? const Icon(Icons.check, color: Colors.white, size: 16)
+                          ? const Icon(Icons.check,
+                              color: Colors.white, size: 16)
                           : Text(
                               '${index + 1}',
                               style: TextStyle(
@@ -194,7 +200,8 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
                     stages[index]['label'] as String,
                     style: TextStyle(
                       fontSize: 10,
-                      fontWeight: isCompleted ? FontWeight.bold : FontWeight.normal,
+                      fontWeight:
+                          isCompleted ? FontWeight.bold : FontWeight.normal,
                       color: isCompleted ? NabaTheme.textPrimary : Colors.grey,
                     ),
                   ),
@@ -205,7 +212,9 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
                   child: Container(
                     height: 2,
                     margin: const EdgeInsets.only(bottom: 24),
-                    color: index < currentIndex ? NabaTheme.primary : Colors.grey.shade300,
+                    color: index < currentIndex
+                        ? NabaTheme.primary
+                        : Colors.grey.shade300,
                   ),
                 ),
             ],
@@ -279,8 +288,8 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
     );
   }
 
-  Widget _buildActionButton(
-      BuildContext context, bool isRequester, bool isWorker, User? currentUser) {
+  Widget _buildActionButton(BuildContext context, bool isRequester,
+      bool isWorker, User? currentUser) {
     final status = widget.job.status;
 
     // Worker specific actions
@@ -308,10 +317,12 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
               ),
               child: Column(
                 children: [
-                  Icon(Icons.hourglass_top_rounded, color: Colors.orange.shade700, size: 32),
+                  Icon(Icons.hourglass_top_rounded,
+                      color: Colors.orange.shade700, size: 32),
                   const SizedBox(height: 8),
                   const Text('تم إرسال طلب الدفع للمزارع. بانتظار التحويل.',
-                      style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                          color: Colors.orange, fontWeight: FontWeight.bold),
                       textAlign: TextAlign.center),
                 ],
               ),
@@ -328,12 +339,16 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
               width: double.infinity,
               child: OutlinedButton.icon(
                 onPressed: () => _reportNonPayment(context),
-                icon: const Icon(Icons.report_problem_rounded, color: Colors.red),
-                label: const Text('لم أستلم المبلغ', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                icon:
+                    const Icon(Icons.report_problem_rounded, color: Colors.red),
+                label: const Text('لم أستلم المبلغ',
+                    style: TextStyle(
+                        color: Colors.red, fontWeight: FontWeight.bold)),
                 style: OutlinedButton.styleFrom(
                   side: const BorderSide(color: Colors.red),
                   padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
                 ),
               ),
             ),
@@ -393,12 +408,15 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
           ),
         );
       } else if (status == JobStatus.requested) {
-        return const NabaCard(
-          padding: EdgeInsets.all(20),
-          child: Center(
-            child: Text('طلبك قيد الانتظار لموافقة مقدم الخدمة',
-                style: TextStyle(color: Colors.grey)),
-          ),
+        return NabaButton(
+          text: 'رؤية العروض والمناقصات',
+          icon: Icons.gavel_rounded,
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => JobBidsScreen(job: widget.job)),
+            );
+          },
         );
       } else if (status == JobStatus.accepted ||
           status == JobStatus.inProgress) {
@@ -414,14 +432,136 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
     }
 
     // If it's a general requested job and I'm a worker (able to accept)
-    if (status == JobStatus.requested && !isRequester) {
+    if (status == JobStatus.requested && !isRequester && currentUser != null) {
       return NabaButton(
-        text: 'قبول الطلب الآن',
-        onPressed: () => _updateStatus(context, JobStatus.accepted),
+        text: 'تقديم عرض سعر',
+        onPressed: () => _showBidDialog(context, currentUser),
       );
     }
 
     return const SizedBox.shrink();
+  }
+
+  void _showBidDialog(BuildContext context, User worker) {
+    final priceController =
+        TextEditingController(text: widget.job.price?.toStringAsFixed(0) ?? '');
+    bool isSubmitting = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (bottomSheetContext) => StatefulBuilder(
+        builder: (context, setSheetState) {
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).viewInsets.bottom,
+            ),
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              decoration: const BoxDecoration(
+                color: NabaTheme.background,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(32),
+                  topRight: Radius.circular(32),
+                ),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('تقديم عرض سعر',
+                      style:
+                          TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 12),
+                  const Text(
+                      'سيتم إرسال عرض السعر للمزارع ليوافق عليه أو يتفاوض معك',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.grey)),
+                  const SizedBox(height: 24),
+                  TextField(
+                    controller: priceController,
+                    keyboardType: TextInputType.number,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                        fontSize: 24, fontWeight: FontWeight.bold),
+                    decoration: InputDecoration(
+                      hintText: 'السعر بالجنيه',
+                      suffixText: 'ج.م',
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: isSubmitting
+                          ? null
+                          : () async {
+                              final price =
+                                  double.tryParse(priceController.text);
+                              if (price == null || price <= 0) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content: Text('برجاء إدخال سعر صحيح')));
+                                return;
+                              }
+
+                              setSheetState(() => isSubmitting = true);
+                              try {
+                                await context.read<JobProvider>().submitBid(
+                                      jobId: widget.job.id,
+                                      workerUserId: worker.id,
+                                      workerName: worker.fullName,
+                                      price: price,
+                                    );
+                                if (bottomSheetContext.mounted) {
+                                  Navigator.pop(bottomSheetContext);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                          'تم إرسال العرض بنجاح! بانتظار رد المزارع.'),
+                                      backgroundColor: Colors.green,
+                                    ),
+                                  );
+                                  if (context.mounted) Navigator.pop(context);
+                                }
+                              } catch (e) {
+                                if (bottomSheetContext.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content: Text('حدث خطأ أثناء الإرسال')),
+                                  );
+                                  setSheetState(() => isSubmitting = false);
+                                }
+                              }
+                            },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: NabaTheme.primary,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16)),
+                      ),
+                      child: isSubmitting
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : const Text('إرسال العرض',
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 18)),
+                    ),
+                  )
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
   }
 
   Future<void> _updateStatus(BuildContext context, JobStatus nextStatus) async {
@@ -473,17 +613,25 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('تأكيد البلاغ', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('تأكيد البلاغ',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontWeight: FontWeight.bold)),
         content: const Text(
           'هل أنت متأكد أنك لم تستلم المبلغ؟\nسيتم إرسال بلاغ للإدارة للتواصل مع المزارع.',
           textAlign: TextAlign.center,
         ),
         actionsAlignment: MainAxisAlignment.center,
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('إلغاء')),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12))),
             child: const Text('تأكيد البلاغ'),
           ),
         ],
@@ -514,7 +662,8 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
             ),
             backgroundColor: Colors.red.shade600,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         );
       }
@@ -540,7 +689,8 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
         if (extra != null && extra['paymentDetails'] != null) {
           paymentDetails = extra['paymentDetails'].toString();
         }
-        if (data['paymentDetails'] != null && data['paymentDetails'].toString().isNotEmpty) {
+        if (data['paymentDetails'] != null &&
+            data['paymentDetails'].toString().isNotEmpty) {
           paymentDetails = data['paymentDetails'].toString();
         }
       }
@@ -589,7 +739,8 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
           });
 
           // Update worker wallet balance
-          final walletRef = FirebaseFirestore.instance.collection('wallets').doc(workerId);
+          final walletRef =
+              FirebaseFirestore.instance.collection('wallets').doc(workerId);
           final walletDoc = await walletRef.get();
           if (walletDoc.exists) {
             final bal = ((walletDoc.data() ?? {})['balance'] ?? 0.0).toDouble();

@@ -1,7 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 
 import '../models/types.dart';
@@ -19,6 +22,30 @@ class AuthProvider with ChangeNotifier {
   List<User> get allUsers => _allUsers;
   bool get isLoading => _isLoading;
   bool get isAuthenticated => _user != null;
+  bool _isGuest = false;
+  bool get isGuest => _isGuest;
+
+  Future<void> enterGuestMode() async {
+    try {
+      await _auth.signInAnonymously();
+    } catch (e) {
+      debugPrint('Guest login failed: $e');
+    }
+    _isGuest = true;
+    notifyListeners();
+  }
+
+  Future<void> exitGuestMode() async {
+    _isGuest = false;
+    try {
+      if (_auth.currentUser?.isAnonymous == true) {
+        await _auth.signOut();
+      }
+    } catch (e) {
+      debugPrint('Guest sign out error: $e');
+    }
+    notifyListeners();
+  }
 
   AuthProvider() {
     _init();
@@ -46,6 +73,13 @@ class AuthProvider with ChangeNotifier {
         _firestore.collection('users').snapshots().listen((snapshot) {
       _allUsers = snapshot.docs.map((doc) {
         final data = doc.data();
+        final extraD = data['extraData'];
+        if (extraD != null &&
+            extraD is Map &&
+            extraD['pendingSpecialization'] != null) {
+          debugPrint(
+              'Found a user with pendingSpecialization! User: ${data['fullName']}, Spec: ${extraD['pendingSpecialization']}');
+        }
         return User(
           id: doc.id,
           role: UserRole.values.firstWhere(
@@ -66,7 +100,7 @@ class AuthProvider with ChangeNotifier {
           ),
           createdAt:
               (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-          extraData: data['extraData'],
+          extraData: extraD,
           profileImageBase64: data['profileImageBase64'],
           paymentMethod: data['paymentMethod'] != null
               ? PaymentMethod.values.firstWhere(
@@ -160,12 +194,22 @@ class AuthProvider with ChangeNotifier {
       );
       final uid = cred.user!.uid;
 
+      // Check if National ID is already registered (now that we are authenticated)
+      final idQuery = await _firestore
+          .collection('users')
+          .where('nationalIdHash', isEqualTo: user.nationalIdHash)
+          .limit(1)
+          .get();
+      if (idQuery.docs.isNotEmpty) {
+        await cred.user!.delete(); // Cleanup auth if taken
+        throw Exception('الرقم القومي مسجل بالفعل في حساب آخر. يرجى التأكد.');
+      }
+
       // Determine initial status based on role
-      final initialStatus = (user.role == UserRole.worker ||
-              user.role == UserRole.seller ||
-              user.role == UserRole.equipmentOwner)
-          ? AccountStatus.pending
-          : AccountStatus.approved;
+      final initialStatus =
+          (user.role != UserRole.farmer && user.role != UserRole.admin)
+              ? AccountStatus.pending
+              : AccountStatus.approved;
 
       await _firestore.collection('users').doc(uid).set({
         'role': user.role.toString(),
@@ -177,9 +221,33 @@ class AuthProvider with ChangeNotifier {
         'createdAt': FieldValue.serverTimestamp(),
         'extraData': user.extraData,
         'profileImageBase64': user.profileImageBase64,
+        'profileImageUrl': user.profileImageUrl,
         'paymentMethod': user.paymentMethod?.name,
         'paymentDetails': user.paymentDetails,
       });
+
+      if (user.role == UserRole.equipmentOwner && user.extraData != null) {
+        final eName = user.extraData!['equipmentName'];
+        final eType = user.extraData!['equipmentType'];
+        if (eName != null || eType != null) {
+          await _firestore.collection('equipment').add({
+            'ownerId': uid,
+            'name': eName ?? eType ?? 'معدة',
+            'type': eType ?? 'جرار',
+            'model': user.extraData!['model'] ?? '',
+            'attachments': user.extraData!['attachments'] ?? [],
+            'hourlyRate': double.tryParse(
+                    user.extraData!['hourlyRate']?.toString() ?? '0') ??
+                0.0,
+            'priceUnit': user.extraData!['priceUnit'] ?? 'ساعة',
+            'isAvailable': true,
+            'createdAt': FieldValue.serverTimestamp(),
+            'rating': 5.0,
+            'reviewCount': 0,
+          });
+        }
+      }
+
       _user = user.copyWith(id: uid, status: initialStatus);
       notifyListeners();
     } catch (e) {
@@ -238,6 +306,31 @@ class AuthProvider with ChangeNotifier {
       notifyListeners();
     } catch (e) {
       debugPrint('Error updating profile picture: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> uploadProfileImageToStorage(
+      Uint8List imageBytes, String extension) async {
+    if (_user == null) return;
+    try {
+      final ref = FirebaseStorage.instance
+          .ref()
+          .child('avatars')
+          .child('${_user!.id}.$extension');
+      await ref.putData(
+          imageBytes, SettableMetadata(contentType: 'image/$extension'));
+      final url = await ref.getDownloadURL();
+
+      await _firestore.collection('users').doc(_user!.id).update({
+        'profileImageUrl': url,
+        'profileImageBase64':
+            FieldValue.delete(), // optional: clean up old base64
+      });
+      _user = _user!.copyWith(profileImageUrl: url, profileImageBase64: null);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error uploading profile picture to storage: $e');
       rethrow;
     }
   }
