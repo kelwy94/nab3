@@ -148,8 +148,8 @@ class _ConsultationRequestScreenState extends State<ConsultationRequestScreen> {
     if (_recordedFilePath == null) return null;
     try {
       // Use correct extension and MIME type per platform
-      final String ext = kIsWeb ? 'webm' : 'm4a';
-      final String mime = kIsWeb ? 'audio/webm' : 'audio/m4a';
+      const String ext = kIsWeb ? 'webm' : 'm4a';
+      const String mime = kIsWeb ? 'audio/webm' : 'audio/m4a';
 
       final ref = FirebaseStorage.instance
           .ref()
@@ -389,12 +389,12 @@ class _ConsultationRequestScreenState extends State<ConsultationRequestScreen> {
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: NabaTheme.primary.withOpacity(0.3)),
             ),
-            child: Row(
+            child: const Row(
               children: [
                 Icon(Icons.tips_and_updates_rounded,
                     color: NabaTheme.primary, size: 32),
-                const SizedBox(width: 16),
-                const Expanded(
+                SizedBox(width: 16),
+                Expanded(
                   child: Text(
                     'اشرح مشكلتك بالتفصيل ليقوم المهندس بتقدير سعر ووقت الزيارة المناسب.',
                     style: TextStyle(fontWeight: FontWeight.w600),
@@ -519,7 +519,7 @@ class _ConsultationRequestScreenState extends State<ConsultationRequestScreen> {
                       Flexible(
                         child: Text(
                           _uploadStatus,
-                          style: TextStyle(
+                          style: const TextStyle(
                             color: NabaTheme.primary,
                             fontWeight: FontWeight.bold,
                             fontSize: 14,
@@ -542,7 +542,7 @@ class _ConsultationRequestScreenState extends State<ConsultationRequestScreen> {
                     const SizedBox(height: 6),
                     Text(
                       '${(_uploadProgress * 100).toInt()}%',
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: NabaTheme.primary,
                         fontWeight: FontWeight.bold,
                         fontSize: 16,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:geolocator/geolocator.dart';
 import '../theme.dart';
 
 class MapPickerScreen extends StatefulWidget {
@@ -20,8 +21,42 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
   @override
   void initState() {
     super.initState();
-    // Default to a central location in Egypt if no initial location is provided
-    _currentCenter = widget.initialLocation ?? const LatLng(30.0444, 31.2357); // Cairo
+    _currentCenter =
+        widget.initialLocation ?? const LatLng(30.0444, 31.2357); // Cairo
+    if (widget.initialLocation == null) {
+      _getCurrentLocation();
+    }
+  }
+
+  Future<void> _getCurrentLocation() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) return;
+
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) return;
+    }
+
+    if (permission == LocationPermission.deniedForever) return;
+
+    try {
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.medium,
+      );
+      final newPos = LatLng(position.latitude, position.longitude);
+      if (mounted) {
+        setState(() {
+          _currentCenter = newPos;
+        });
+        _mapController.move(newPos, 15.0);
+      }
+    } catch (e) {
+      debugPrint("Location error: $e");
+    }
   }
 
   void _zoomIn() {
@@ -36,7 +71,9 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('تحديد الموقع', style: TextStyle(color: NabaTheme.textPrimary, fontWeight: FontWeight.bold)),
+        title: const Text('تحديد الموقع',
+            style: TextStyle(
+                color: NabaTheme.textPrimary, fontWeight: FontWeight.bold)),
         centerTitle: true,
         backgroundColor: Colors.white,
         elevation: 0,
@@ -50,16 +87,14 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
               initialCenter: _currentCenter,
               initialZoom: 13.0,
               onPositionChanged: (position, hasGesture) {
-                if (position.center != null) {
-                  setState(() {
-                    _currentCenter = position.center!;
-                  });
-                }
+                setState(() {
+                  _currentCenter = position.center;
+                });
               },
             ),
             children: [
               TileLayer(
-                urlTemplate: _isSatellite 
+                urlTemplate: _isSatellite
                     ? 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}'
                     : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 userAgentPackageName: 'com.nab3.app',
@@ -69,7 +104,9 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
           // Center Marker
           const Center(
             child: Padding(
-              padding: EdgeInsets.only(bottom: 40.0), // Adjust to point the bottom of the icon to the center
+              padding: EdgeInsets.only(
+                  bottom:
+                      40.0), // Adjust to point the bottom of the icon to the center
               child: Icon(
                 Icons.location_on,
                 color: Colors.red,
@@ -84,11 +121,22 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
             child: Column(
               children: [
                 FloatingActionButton(
+                  heroTag: 'my_location',
+                  mini: true,
+                  backgroundColor: Colors.white,
+                  onPressed: _getCurrentLocation,
+                  child: const Icon(Icons.my_location_rounded,
+                      color: NabaTheme.primary),
+                ),
+                const SizedBox(height: 16),
+                FloatingActionButton(
                   heroTag: 'map_type',
                   mini: true,
                   backgroundColor: Colors.white,
                   child: Icon(
-                    _isSatellite ? Icons.map_rounded : Icons.satellite_alt_rounded,
+                    _isSatellite
+                        ? Icons.map_rounded
+                        : Icons.satellite_alt_rounded,
                     color: NabaTheme.primary,
                   ),
                   onPressed: () {
@@ -102,16 +150,18 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
                   heroTag: 'zoom_in',
                   mini: true,
                   backgroundColor: Colors.white,
-                  child: const Icon(Icons.add_rounded, color: NabaTheme.primary),
                   onPressed: _zoomIn,
+                  child:
+                      const Icon(Icons.add_rounded, color: NabaTheme.primary),
                 ),
                 const SizedBox(height: 8),
                 FloatingActionButton(
                   heroTag: 'zoom_out',
                   mini: true,
                   backgroundColor: Colors.white,
-                  child: const Icon(Icons.remove_rounded, color: NabaTheme.primary),
                   onPressed: _zoomOut,
+                  child: const Icon(Icons.remove_rounded,
+                      color: NabaTheme.primary),
                 ),
               ],
             ),
@@ -125,12 +175,14 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: NabaTheme.primary,
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
               ),
               onPressed: () {
                 Navigator.pop(context, _currentCenter);
               },
-              child: const Text('تأكيد الموقع', style: TextStyle(fontSize: 18, color: Colors.white)),
+              child: const Text('تأكيد الموقع',
+                  style: TextStyle(fontSize: 18, color: Colors.white)),
             ),
           ),
         ],

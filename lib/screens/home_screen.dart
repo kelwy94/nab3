@@ -222,6 +222,7 @@ class HomeScreen extends StatelessWidget {
     if (userType.contains('investor')) return 'مستثمر';
     if (userType.contains('seller')) return 'صاحب محل';
     if (userType.contains('admin')) return 'مدير';
+    if (userType.contains('generalUser')) return 'مستخدم عادي';
     return 'مستخدم';
   }
 

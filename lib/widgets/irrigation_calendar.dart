@@ -73,7 +73,7 @@ class _IrrigationCalendarState extends State<IrrigationCalendar> {
                     manualSchedule as Map<String, dynamic>?, dynamicStartDate),
                 const SizedBox(height: 12),
                 _buildSlotsList(plotDocs,
-                    manualSchedule as Map<String, dynamic>?, dynamicStartDate),
+                    manualSchedule, dynamicStartDate),
                 const SizedBox(height: 24),
               ],
             );
@@ -107,8 +107,14 @@ class _IrrigationCalendarState extends State<IrrigationCalendar> {
         if (target.isBefore(start)) return false;
         final diff = target.difference(start).inDays;
         return diff % freq == 0;
+      } else {
+        final userHash = auth.user?.id.hashCode.abs() ?? 0;
+        final offset = dayOffsetVar ?? 0;
+        final dayOffset = (userHash + offset * 7) % freq;
+        final base = DateTime.utc(2024, 1, 1);
+        final diff = target.difference(base).inDays;
+        return diff % freq == dayOffset;
       }
-      return false;
     }
 
     return NabaCard(
@@ -146,11 +152,13 @@ class _IrrigationCalendarState extends State<IrrigationCalendar> {
           if (well == null) return [];
           List<String> events = [];
 
-          if (isIrrigationDay(day, manualSchedule, null)) {
-            if (plotDocs.isEmpty) {
+          if (plotDocs.isEmpty) {
+            if (isIrrigationDay(day, manualSchedule, 0)) {
               events.add(manualSchedule != null ? 'موعدك (يدوي)' : 'default');
-            } else {
-              for (int i = 0; i < plotDocs.length; i++) {
+            }
+          } else {
+            for (int i = 0; i < plotDocs.length; i++) {
+              if (isIrrigationDay(day, manualSchedule, i)) {
                 final data = plotDocs[i].data() as Map<String, dynamic>;
                 events.add(data['name'] ?? 'قطعة ${i + 1}');
               }
@@ -164,11 +172,16 @@ class _IrrigationCalendarState extends State<IrrigationCalendar> {
 
             Color? circleColor;
 
-            if (isIrrigationDay(date, manualSchedule, null)) {
-              if (plotDocs.isEmpty) {
+            if (plotDocs.isEmpty) {
+              if (isIrrigationDay(date, manualSchedule, 0)) {
                 circleColor = NabaTheme.primary;
-              } else {
-                circleColor = plotColors[0];
+              }
+            } else {
+              for (int i = 0; i < plotDocs.length; i++) {
+                if (isIrrigationDay(date, manualSchedule, i)) {
+                  circleColor = plotColors[i % plotColors.length];
+                  break;
+                }
               }
             }
 
@@ -255,7 +268,7 @@ class _IrrigationCalendarState extends State<IrrigationCalendar> {
     // Find which plots have irrigation on this day
     List<Map<String, dynamic>> irrigatingPlots = [];
 
-    bool isIrrigationDay() {
+    bool isIrrigationDay(int plotIndex) {
       if (well.fairnessRule == FairnessRule.manual && manualSchedule != null) {
         final dayOffset = manualSchedule['dayOffset'] as int;
         final base = DateTime.utc(2024, 1, 1);
@@ -269,19 +282,26 @@ class _IrrigationCalendarState extends State<IrrigationCalendar> {
         if (target.isBefore(start)) return false;
         final diffDays = target.difference(start).inDays;
         return diffDays % freq == 0;
+      } else {
+        final userHash = auth.user?.id.hashCode.abs() ?? 0;
+        final dayOffset = (userHash + plotIndex * 7) % freq;
+        final base = DateTime.utc(2024, 1, 1);
+        final diffDays = _selectedDay!.difference(base).inDays;
+        return diffDays % freq == dayOffset;
       }
-      return false;
     }
 
-    if (isIrrigationDay()) {
-      if (plotDocs.isEmpty) {
+    if (plotDocs.isEmpty) {
+      if (isIrrigationDay(0)) {
         irrigatingPlots.add({
           'name': manualSchedule != null ? 'موعدك (يدوي)' : 'أرضك (جدول آلي)',
           'colorIndex': 0,
           'manualSchedule': manualSchedule,
         });
-      } else {
-        for (int i = 0; i < plotDocs.length; i++) {
+      }
+    } else {
+      for (int i = 0; i < plotDocs.length; i++) {
+        if (isIrrigationDay(i)) {
           final data = plotDocs[i].data() as Map<String, dynamic>;
           irrigatingPlots.add({
             'name': data['name'] ?? 'قطعة ${i + 1}',

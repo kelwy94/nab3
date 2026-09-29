@@ -6,9 +6,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'dart:math';
 
 import '../models/types.dart';
 import '../services/notification_service.dart';
+import '../services/device_info_helper.dart';
 
 class AuthProvider with ChangeNotifier {
   User? _user;
@@ -16,6 +19,7 @@ class AuthProvider with ChangeNotifier {
   bool _isLoading = false;
   final fb_auth.FirebaseAuth _auth = fb_auth.FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
   StreamSubscription? _usersSubscription;
 
   User? get user => _user;
@@ -175,6 +179,9 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
     try {
       await _auth.signInWithEmailAndPassword(email: email, password: password);
+      // Save credentials for quick biometric login next time
+      await _secureStorage.write(key: 'saved_email', value: email);
+      await _secureStorage.write(key: 'saved_password', value: password);
     } catch (e) {
       rethrow;
     } finally {
@@ -205,11 +212,53 @@ class AuthProvider with ChangeNotifier {
         throw Exception('الرقم القومي مسجل بالفعل في حساب آخر. يرجى التأكد.');
       }
 
-      // Determine initial status based on role
-      final initialStatus =
-          (user.role != UserRole.farmer && user.role != UserRole.admin)
-              ? AccountStatus.pending
-              : AccountStatus.approved;
+      // Device ID Check
+      final deviceId = await DeviceInfoHelper.getDeviceId();
+      final deviceQuery = await _firestore
+          .collection('users')
+          .where('extraData.deviceId', isEqualTo: deviceId)
+          .limit(1)
+          .get();
+
+      bool isFlagged = deviceQuery.docs.isNotEmpty;
+
+      // Handle Referral
+      String? actualInviterId;
+      if (user.referredBy != null && user.referredBy!.isNotEmpty) {
+        final refQuery = await _firestore
+            .collection('users')
+            .where('referralCode', isEqualTo: user.referredBy)
+            .limit(1)
+            .get();
+        if (refQuery.docs.isNotEmpty) {
+          actualInviterId = refQuery.docs.first.id;
+        }
+      }
+
+      // Generate Referral Code
+      final randomStr = String.fromCharCodes(Iterable.generate(
+          4,
+          (_) => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+              .codeUnitAt(Random().nextInt(36))));
+      final generatedReferralCode =
+          '${user.phone.substring(user.phone.length > 4 ? user.phone.length - 4 : 0)}-$randomStr';
+
+      // Determine initial status based on role and Flag
+      AccountStatus initialStatus = AccountStatus.approved;
+      if (user.role != UserRole.farmer && user.role != UserRole.admin) {
+        initialStatus = AccountStatus.pending;
+      }
+      if (isFlagged) {
+        initialStatus =
+            AccountStatus.pending; // Flagged accounts always require review
+      }
+
+      final extraData = user.extraData ?? {};
+      extraData['deviceId'] = deviceId;
+      if (isFlagged) {
+        extraData['adminNote'] =
+            'Multiple accounts registered from the same device ($deviceId)';
+      }
 
       await _firestore.collection('users').doc(uid).set({
         'role': user.role.toString(),
@@ -219,12 +268,24 @@ class AuthProvider with ChangeNotifier {
         'address': user.address,
         'status': initialStatus.toString(),
         'createdAt': FieldValue.serverTimestamp(),
-        'extraData': user.extraData,
+        'extraData': extraData,
         'profileImageBase64': user.profileImageBase64,
         'profileImageUrl': user.profileImageUrl,
         'paymentMethod': user.paymentMethod?.name,
         'paymentDetails': user.paymentDetails,
+        'referralCode': generatedReferralCode,
+        'referredBy': actualInviterId,
       });
+
+      if (actualInviterId != null) {
+        await _firestore.collection('referrals').add({
+          'inviterId': actualInviterId,
+          'inviteeId': uid,
+          'amount': 50.0, // configurable admin value
+          'status': 'pendingActivity',
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
 
       if (user.role == UserRole.equipmentOwner && user.extraData != null) {
         final eName = user.extraData!['equipmentName'];
@@ -244,11 +305,19 @@ class AuthProvider with ChangeNotifier {
             'createdAt': FieldValue.serverTimestamp(),
             'rating': 5.0,
             'reviewCount': 0,
+            if (user.extraData!['equipmentImageBase64'] != null)
+              'photoBase64': user.extraData!['equipmentImageBase64'],
           });
         }
       }
 
-      _user = user.copyWith(id: uid, status: initialStatus);
+      _user = user.copyWith(
+        id: uid,
+        status: initialStatus,
+        referralCode: generatedReferralCode,
+        referredBy: actualInviterId,
+        extraData: extraData,
+      );
       notifyListeners();
     } catch (e) {
       rethrow;
@@ -349,6 +418,11 @@ class AuthProvider with ChangeNotifier {
       _user = null;
     } else {
       await _auth.signOut();
+      final isBioEnabled = await _secureStorage.read(key: 'biometric_enabled');
+      if (isBioEnabled != 'true') {
+        await _secureStorage.delete(key: 'saved_email');
+        await _secureStorage.delete(key: 'saved_password');
+      }
     }
     notifyListeners();
   }
@@ -391,6 +465,8 @@ class AuthProvider with ChangeNotifier {
                 )
               : null,
           paymentDetails: data['paymentDetails'],
+          referralCode: data['referralCode'],
+          referredBy: data['referredBy'],
         );
       }
     } catch (e) {

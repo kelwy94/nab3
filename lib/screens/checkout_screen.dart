@@ -43,9 +43,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   /// Extract payment method label and details from seller data
   _SellerPaymentInfo _extractPaymentInfo(Map<String, dynamic>? sellerData) {
-    if (sellerData == null)
+    if (sellerData == null) {
       return _SellerPaymentInfo(
           'غير محدد', '', sellerData?['fullName'] ?? 'البائع');
+    }
 
     final sellerName = sellerData['fullName'] ?? 'البائع';
     final sellerPaymentMethod = sellerData['paymentMethod'];
@@ -261,7 +262,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               'userId': sellerId,
               'type': 'incoming',
               'amount': sellerTotal,
-              'note': 'طلب من ${user.fullName} (${_selectedPaymentMethod})',
+              'note': 'طلب من ${user.fullName} ($_selectedPaymentMethod)',
               'paymentMethod': _selectedPaymentMethod,
               'buyerName': user.fullName,
               'createdAt': FieldValue.serverTimestamp(),

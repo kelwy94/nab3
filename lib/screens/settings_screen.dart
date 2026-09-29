@@ -7,9 +7,58 @@ import '../l10n/app_localizations.dart';
 import '../providers/locale_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart' as auth;
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../services/biometric_helper.dart';
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  final _secureStorage = const FlutterSecureStorage();
+  final _bioHelper = BiometricHelper();
+  bool _biometricEnabled = false;
+  bool _canCheckBiometrics = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkBiometricStatus();
+  }
+
+  Future<void> _checkBiometricStatus() async {
+    final canBio = await _bioHelper.hasBiometrics();
+    if (canBio) {
+      final isEnabled = await _secureStorage.read(key: 'biometric_enabled');
+      if (mounted) {
+        setState(() {
+          _canCheckBiometrics = true;
+          _biometricEnabled = isEnabled == 'true';
+        });
+      }
+    }
+  }
+
+  Future<void> _toggleBiometric(bool value) async {
+    if (value) {
+      final authenticated = await _bioHelper.authenticate();
+      if (authenticated) {
+        await _secureStorage.write(key: 'biometric_enabled', value: 'true');
+        setState(() => _biometricEnabled = true);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('تم تفعيل الدخول بالبصمة بنجاح'),
+              backgroundColor: Colors.green));
+        }
+      }
+    } else {
+      await _secureStorage.delete(key: 'biometric_enabled');
+      setState(() => _biometricEnabled = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -17,7 +66,7 @@ class SettingsScreen extends StatelessWidget {
     final localeProvider = Provider.of<LocaleProvider>(context);
     final isArabic = localeProvider.locale.languageCode == 'ar';
     final loc = AppLocalizations.of(context);
-    
+
     return Scaffold(
       backgroundColor: NabaTheme.background,
       appBar: NabaAppBar(title: loc?.settings ?? 'الإعدادات'),
@@ -27,21 +76,24 @@ class SettingsScreen extends StatelessWidget {
           children: [
             _buildSettingsSection('تفضيلات التطبيق', [
               _buildSettingsItem(
-                Icons.language_rounded, 
-                loc?.language ?? 'اللغة', 
-                isArabic ? 'العربية' : 'English',
-                onTap: () {
-                  localeProvider.setLocale(Locale(isArabic ? 'en' : 'ar'));
-                }
-              ),
+                  Icons.language_rounded,
+                  loc?.language ?? 'اللغة',
+                  isArabic ? 'العربية' : 'English', onTap: () {
+                localeProvider.setLocale(Locale(isArabic ? 'en' : 'ar'));
+              }),
+              _buildSettingsItem(Icons.notifications_active_outlined,
+                  loc?.notifications ?? 'الإشعارات', 'مفعلة'),
               _buildSettingsItem(
-                  Icons.notifications_active_outlined, loc?.notifications ?? 'الإشعارات', 'مفعلة'),
-              _buildSettingsItem(Icons.dark_mode_outlined, loc?.theme ?? 'المظهر', 'فاتح'),
+                  Icons.dark_mode_outlined, loc?.theme ?? 'المظهر', 'فاتح'),
             ]),
             const SizedBox(height: 32),
             _buildSettingsSection('الأمن والحساب', [
-              _buildSettingsItem(
-                  Icons.lock_outline_rounded, loc?.changePassword ?? 'تغيير كلمة المرور', '', onTap: () => _showChangePasswordDialog(context)),
+              _buildSettingsItem(Icons.lock_outline_rounded,
+                  loc?.changePassword ?? 'تغيير كلمة المرور', '',
+                  onTap: () => _showChangePasswordDialog(context)),
+              if (_canCheckBiometrics)
+                _buildToggleItem(Icons.fingerprint, 'الدخول بالبصمة / الوجه',
+                    _biometricEnabled, _toggleBiometric),
               _buildSettingsItem(
                   Icons.verified_user_outlined, 'توثيق الحساب', 'غير موثق'),
               _buildSettingsItem(
@@ -77,7 +129,7 @@ class SettingsScreen extends StatelessWidget {
     final oldPasswordCtrl = TextEditingController();
     final newPasswordCtrl = TextEditingController();
     final confirmPasswordCtrl = TextEditingController();
-    
+
     final result = await showDialog<bool>(
       context: context,
       builder: (ctx) => Directionality(
@@ -90,44 +142,58 @@ class SettingsScreen extends StatelessWidget {
               TextField(
                 controller: oldPasswordCtrl,
                 obscureText: true,
-                decoration: const InputDecoration(labelText: 'كلمة المرور الحالية', border: OutlineInputBorder()),
+                decoration: const InputDecoration(
+                    labelText: 'كلمة المرور الحالية',
+                    border: OutlineInputBorder()),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: newPasswordCtrl,
                 obscureText: true,
-                decoration: const InputDecoration(labelText: 'كلمة المرور الجديدة', border: OutlineInputBorder()),
+                decoration: const InputDecoration(
+                    labelText: 'كلمة المرور الجديدة',
+                    border: OutlineInputBorder()),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: confirmPasswordCtrl,
                 obscureText: true,
-                decoration: const InputDecoration(labelText: 'تأكيد كلمة المرور الجديدة', border: OutlineInputBorder()),
+                decoration: const InputDecoration(
+                    labelText: 'تأكيد كلمة المرور الجديدة',
+                    border: OutlineInputBorder()),
               ),
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('إلغاء')),
             ElevatedButton(
               onPressed: () async {
                 if (newPasswordCtrl.text != confirmPasswordCtrl.text) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('كلمتا المرور غير متطابقتين')));
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content: Text('كلمتا المرور غير متطابقتين')));
                   return;
                 }
                 try {
                   final user = auth.FirebaseAuth.instance.currentUser;
                   if (user != null && user.email != null) {
-                    final cred = auth.EmailAuthProvider.credential(email: user.email!, password: oldPasswordCtrl.text);
+                    final cred = auth.EmailAuthProvider.credential(
+                        email: user.email!, password: oldPasswordCtrl.text);
                     await user.reauthenticateWithCredential(cred);
                     await user.updatePassword(newPasswordCtrl.text);
                     if (ctx.mounted) {
                       Navigator.pop(ctx, true);
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم تغيير كلمة المرور بنجاح'), backgroundColor: Colors.green));
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                          content: Text('تم تغيير كلمة المرور بنجاح'),
+                          backgroundColor: Colors.green));
                     }
                   }
                 } catch (e) {
                   if (ctx.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('حدث خطأ: ${e.toString()}'), backgroundColor: Colors.red));
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        content: Text('حدث خطأ: ${e.toString()}'),
+                        backgroundColor: Colors.red));
                   }
                 }
               },
@@ -154,14 +220,17 @@ class SettingsScreen extends StatelessWidget {
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text('ما تقييمك لتجربة استخدام تطبيق نبع؟', textAlign: TextAlign.center),
+                  const Text('ما تقييمك لتجربة استخدام تطبيق نبع؟',
+                      textAlign: TextAlign.center),
                   const SizedBox(height: 16),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: List.generate(5, (index) {
                       return IconButton(
                         icon: Icon(
-                          index < rating ? Icons.star_rounded : Icons.star_outline_rounded,
+                          index < rating
+                              ? Icons.star_rounded
+                              : Icons.star_outline_rounded,
                           color: Colors.amber,
                           size: 32,
                         ),
@@ -185,13 +254,20 @@ class SettingsScreen extends StatelessWidget {
                 ],
               ),
               actions: [
-                TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+                TextButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('إلغاء')),
                 ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: NabaTheme.primary),
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: NabaTheme.primary),
                   onPressed: () async {
                     try {
-                      final user = Provider.of<AuthProvider>(context, listen: false).user;
-                      await FirebaseFirestore.instance.collection('app_ratings').add({
+                      final user =
+                          Provider.of<AuthProvider>(context, listen: false)
+                              .user;
+                      await FirebaseFirestore.instance
+                          .collection('app_ratings')
+                          .add({
                         'userId': user?.id ?? 'unknown',
                         'userName': user?.fullName ?? 'unknown',
                         'rating': rating,
@@ -201,18 +277,23 @@ class SettingsScreen extends StatelessWidget {
                       if (ctx.mounted) {
                         Navigator.pop(ctx);
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('شكراً لتقييمك!'), backgroundColor: Colors.green),
+                          const SnackBar(
+                              content: Text('شكراً لتقييمك!'),
+                              backgroundColor: Colors.green),
                         );
                       }
                     } catch (e) {
                       if (ctx.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('حدث خطأ: $e'), backgroundColor: Colors.red),
+                          SnackBar(
+                              content: Text('حدث خطأ: $e'),
+                              backgroundColor: Colors.red),
                         );
                       }
                     }
                   },
-                  child: const Text('إرسال', style: TextStyle(color: Colors.white)),
+                  child: const Text('إرسال',
+                      style: TextStyle(color: Colors.white)),
                 ),
               ],
             );
@@ -261,6 +342,32 @@ class SettingsScreen extends StatelessWidget {
             const SizedBox(width: 8),
             const Icon(Icons.chevron_left_rounded,
                 size: 18, color: Colors.grey),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildToggleItem(
+      IconData icon, String label, bool value, ValueChanged<bool> onChanged) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: NabaCard(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Row(
+          textDirection: TextDirection.rtl,
+          children: [
+            Icon(icon, color: NabaTheme.primary),
+            const SizedBox(width: 16),
+            Text(label,
+                style:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const Spacer(),
+            Switch(
+              value: value,
+              onChanged: onChanged,
+              activeColor: NabaTheme.primary,
+            ),
           ],
         ),
       ),

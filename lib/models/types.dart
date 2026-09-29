@@ -7,6 +7,7 @@ enum UserRole {
   investor,
   admin,
   engineer,
+  generalUser,
 }
 
 enum ConsultationStatus {
@@ -88,6 +89,8 @@ enum AccountStatus { pending, approved, rejected }
 
 enum WellStatus { pending, approved, rejected }
 
+enum RewardStatus { pendingActivity, underReview, paid }
+
 enum PaymentMethod { vodafoneCash, instaPay, bankAccount }
 
 class User {
@@ -105,6 +108,8 @@ class User {
   final String? profileImageUrl;
   final PaymentMethod? paymentMethod;
   final String? paymentDetails; // phone number or bank account
+  final String? referralCode;
+  final String? referredBy;
 
   User({
     required this.id,
@@ -121,6 +126,8 @@ class User {
     this.profileImageUrl,
     this.paymentMethod,
     this.paymentDetails,
+    this.referralCode,
+    this.referredBy,
   });
 
   User copyWith({
@@ -138,6 +145,8 @@ class User {
     String? profileImageUrl,
     PaymentMethod? paymentMethod,
     String? paymentDetails,
+    String? referralCode,
+    String? referredBy,
   }) {
     return User(
       id: id ?? this.id,
@@ -154,6 +163,8 @@ class User {
       profileImageUrl: profileImageUrl ?? this.profileImageUrl,
       paymentMethod: paymentMethod ?? this.paymentMethod,
       paymentDetails: paymentDetails ?? this.paymentDetails,
+      referralCode: referralCode ?? this.referralCode,
+      referredBy: referredBy ?? this.referredBy,
     );
   }
 
@@ -172,6 +183,8 @@ class User {
       'profileImageBase64': profileImageBase64,
       'paymentMethod': paymentMethod?.name,
       'paymentDetails': paymentDetails,
+      'referralCode': referralCode,
+      'referredBy': referredBy,
     };
   }
 
@@ -545,6 +558,7 @@ class CatalogItem {
   final String? description;
   final double ratingAvg;
   final int ratingCount;
+  final bool isApproved;
 
   CatalogItem({
     required this.id,
@@ -558,6 +572,7 @@ class CatalogItem {
     this.description,
     this.ratingAvg = 0.0,
     this.ratingCount = 0,
+    this.isApproved = true,
   });
 }
 
@@ -642,3 +657,21 @@ const List<String> kWorkerSpecializations = [
   'عامل تقطيع حطب',
   'عامل جني البلح',
 ];
+
+class ReferralReward {
+  final String id;
+  final String inviterId;
+  final String inviteeId;
+  final double amount;
+  final RewardStatus status;
+  final DateTime createdAt;
+
+  ReferralReward({
+    required this.id,
+    required this.inviterId,
+    required this.inviteeId,
+    required this.amount,
+    this.status = RewardStatus.pendingActivity,
+    required this.createdAt,
+  });
+}

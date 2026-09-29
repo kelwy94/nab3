@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import '../models/types.dart';
 import '../theme.dart';
 import '../widgets/naba_widgets.dart';
-import 'consultation_type_selection_screen.dart';
+import 'engineer_profile_screen.dart';
 
 class ConsultationMarketScreen extends StatefulWidget {
   const ConsultationMarketScreen({super.key});
@@ -124,7 +124,16 @@ class _ConsultationMarketScreenState extends State<ConsultationMarketScreen> {
                     final extraData =
                         (data['extraData'] as Map<String, dynamic>?) ?? {};
                     final spec = extraData['specialization'] as String?;
-                    final fieldType = extraData['fieldWorkType'] as String?;
+                    List<String> fieldWorkTypesList =
+                        (extraData['fieldWorkTypes'] as List<dynamic>?)
+                                ?.map((e) => e.toString())
+                                .toList() ??
+                            [];
+                    if (fieldWorkTypesList.isEmpty &&
+                        extraData['fieldWorkType'] != null) {
+                      fieldWorkTypesList
+                          .add(extraData['fieldWorkType'].toString());
+                    }
 
                     if (_selectedSpecialization != null &&
                         spec != _selectedSpecialization) {
@@ -132,9 +141,11 @@ class _ConsultationMarketScreenState extends State<ConsultationMarketScreen> {
                     }
 
                     if (_searchQuery.isNotEmpty) {
+                      final hasType = fieldWorkTypesList
+                          .any((t) => t.contains(_searchQuery));
                       return name.contains(_searchQuery.toLowerCase()) ||
                           (spec?.contains(_searchQuery) ?? false) ||
-                          (fieldType?.contains(_searchQuery) ?? false);
+                          hasType;
                     }
 
                     return true;
@@ -157,39 +168,49 @@ class _ConsultationMarketScreenState extends State<ConsultationMarketScreen> {
                       return Card(
                         margin: const EdgeInsets.only(bottom: 16),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16)),
-                        elevation: 3,
+                            borderRadius: BorderRadius.circular(20)),
+                        elevation: 4,
+                        shadowColor: Colors.black12,
                         child: InkWell(
                           onTap: () {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => ConsultationTypeSelectionScreen(
+                                builder: (_) => EngineerProfileScreen(
                                   engineerId: userDoc.id,
                                   engineerData: data,
                                 ),
                               ),
                             );
                           },
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(20),
                           child: Padding(
                             padding: const EdgeInsets.all(16.0),
                             child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                              crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
-                                CircleAvatar(
-                                  radius: 35,
-                                  backgroundColor:
-                                      NabaTheme.primary.withOpacity(0.1),
-                                  backgroundImage: data['profileImageBase64'] !=
-                                          null
-                                      ? MemoryImage(const Base64Decoder()
-                                          .convert(data['profileImageBase64']))
-                                      : null,
-                                  child: data['profileImageBase64'] == null
-                                      ? const Icon(Icons.person,
-                                          size: 40, color: NabaTheme.primary)
-                                      : null,
+                                Container(
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                        color:
+                                            NabaTheme.primary.withOpacity(0.2),
+                                        width: 2),
+                                  ),
+                                  child: CircleAvatar(
+                                    radius: 38,
+                                    backgroundColor: Colors.white,
+                                    backgroundImage:
+                                        data['profileImageBase64'] != null
+                                            ? MemoryImage(const Base64Decoder()
+                                                .convert(
+                                                    data['profileImageBase64']))
+                                            : null,
+                                    child: data['profileImageBase64'] == null
+                                        ? const Icon(Icons.person,
+                                            size: 40, color: Colors.grey)
+                                        : null,
+                                  ),
                                 ),
                                 const SizedBox(width: 16),
                                 Expanded(
@@ -197,23 +218,53 @@ class _ConsultationMarketScreenState extends State<ConsultationMarketScreen> {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      Text(
-                                        data['fullName'] ?? 'مهندس مجهول',
-                                        style: const TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold,
-                                        ),
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              data['fullName'] ?? 'مهندس مجهول',
+                                              style: const TextStyle(
+                                                  fontSize: 18,
+                                                  fontWeight: FontWeight.bold),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 8, vertical: 4),
+                                            decoration: BoxDecoration(
+                                                color: Colors.green.shade50,
+                                                borderRadius:
+                                                    BorderRadius.circular(8)),
+                                            child: Row(
+                                              children: const [
+                                                Icon(Icons.verified_rounded,
+                                                    color: Colors.green,
+                                                    size: 14),
+                                                SizedBox(width: 4),
+                                                Text('معتمد',
+                                                    style: TextStyle(
+                                                        color: Colors.green,
+                                                        fontSize: 10,
+                                                        fontWeight:
+                                                            FontWeight.bold)),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                      const SizedBox(height: 4),
+                                      const SizedBox(height: 6),
                                       Text(
                                         extraData['specialization'] ??
                                             'تخصص غير متوفر',
                                         style: const TextStyle(
-                                          color: NabaTheme.primary,
-                                          fontWeight: FontWeight.w600,
-                                        ),
+                                            color: NabaTheme.primary,
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 14),
                                       ),
-                                      const SizedBox(height: 4),
+                                      const SizedBox(height: 10),
                                       Row(
                                         children: [
                                           const Icon(Icons.work_history_rounded,
@@ -223,40 +274,22 @@ class _ConsultationMarketScreenState extends State<ConsultationMarketScreen> {
                                             'خبرة ${extraData['experienceYears'] ?? 0} سنة',
                                             style: const TextStyle(
                                                 color: Colors.grey,
-                                                fontSize: 13),
+                                                fontSize: 12),
                                           ),
                                           const SizedBox(width: 12),
-                                          const Icon(Icons.location_on_rounded,
-                                              size: 16, color: Colors.grey),
+                                          const Icon(Icons.star_rounded,
+                                              size: 16, color: Colors.amber),
                                           const SizedBox(width: 4),
-                                          Text(
-                                            extraData['fieldWorkType'] ??
-                                                'ميداني',
-                                            style: const TextStyle(
-                                                color: Colors.grey,
-                                                fontSize: 13),
-                                          ),
+                                          const Text('5.0',
+                                              style: TextStyle(
+                                                  color: Colors.grey,
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.bold)),
                                         ],
                                       ),
-                                      if (extraData['aboutMe'] != null &&
-                                          extraData['aboutMe']
-                                              .toString()
-                                              .isNotEmpty) ...[
-                                        const SizedBox(height: 8),
-                                        Text(
-                                          extraData['aboutMe'],
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                              color: Colors.grey.shade600,
-                                              fontSize: 12),
-                                        ),
-                                      ]
                                     ],
                                   ),
                                 ),
-                                const Icon(Icons.chevron_left_rounded,
-                                    color: Colors.grey),
                               ],
                             ),
                           ),

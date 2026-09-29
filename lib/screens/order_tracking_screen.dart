@@ -14,7 +14,7 @@ class OrderTrackingScreen extends StatefulWidget {
 
 class _OrderTrackingScreenState extends State<OrderTrackingScreen>
     with SingleTickerProviderStateMixin {
-  bool _isConfirming = false;
+  final bool _isConfirming = false;
   late AnimationController _pulseController;
 
   @override
@@ -127,7 +127,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
                     final sellerDoc = FirebaseFirestore.instance.collection('users').doc(widget.order.sellerUserId);
                     final snapshot = await sellerDoc.get();
                     if (snapshot.exists) {
-                      final Map<String, dynamic> dataMap = snapshot.data() as Map<String, dynamic>? ?? {};
+                      final Map<String, dynamic> dataMap = snapshot.data() ?? {};
                       final Map<String, dynamic> extraData = dataMap['extraData'] is Map ? dataMap['extraData'] as Map<String, dynamic> : {};
                       final double currentRating = extraData['rating'] != null ? (extraData['rating'] as num).toDouble() : 5.0;
                       final int ratingCount = extraData['ratingCount'] != null ? (extraData['ratingCount'] as num).toInt() : 1;

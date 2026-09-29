@@ -11,12 +11,14 @@ import '../providers/well_provider.dart';
 import '../theme.dart';
 import '../widgets/irrigation_calendar.dart';
 import '../widgets/naba_widgets.dart';
+import '../widgets/sell_crop_card.dart';
 import 'edit_profile_screen.dart';
 import 'help_support_screen.dart';
 import 'job_details_screen.dart';
 import 'job_history_screen.dart';
 import 'marketplace_screen.dart';
 import 'orders_history_screen.dart';
+import 'product_form_screen.dart';
 import 'request_worker_screen.dart';
 import 'request_equipment_screen.dart';
 import 'consultation_market_screen.dart';
@@ -73,13 +75,13 @@ class _FarmerDashboardState extends State<FarmerDashboard> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildNavItem(0, Icons.calendar_month_rounded, 'الجدول'),
-                _buildNavItem(1, Icons.landscape_rounded, 'الأراضي'),
-                _buildNavItem(2, Icons.water_drop_rounded, 'البئر'),
-                _buildNavItem(3, Icons.shopping_bag_rounded, 'السوق'),
+                _buildNavItem(0, Icons.calendar_month_rounded, 'الجدول', imageAsset: 'assets/images/icons/schedule.png'),
+                _buildNavItem(1, Icons.landscape_rounded, 'الأراضي', imageAsset: 'assets/images/icons/lands_v2.png'),
+                _buildNavItem(2, Icons.water_drop_rounded, 'البئر', imageAsset: 'assets/images/icons/well.png'),
+                _buildNavItem(3, Icons.shopping_bag_rounded, 'السوق', imageAsset: 'assets/images/icons/market_v2.png'),
                 _buildNavItem(
-                    4, Icons.assignment_turned_in_rounded, 'استشاراتي'),
-                _buildNavItem(5, Icons.person_rounded, 'حسابي'),
+                    4, Icons.assignment_turned_in_rounded, 'استشاراتي', imageAsset: 'assets/images/icons/consultations.png'),
+                _buildNavItem(5, Icons.person_rounded, 'حسابي', imageAsset: 'assets/images/icons/profile.png'),
               ],
             ),
           ),
@@ -88,13 +90,13 @@ class _FarmerDashboardState extends State<FarmerDashboard> {
     );
   }
 
-  Widget _buildNavItem(int index, IconData icon, String label) {
+  Widget _buildNavItem(int index, IconData icon, String label, {String? imageAsset}) {
     final isSelected = _selectedIndex == index;
     return GestureDetector(
       onTap: () => setState(() => _selectedIndex = index),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
           color: isSelected
               ? NabaTheme.primary.withOpacity(0.1)
@@ -105,21 +107,23 @@ class _FarmerDashboardState extends State<FarmerDashboard> {
           children: [
             if (isSelected)
               Padding(
-                padding: const EdgeInsets.only(right: 8.0),
+                padding: const EdgeInsets.only(right: 6.0),
                 child: Text(
                   label,
                   style: const TextStyle(
                     color: NabaTheme.primary,
                     fontWeight: FontWeight.bold,
-                    fontSize: 14,
+                    fontSize: 12,
                   ),
                 ),
               ),
-            Icon(
-              icon,
-              color: isSelected ? NabaTheme.primary : Colors.grey,
-              size: 26,
-            ),
+            imageAsset != null
+                ? Image.asset(imageAsset, width: 24, height: 24)
+                : Icon(
+                    icon,
+                    color: isSelected ? NabaTheme.primary : Colors.grey,
+                    size: 24,
+                  ),
           ],
         ),
       ),
@@ -139,13 +143,27 @@ class FarmerHomeTab extends StatelessWidget {
     Color(0xFF00838F),
   ];
 
-  DateTime? _getNextIrrigationDate(Well well, String? userId, int plotIndex) {
-    final userHash = userId?.hashCode.abs() ?? 0;
-    final freq =
-        well.irrigationFrequencyDays > 0 ? well.irrigationFrequencyDays : 1;
-    final dayOffset = (userHash + plotIndex * 7) % freq;
+  DateTime? _getNextIrrigationDate(Well well, String? userId, int plotIndex, {DateTime? dynamicStartDate}) {
+    final freq = well.irrigationFrequencyDays > 0 ? well.irrigationFrequencyDays : 1;
+    final start = dynamicStartDate ?? well.nextIrrigationDate;
+    
+    if (start != null) {
+      final startDateUtc = DateTime.utc(start.year, start.month, start.day);
+      final now = DateTime.now();
+      final today = DateTime.utc(now.year, now.month, now.day);
+      
+      for (int i = 0; i <= freq * 2; i++) {
+        final checkDate = today.add(Duration(days: i));
+        if (checkDate.isBefore(startDateUtc)) continue;
+        final diff = checkDate.difference(startDateUtc).inDays;
+        if (diff % freq == 0) return checkDate;
+      }
+      return startDateUtc;
+    }
 
-    // Normalize today to UTC midnight to match TableCalendar's behavior exactly
+    final userHash = userId?.hashCode.abs() ?? 0;
+    final dayOffset = (userHash + plotIndex * 7) % freq;
+    
     final now = DateTime.now();
     final today = DateTime.utc(now.year, now.month, now.day);
     final baseDate = DateTime.utc(2024, 1, 1);
@@ -441,6 +459,14 @@ class FarmerHomeTab extends StatelessWidget {
           final manualSchedule = memberDoc != null
               ? (memberDoc.data() as Map<String, dynamic>)['manualSchedule']
               : null;
+          
+          final dynamicStartDate = (memberDoc != null &&
+                  (memberDoc.data() as Map<String, dynamic>)
+                      .containsKey('nextIrrigationDate'))
+              ? ((memberDoc.data() as Map<String, dynamic>)['nextIrrigationDate']
+                      as Timestamp)
+                  .toDate()
+              : wells.isNotEmpty ? wells.first.nextIrrigationDate : null;
 
           return StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance
@@ -485,7 +511,7 @@ class FarmerHomeTab extends StatelessWidget {
               } else if (plotDocs.isEmpty) {
                 // No plots - use default
                 final nextDate =
-                    _getNextIrrigationDate(wells.first, auth.user?.id, 0);
+                    _getNextIrrigationDate(wells.first, auth.user?.id, 0, dynamicStartDate: dynamicStartDate);
                 if (nextDate != null) {
                   nextDates.add({
                     'date': nextDate,
@@ -497,7 +523,7 @@ class FarmerHomeTab extends StatelessWidget {
                 for (int i = 0; i < plotDocs.length; i++) {
                   final data = plotDocs[i].data() as Map<String, dynamic>;
                   final nextDate =
-                      _getNextIrrigationDate(wells.first, auth.user?.id, i);
+                      _getNextIrrigationDate(wells.first, auth.user?.id, i, dynamicStartDate: dynamicStartDate);
                   if (nextDate != null) {
                     nextDates.add({
                       'date': nextDate,
@@ -591,6 +617,8 @@ class FarmerHomeTab extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const SizedBox(height: 8),
+        const SellCropCard(),
+        const SizedBox(height: 8),
 // Quick Actions
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -601,6 +629,7 @@ class FarmerHomeTab extends StatelessWidget {
                   context,
                   title: 'طلب معدة',
                   icon: Icons.agriculture_rounded,
+                  imageAsset: 'assets/images/icons/tractor.png',
                   color: Colors.orange.shade700,
                   onTap: () => Navigator.push(
                       context,
@@ -614,6 +643,7 @@ class FarmerHomeTab extends StatelessWidget {
                   context,
                   title: 'طلب عامل',
                   icon: Icons.engineering_rounded,
+                  imageAsset: 'assets/images/icons/worker.png',
                   color: Colors.blue.shade700,
                   onTap: () => Navigator.push(
                       context,
@@ -631,13 +661,45 @@ class FarmerHomeTab extends StatelessWidget {
               Expanded(
                 child: _buildQuickActionCard(
                   context,
-                  title: 'مشترياتي وتتبعها',
-                  icon: Icons.shopping_bag_rounded,
+                  title: 'بيع أو شراء',
+                  icon: Icons.store_rounded,
+                  imageAsset: 'assets/images/icons/trade.png',
                   color: Colors.teal.shade500,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const OrdersHistoryScreen())),
+                  onTap: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('السوق', textAlign: TextAlign.right),
+                        content: const Text(
+                          'هل تريد بيع منتج أم تصفح السوق للشراء؟',
+                          textAlign: TextAlign.right,
+                        ),
+                        actionsAlignment: MainAxisAlignment.center,
+                        actions: [
+                          TextButton(
+                            onPressed: () {
+                              Navigator.pop(context);
+                              // شراء
+                              // Just close dialog if they want to buy, they can click the market tab
+                              // Or push MarketplaceScreen directly
+                              Navigator.push(context, MaterialPageRoute(builder: (_) => const MarketplaceScreen()));
+                            },
+                            child: const Text('شراء', style: TextStyle(color: Colors.teal, fontWeight: FontWeight.bold)),
+                          ),
+                          const SizedBox(width: 20),
+                          ElevatedButton(
+                            onPressed: () {
+                              Navigator.pop(context);
+                              // بيع
+                              Navigator.push(context, MaterialPageRoute(builder: (_) => const ProductFormScreen()));
+                            },
+                            style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
+                            child: const Text('بيع', style: TextStyle(color: Colors.white)),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
                 ),
               ),
               const SizedBox(width: 12),
@@ -646,6 +708,7 @@ class FarmerHomeTab extends StatelessWidget {
                   context,
                   title: 'استشارات هندسية',
                   icon: Icons.workspace_premium_rounded,
+                  imageAsset: 'assets/images/icons/consultations.png',
                   color: Colors.teal.shade500,
                   onTap: () => Navigator.push(
                       context,
@@ -696,10 +759,12 @@ class FarmerHomeTab extends StatelessWidget {
                       final type = data['serviceType'] ?? '';
 
                       Color statusColor = Colors.orange;
-                      if (status.contains('inProgress'))
+                      if (status.contains('inProgress')) {
                         statusColor = NabaTheme.primary;
-                      if (status.contains('completed'))
+                      }
+                      if (status.contains('completed')) {
                         statusColor = Colors.green;
+                      }
                       if (status.contains('paid')) statusColor = Colors.teal;
 
                       return GestureDetector(
@@ -789,6 +854,7 @@ class FarmerHomeTab extends StatelessWidget {
     BuildContext context, {
     required String title,
     required IconData icon,
+    String? imageAsset,
     required Color color,
     required VoidCallback onTap,
   }) {
@@ -800,11 +866,12 @@ class FarmerHomeTab extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
+              gradient: imageAsset != null ? null : LinearGradient(
                 colors: [color.withOpacity(0.7), color],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
+              color: imageAsset != null ? Colors.white : null,
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
@@ -814,7 +881,9 @@ class FarmerHomeTab extends StatelessWidget {
                 ),
               ],
             ),
-            child: Icon(icon, color: Colors.white, size: 32),
+            child: imageAsset != null
+                ? Image.asset(imageAsset, width: 36, height: 36)
+                : Icon(icon, color: Colors.white, size: 32),
           ),
           const SizedBox(height: 12),
           Text(title,
@@ -1176,7 +1245,7 @@ class LandPlotsTab extends StatelessWidget {
                       style: TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
-                    value: selectedWell,
+                    initialValue: selectedWell,
                     items: [
                       ...allWellsNames.map((name) =>
                           DropdownMenuItem(value: name, child: Text(name))),
@@ -1441,7 +1510,7 @@ class WellManagementScreen extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
+              gradient: const LinearGradient(
                 colors: [NabaTheme.primaryLight, NabaTheme.primary],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,

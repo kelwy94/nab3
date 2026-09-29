@@ -33,7 +33,7 @@ if (keystorePropertiesFile.exists()) {
 android {
     namespace = "com.nabaa.karem"
     compileSdk = 35
-    ndkVersion = "27.0.12077973"
+    ndkVersion = "28.2.13676358"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -46,7 +46,7 @@ android {
 
     defaultConfig {
         applicationId = "com.nabaa.karem"
-        minSdkVersion = flutter.minSdkVersion
+        minSdkVersion flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutterVersionCode.toInteger()
         versionName = flutterVersionName
@@ -84,12 +84,13 @@ dependencies {
     implementation 'com.google.firebase:firebase-analytics'
 }
 
-// Force AndroidX dependencies to versions compatible with compileSdk 35 / AGP 8.5.2
+// Force AndroidX dependencies
 configurations.all {
     resolutionStrategy {
-        force 'androidx.core:core:1.15.0'
-        force 'androidx.core:core-ktx:1.15.0'
+        force 'androidx.core:core:1.13.1'
+        force 'androidx.core:core-ktx:1.13.1'
         force 'androidx.activity:activity:1.9.3'
         force 'androidx.navigation:navigation-common:2.8.5'
+        force 'androidx.browser:browser:1.8.0'
     }
 }

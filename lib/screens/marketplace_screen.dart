@@ -15,6 +15,7 @@ import 'job_details_screen.dart';
 import 'cart_screen.dart';
 import 'product_details_screen.dart';
 import 'orders_history_screen.dart';
+import 'product_form_screen.dart';
 
 class MarketplaceScreen extends StatefulWidget {
   final bool showAppBar;
@@ -85,8 +86,9 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       top: 8,
                       child: Consumer<AppStateProvider>(
                         builder: (context, appState, child) {
-                          if (appState.cart.isEmpty)
+                          if (appState.cart.isEmpty) {
                             return const SizedBox.shrink();
+                          }
                           return Container(
                             padding: const EdgeInsets.all(4),
                             decoration: const BoxDecoration(
@@ -121,6 +123,16 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
           Expanded(child: _buildProductGrid()),
         ],
       ),
+      floatingActionButton: Provider.of<AuthProvider>(context, listen: false).isGuest
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const ProductFormScreen()));
+              },
+              backgroundColor: NabaTheme.primary,
+              icon: const Icon(Icons.add_business_rounded, color: Colors.white),
+              label: const Text('أضف إعلان / بيع', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
     );
   }
 
@@ -251,22 +263,23 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final allUsers = authProvider.allUsers;
 
-    // Filter products by selected district
-    List<CatalogItem> filteredProducts;
-    if (_selectedDistrict == null) {
-      filteredProducts = products;
-    } else {
-      filteredProducts = products.where((p) {
-        // Find seller's district from allUsers
-        final seller =
-            allUsers.where((u) => u.id == p.sellerUserId).firstOrNull;
-        if (seller == null) return true; // Show if seller not found (fallback)
-        final sellerDistrict = seller.extraData?['district'] as String?;
-        if (sellerDistrict == null)
-          return true; // Show if seller has no district
-        return sellerDistrict == _selectedDistrict;
-      }).toList();
-    }
+    final currentUser = authProvider.user;
+
+    // Filter products by selected district and approval status
+    List<CatalogItem> filteredProducts = products.where((p) {
+      // Must be approved OR owned by the current user
+      final isMine = currentUser != null && p.sellerUserId == currentUser.id;
+      if (!p.isApproved && !isMine) return false;
+
+      if (_selectedDistrict == null) return true;
+
+      final seller = allUsers.where((u) => u.id == p.sellerUserId).firstOrNull;
+      if (seller == null) return true; 
+      final sellerDistrict = seller.extraData?['district'] as String?;
+      if (sellerDistrict == null) return true; 
+      
+      return sellerDistrict == _selectedDistrict;
+    }).toList();
 
     if (filteredProducts.isEmpty) {
       return Center(

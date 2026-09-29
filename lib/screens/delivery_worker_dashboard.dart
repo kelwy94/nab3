@@ -5,12 +5,12 @@ import '../models/types.dart';
 import '../providers/auth_provider.dart';
 import '../providers/app_state_provider.dart';
 import '../theme.dart';
-import '../widgets/naba_widgets.dart';
 import 'profile_screen.dart';
 import 'settings_screen.dart';
 import 'wallet_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart' hide Order;
 import '../widgets/service_requests_panel.dart';
+import '../widgets/sell_crop_card.dart';
 
 class DeliveryWorkerDashboard extends StatefulWidget {
   const DeliveryWorkerDashboard({super.key});
@@ -160,6 +160,8 @@ class DeliveryHomeTab extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 _buildStatusHeader(context, isAvailable),
+                const SizedBox(height: 12),
+                const SellCropCard(),
                 const SizedBox(height: 24),
                 if (myActiveOrders.isNotEmpty) ...[
                   _buildSectionTitle('طلبات قيد التوصيل', Icons.motorcycle,
@@ -403,9 +405,10 @@ class DeliveryHomeTab extends StatelessWidget {
                       'isRead': false,
                     });
 
-                    if (context.mounted)
+                    if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                           content: Text('تم قبول الطلب بنجاح وإشعار المحل')));
+                    }
                   },
                   style: ElevatedButton.styleFrom(
                       backgroundColor: color, foregroundColor: Colors.white),
@@ -423,9 +426,10 @@ class DeliveryHomeTab extends StatelessWidget {
                         .update({
                       'status': OrderStatus.completed.toString(),
                     });
-                    if (context.mounted)
+                    if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                           content: Text('تم إنهاء التوصيل بنجاح')));
+                    }
                   },
                   style: ElevatedButton.styleFrom(
                       backgroundColor: color, foregroundColor: Colors.white),
@@ -459,11 +463,12 @@ class DeliveryHomeTab extends StatelessWidget {
     return FutureBuilder<DocumentSnapshot>(
       future: FirebaseFirestore.instance.collection('users').doc(userId).get(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData)
+        if (!snapshot.hasData) {
           return Text('$prefix: جاري التحميل...',
               style:
                   TextStyle(color: Colors.grey, fontSize: isDialog ? 14 : 12),
               textAlign: TextAlign.right);
+        }
         final data = snapshot.data?.data() as Map<String, dynamic>? ?? {};
         final extra = data['extraData'] as Map<String, dynamic>? ?? {};
         final name = extra['shopName'] ?? data['fullName'] ?? 'غير معروف';

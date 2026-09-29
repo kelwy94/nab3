@@ -4,6 +4,9 @@ import '../providers/auth_provider.dart';
 import '../theme.dart';
 import '../widgets/naba_widgets.dart';
 
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../services/biometric_helper.dart';
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -16,12 +19,60 @@ class _LoginScreenState extends State<LoginScreen> {
   late TextEditingController _phoneController;
   late TextEditingController _passwordController;
   bool _isLoading = false;
+  bool _hasBiometricCreds = false;
+  final _secureStorage = const FlutterSecureStorage();
+  final _bioHelper = BiometricHelper();
 
   @override
   void initState() {
     super.initState();
     _phoneController = TextEditingController();
     _passwordController = TextEditingController();
+    _checkBiometricCreds();
+  }
+
+  Future<void> _checkBiometricCreds() async {
+    final email = await _secureStorage.read(key: 'saved_email');
+    final pass = await _secureStorage.read(key: 'saved_password');
+    final isBioEnabled = await _secureStorage.read(key: 'biometric_enabled');
+
+    if (email != null && pass != null && isBioEnabled == 'true') {
+      final canBio = await _bioHelper.hasBiometrics();
+      if (canBio) {
+        if (mounted) {
+          setState(() {
+            _hasBiometricCreds = true;
+          });
+        }
+      }
+    }
+  }
+
+  Future<void> _handleBiometricLogin() async {
+    final authenticated = await _bioHelper.authenticate();
+    if (authenticated) {
+      final email = await _secureStorage.read(key: 'saved_email');
+      final pass = await _secureStorage.read(key: 'saved_password');
+      if (email != null && pass != null) {
+        setState(() => _isLoading = true);
+        try {
+          final auth = Provider.of<AuthProvider>(context, listen: false);
+          await auth.login(email, pass);
+          if (!mounted) return;
+          Navigator.of(context).pop();
+        } catch (e) { print('Login error: $e');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                  content: Text(
+                      'فشل الدخول بالبصمة أو انتهت الجلسة، الرجاء تسجيل الدخول بكلمة المرور')),
+            );
+          }
+        } finally {
+          if (mounted) setState(() => _isLoading = false);
+        }
+      }
+    }
   }
 
   @override
@@ -43,7 +94,7 @@ class _LoginScreenState extends State<LoginScreen> {
         if (!mounted) return;
         Navigator.of(context).pop();
         // AuthWrapper will handle transition to dashboard
-      } catch (e) {
+      } catch (e) { print('Login error: $e');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -105,6 +156,27 @@ class _LoginScreenState extends State<LoginScreen> {
                   onPressed: _isLoading ? null : _handleLogin,
                   icon: _isLoading ? null : Icons.login_rounded,
                 ),
+                if (_hasBiometricCreds) ...[
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: _isLoading ? null : _handleBiometricLogin,
+                    icon: const Icon(Icons.fingerprint, size: 28),
+                    label: const Text(
+                      'الدخول بالبصمة / الوجه',
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: NabaTheme.primary,
+                      side: const BorderSide(
+                          color: NabaTheme.primary, width: 1.5),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 16),
                 TextButton(
                   onPressed: () {
@@ -143,7 +215,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                               'تم إرسال طلب استعادة كلمة المرور بنجاح!')),
                                     );
                                   }
-                                } catch (e) {
+                                } catch (e) { print('Login error: $e');
                                   if (context.mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(
@@ -171,39 +243,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           color: NabaTheme.primary,
                           fontWeight: FontWeight.bold)),
                 ),
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.green.shade200),
-                  ),
-                  child: const Column(
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.info_outline, color: Colors.green),
-                          SizedBox(width: 8),
-                          Text(
-                            'تنويه هام',
-                            style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.green),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: 8),
-                      Text(
-                        'الفترة الحالية مخصصة لتسجيل العمالة والمعدات الزراعية، وتنتهي في 15-9-2026.\nسيعمل التطبيق بكامل طاقته للمزارعين ابتداءً من هذا التاريخ.\n(ملاحظة للمزارع: يمكنك التسجيل الآن بشكل طبيعي، ولكن قد لا تجد جميع الخدمات متاحة في الوقت الحالي)',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                            fontSize: 13, height: 1.5, color: Colors.black87),
-                      ),
-                    ],
-                  ),
-                ),
               ],
             ),
           ),
@@ -223,3 +262,4 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 }
+

@@ -17,6 +17,7 @@ import 'wallet_screen.dart';
 import 'map_picker_screen.dart';
 import 'package:latlong2/latlong.dart';
 import '../widgets/service_requests_panel.dart';
+import '../widgets/sell_crop_card.dart';
 
 class SellerDashboard extends StatefulWidget {
   const SellerDashboard({super.key});
@@ -127,6 +128,7 @@ class _SellerDashboardState extends State<SellerDashboard>
 
     return Column(
       children: [
+        const SellCropCard(),
         _buildSearchAndFilters(),
         Expanded(
           child: products.isEmpty
@@ -709,9 +711,7 @@ class _SellerDashboardState extends State<SellerDashboard>
                                                           final Map<String,
                                                                   dynamic>
                                                               dataMap =
-                                                              snapshot.data() as Map<
-                                                                      String,
-                                                                      dynamic>? ??
+                                                              snapshot.data() ??
                                                                   {};
                                                           final Map<String,
                                                                   dynamic>
@@ -761,20 +761,22 @@ class _SellerDashboardState extends State<SellerDashboard>
                                                               SetOptions(
                                                                   merge: true));
                                                         }
-                                                        if (context.mounted)
+                                                        if (context.mounted) {
                                                           ScaffoldMessenger.of(
                                                                   context)
                                                               .showSnackBar(
                                                                   const SnackBar(
                                                                       content: Text(
                                                                           'تم إرسال تقييمك للمندوب بنجاح!')));
+                                                        }
                                                       } catch (e) {
-                                                        if (context.mounted)
+                                                        if (context.mounted) {
                                                           ScaffoldMessenger.of(
                                                                   context)
                                                               .showSnackBar(SnackBar(
                                                                   content: Text(
                                                                       'حدث خطأ: $e')));
+                                                        }
                                                       }
                                                     },
                                                     child: const Text(

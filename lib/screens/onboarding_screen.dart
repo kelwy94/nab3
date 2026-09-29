@@ -53,6 +53,28 @@ class OnboardingScreen extends StatefulWidget {
               style: TextStyle(fontSize: 14, color: Colors.grey),
             ),
             const SizedBox(height: 24),
+            _buildHorizontalRoleCard(
+              context,
+              title: 'مستخدم عادي / مشتري وبائع',
+              subtitle: 'سوق نبع المفتوح (بيع واشتري بضغطة زر)',
+              icon: Icons.shopping_bag_rounded,
+              imageAsset: 'assets/images/roles/general.png',
+              color: NabaTheme.primary,
+              role: UserRole.generalUser,
+            ),
+            const SizedBox(height: 16),
+            const Align(
+              alignment: Alignment.centerRight,
+              child: Text(
+                'أو سجل كصاحب نشاط مهني:',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
             Expanded(
               child: GridView.count(
                 crossAxisCount: 2,
@@ -64,6 +86,7 @@ class OnboardingScreen extends StatefulWidget {
                     context,
                     title: 'مزارع',
                     icon: Icons.grass_rounded,
+                    imageAsset: 'assets/images/roles/farmer.png',
                     color: Colors.green,
                     role: UserRole.farmer,
                   ),
@@ -71,6 +94,7 @@ class OnboardingScreen extends StatefulWidget {
                     context,
                     title: 'مهندس استشاري',
                     icon: Icons.workspace_premium_rounded,
+                    imageAsset: 'assets/images/roles/engineer.png',
                     color: Colors.teal,
                     role: UserRole.engineer,
                   ),
@@ -78,6 +102,7 @@ class OnboardingScreen extends StatefulWidget {
                     context,
                     title: 'عامل زراعي / فني',
                     icon: Icons.handyman_rounded,
+                    imageAsset: 'assets/images/roles/worker.png',
                     color: Colors.amber.shade700,
                     role: UserRole.worker,
                   ),
@@ -85,6 +110,7 @@ class OnboardingScreen extends StatefulWidget {
                     context,
                     title: 'صاحب معدات',
                     icon: Icons.agriculture_rounded,
+                    imageAsset: 'assets/images/roles/tractor.png',
                     color: Colors.orange.shade800,
                     role: UserRole.equipmentOwner,
                   ),
@@ -92,6 +118,7 @@ class OnboardingScreen extends StatefulWidget {
                     context,
                     title: 'صاحب محل',
                     icon: Icons.storefront_rounded,
+                    imageAsset: 'assets/images/roles/store.png',
                     color: Colors.indigo,
                     role: UserRole.seller,
                   ),
@@ -99,6 +126,7 @@ class OnboardingScreen extends StatefulWidget {
                     context,
                     title: 'عامل توصيل',
                     icon: Icons.local_shipping_rounded,
+                    imageAsset: 'assets/images/roles/delivery.png',
                     color: Colors.red.shade400,
                     role: UserRole.deliveryWorker,
                   ),
@@ -115,6 +143,7 @@ class OnboardingScreen extends StatefulWidget {
     BuildContext context, {
     required String title,
     required IconData icon,
+    String? imageAsset,
     required Color color,
     required UserRole role,
   }) {
@@ -154,7 +183,9 @@ class OnboardingScreen extends StatefulWidget {
                   color: color.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(icon, color: color, size: 36),
+                child: imageAsset != null
+                    ? Image.asset(imageAsset, width: 36, height: 36)
+                    : Icon(icon, color: color, size: 36),
               ),
               const SizedBox(height: 16),
               Text(
@@ -166,6 +197,79 @@ class OnboardingScreen extends StatefulWidget {
                   color: Colors.black87,
                 ),
               ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  static Widget _buildHorizontalRoleCard(
+    BuildContext context, {
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    String? imageAsset,
+    required Color color,
+    required UserRole role,
+  }) {
+    return Material(
+      color: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(color: color.withOpacity(0.5), width: 2),
+      ),
+      elevation: 4,
+      shadowColor: color.withOpacity(0.3),
+      child: InkWell(
+        onTap: () {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => SignupScreen(role: role)),
+          );
+        },
+        borderRadius: BorderRadius.circular(20),
+        splashColor: color.withOpacity(0.1),
+        highlightColor: color.withOpacity(0.05),
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: imageAsset != null
+                    ? Image.asset(imageAsset, width: 40, height: 40)
+                    : Icon(icon, color: color, size: 40),
+              ),
+              const SizedBox(width: 20),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: NabaTheme.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.arrow_forward_ios_rounded, color: color.withOpacity(0.5), size: 20),
             ],
           ),
         ),
@@ -334,34 +438,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           'نظم ريك، وظف عمالك، وابقَ على اتصال دائماً',
                           textAlign: TextAlign.center,
                           style: TextStyle(color: Colors.grey, fontSize: 16),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.orange.shade50,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.orange.shade200),
-                        ),
-                        child: Row(
-                          textDirection: TextDirection.rtl,
-                          children: [
-                            Icon(Icons.info_outline_rounded,
-                                color: Colors.orange.shade800),
-                            const SizedBox(width: 12),
-                            const Expanded(
-                              child: Text(
-                                'تنويه هام 🚨\nالفترة الحالية مخصصة لتسجيل العمالة والمعدات الزراعية, وتنتهي في 15-9-2026.\nسيعمل التطبيق بكامل طاقته للمزارعين ابتداءً من هذا التاريخ.',
-                                style: TextStyle(
-                                  color: Colors.black87,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.bold,
-                                  height: 1.5,
-                                ),
-                              ),
-                            ),
-                          ],
                         ),
                       ),
                       const SizedBox(height: 24),

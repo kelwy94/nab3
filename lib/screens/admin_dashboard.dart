@@ -13,6 +13,7 @@ import '../providers/auth_provider.dart';
 import '../providers/job_provider.dart';
 import '../providers/well_provider.dart';
 import '../theme.dart';
+import 'admin_crop_sales_tab.dart';
 import 'settings_screen.dart';
 
 class AdminDashboard extends StatefulWidget {
@@ -34,7 +35,7 @@ class _AdminDashboardState extends State<AdminDashboard>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 8, vsync: this);
+    _tabController = TabController(length: 9, vsync: this);
     _tabController.addListener(() {
       setState(() {});
     });
@@ -188,6 +189,7 @@ class _AdminDashboardState extends State<AdminDashboard>
                       _buildLandPlotsTab(),
                       _buildComplaintsTab(),
                       _buildDataExplorerTab(),
+                      _buildCropSalesTab(),
                     ],
                   ),
                 ),
@@ -242,6 +244,7 @@ class _AdminDashboardState extends State<AdminDashboard>
           Tab(text: 'الأراضي', height: 36),
           Tab(text: 'الشكاوى', height: 36),
           Tab(text: 'البيانات', height: 36),
+          Tab(text: 'بيع المحاصيل', height: 36),
         ],
       ),
     );
@@ -509,6 +512,10 @@ class _AdminDashboardState extends State<AdminDashboard>
         );
       },
     );
+  }
+
+  Widget _buildCropSalesTab() {
+    return const AdminCropSalesTab();
   }
 
   Widget _buildSectionHeader(String title) {
@@ -813,6 +820,11 @@ class _AdminDashboardState extends State<AdminDashboard>
         'color': Colors.indigo
       },
       {
+        'role': UserRole.generalUser,
+        'icon': Icons.shopping_bag_rounded,
+        'color': Colors.blueGrey
+      },
+      {
         'role': UserRole.admin,
         'icon': Icons.admin_panel_settings,
         'color': Colors.grey
@@ -967,13 +979,32 @@ class _AdminDashboardState extends State<AdminDashboard>
                                 e.key != 'password' &&
                                 e.key != 'adminNote' &&
                                 e.key != 'nationalIdFrontBase64' &&
-                                e.key != 'nationalIdBackBase64')
+                                e.key != 'nationalIdBackBase64' &&
+                                e.key != 'idFrontBase64' &&
+                                e.key != 'idBackBase64' &&
+                                e.key != 'certificateImageBase64')
                             .map((e) => '${_translateKey(e.key)}: ${e.value}')
                             .toList(),
                         Icons.business_center_outlined,
                       ),
                     if (u.extraData != null &&
-                        u.extraData!['nationalIdFrontBase64'] != null) ...[
+                        u.extraData!['certificateImageBase64'] != null) ...[
+                      const SizedBox(height: 16),
+                      const Text('صورة الشهادة المهنية',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                          textAlign: TextAlign.right),
+                      const SizedBox(height: 8),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.memory(
+                            base64Decode(
+                                u.extraData!['certificateImageBase64']),
+                            fit: BoxFit.contain),
+                      ),
+                    ],
+                    if (u.extraData != null &&
+                        (u.extraData!['nationalIdFrontBase64'] != null ||
+                            u.extraData!['idFrontBase64'] != null)) ...[
                       const SizedBox(height: 16),
                       const Text('صورة وجه البطاقة',
                           style: TextStyle(fontWeight: FontWeight.bold),
@@ -982,12 +1013,15 @@ class _AdminDashboardState extends State<AdminDashboard>
                       ClipRRect(
                         borderRadius: BorderRadius.circular(12),
                         child: Image.memory(
-                            base64Decode(u.extraData!['nationalIdFrontBase64']),
+                            base64Decode(
+                                u.extraData!['nationalIdFrontBase64'] ??
+                                    u.extraData!['idFrontBase64']),
                             fit: BoxFit.contain),
                       ),
                     ],
                     if (u.extraData != null &&
-                        u.extraData!['nationalIdBackBase64'] != null) ...[
+                        (u.extraData!['nationalIdBackBase64'] != null ||
+                            u.extraData!['idBackBase64'] != null)) ...[
                       const SizedBox(height: 16),
                       const Text('صورة ظهر البطاقة',
                           style: TextStyle(fontWeight: FontWeight.bold),
@@ -996,7 +1030,8 @@ class _AdminDashboardState extends State<AdminDashboard>
                       ClipRRect(
                         borderRadius: BorderRadius.circular(12),
                         child: Image.memory(
-                            base64Decode(u.extraData!['nationalIdBackBase64']),
+                            base64Decode(u.extraData!['nationalIdBackBase64'] ??
+                                u.extraData!['idBackBase64']),
                             fit: BoxFit.contain),
                       ),
                     ],
@@ -1815,6 +1850,17 @@ class _AdminDashboardState extends State<AdminDashboard>
       'model': 'الموديل',
       'equipmentType': 'نوع المعدة',
       'hourlyRate': 'سعر الساعة',
+      'specialization': 'التخصص الهندسي',
+      'fieldWorkTypes': 'مجالات العمل',
+      'experienceYears': 'سنوات الخبرة',
+      'aboutMe': 'نبذة تعريفية',
+      'workerType': 'تخصص العامل',
+      'workerSpecializations': 'التخصصات الدقيقة',
+      'priceUnit': 'وحدة التسعير',
+      'attachments': 'الملحقات',
+      'deliveryCategory': 'تخصص النقل',
+      'vehicleType': 'نوع المركبة',
+      'averageDeliveryPrice': 'متوسط السعر',
     };
     return translations[key] ?? key;
   }
@@ -2319,6 +2365,8 @@ class _AdminDashboardState extends State<AdminDashboard>
         return 'عامل توصيل / نقل';
       case UserRole.engineer:
         return 'مهندس استشاري';
+      case UserRole.generalUser:
+        return 'مستخدم عادي';
     }
   }
 

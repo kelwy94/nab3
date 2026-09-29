@@ -26,6 +26,7 @@ import 'screens/seller_dashboard.dart';
 import 'screens/worker_dashboard.dart';
 import 'screens/delivery_worker_dashboard.dart';
 import 'screens/engineer_dashboard.dart';
+import 'screens/general_user_dashboard.dart';
 import 'screens/guest_dashboard.dart';
 import 'theme.dart';
 
@@ -176,6 +177,8 @@ class DashboardSwitcher extends StatelessWidget {
         return const AdminDashboard();
       case UserRole.engineer:
         return const EngineerDashboard();
+      case UserRole.generalUser:
+        return const GeneralUserDashboard();
     }
   }
 }

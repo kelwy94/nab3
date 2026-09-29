@@ -19,7 +19,7 @@ class _RequestWorkerScreenState extends State<RequestWorkerScreen> {
   String _price = '';
   String _notes = '';
   String _address = '';
-  String _priceUnit = 'باليوم';
+  String _priceUnit = 'يومية';
   TimeOfDay _startTime = const TimeOfDay(hour: 7, minute: 0);
   TimeOfDay _endTime = const TimeOfDay(hour: 15, minute: 0);
   DateTime _selectedDate = DateTime.now();
@@ -55,7 +55,7 @@ class _RequestWorkerScreenState extends State<RequestWorkerScreen> {
     'فني تركيب وصيانة طاقة شمسية',
   ];
 
-  final List<String> _priceUnits = ['بالساعة', 'باليوم', 'يومية'];
+  final List<String> _priceUnits = ['بالساعة', 'يومية'];
 
   Future<void> _pickTime(bool isStart) async {
     final picked = await showTimePicker(

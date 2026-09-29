@@ -308,8 +308,9 @@ class WellSearchScreen extends StatelessWidget {
           try {
             final udoc =
                 await db.collection('users').doc(existing['userId']).get();
-            if (udoc.exists)
+            if (udoc.exists) {
               conflictingName = udoc.data()!['fullName'] ?? conflictingName;
+            }
           } catch (_) {}
 
           if (context.mounted) {

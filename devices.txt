@@ -1,0 +1,9 @@
+﻿Found 4 connected devices:
+  MTN NX1 (mobile)  ظت AUYF6R6313006591 ظت android-arm64  ظت Android 16 (API 36)
+  Windows (desktop) ظت windows          ظت windows-x64    ظت Microsoft Windows [Version 10.0.19045.6466]
+  Chrome (web)      ظت chrome           ظت web-javascript ظت Google Chrome 152.0.7977.76
+  Edge (web)        ظت edge             ظت web-javascript ظت Microsoft Edge 152.0.4191.62
+
+Run "flutter emulators" to list and start any available device emulators.
+
+If you expected another device to be detected, please run "flutter doctor" to diagnose potential issues. You may also try increasing the time to wait for connected devices with the "--device-timeout" flag. Visit https://flutter.dev/setup/ for troubleshooting tips.

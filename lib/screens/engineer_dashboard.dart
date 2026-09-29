@@ -5,11 +5,11 @@ import 'package:provider/provider.dart';
 import '../models/types.dart';
 import '../providers/auth_provider.dart';
 import '../theme.dart';
-import '../widgets/naba_widgets.dart';
 import 'profile_screen.dart';
 import 'dart:convert';
 import 'engineer_consultation_details_screen.dart';
 import '../widgets/service_requests_panel.dart';
+import '../widgets/sell_crop_card.dart';
 
 class EngineerDashboard extends StatefulWidget {
   const EngineerDashboard({super.key});
@@ -161,6 +161,7 @@ class _EngineerDashboardState extends State<EngineerDashboard> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _buildHeaderSection(user),
+          const SellCropCard(),
           _buildSummaryCards(newReqs.length, inProgress.length, completedCount),
           _buildSectionTitle('الطلبات الواردة (${newReqs.length})',
               Icons.mark_email_unread_rounded, Colors.orange),
@@ -240,11 +241,10 @@ class _EngineerDashboardState extends State<EngineerDashboard> {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  Row(
+                  const Row(
                     children: [
-                      const Icon(Icons.star_rounded,
-                          color: Colors.amber, size: 16),
-                      const Text(' 4.9 (12 تقييم)',
+                      Icon(Icons.star_rounded, color: Colors.amber, size: 16),
+                      Text(' 4.9 (12 تقييم)',
                           style: TextStyle(color: Colors.white, fontSize: 13)),
                     ],
                   ),
@@ -356,9 +356,9 @@ class _EngineerDashboardState extends State<EngineerDashboard> {
             orElse: () => ConsultationStatus.pendingEngineerApproval);
 
         Color c = Colors.grey;
-        if (statusEnum == ConsultationStatus.pendingPriceApproval)
+        if (statusEnum == ConsultationStatus.pendingPriceApproval) {
           c = Colors.blue;
-        else if (statusEnum == ConsultationStatus.negotiatingTime)
+        } else if (statusEnum == ConsultationStatus.negotiatingTime)
           c = Colors.amber.shade700;
         else if (statusEnum == ConsultationStatus.confirmed)
           c = Colors.green;
@@ -485,9 +485,9 @@ class _EngineerDashboardState extends State<EngineerDashboard> {
                         ],
                       )
                     else
-                      Row(
+                      const Row(
                         mainAxisAlignment: MainAxisAlignment.end,
-                        children: const [
+                        children: [
                           Text('عرض التفاصيل والمفاوضة',
                               style: TextStyle(
                                   color: NabaTheme.primary,
@@ -601,7 +601,7 @@ class _EngineerDashboardState extends State<EngineerDashboard> {
               ],
             ),
           );
-        }).toList(),
+        }),
       ],
     );
   }
@@ -652,7 +652,7 @@ class _EngineerDashboardState extends State<EngineerDashboard> {
               },
             ),
           );
-        }).toList(),
+        }),
       ],
     );
   }

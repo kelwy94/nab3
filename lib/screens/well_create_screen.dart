@@ -95,7 +95,7 @@ class _WellCreateScreenState extends State<WellCreateScreen> {
                 label: 'المركز',
                 child: DropdownButtonFormField<String>(
                   decoration: const InputDecoration(hintText: 'اختر المركز'),
-                  value: _selectedDistrict,
+                  initialValue: _selectedDistrict,
                   items: kDistricts
                       .map((d) => DropdownMenuItem(value: d, child: Text(d)))
                       .toList(),
@@ -126,7 +126,7 @@ class _WellCreateScreenState extends State<WellCreateScreen> {
                         child: DropdownButtonFormField<String>(
                           decoration:
                               const InputDecoration(hintText: 'اختر البئر'),
-                          value: _selectedWellId,
+                          initialValue: _selectedWellId,
                           items: [
                             ..._existingWells.map((w) => DropdownMenuItem(
                                   value: w['id'] as String,
@@ -677,8 +677,9 @@ class _WellCreateScreenState extends State<WellCreateScreen> {
           DateTime.utc(pickedDate.year, pickedDate.month, pickedDate.day);
 
       for (var existing in memberDates) {
-        if (existing['userId'] == currentUserId)
+        if (existing['userId'] == currentUserId) {
           continue; // Skip self if re-applying
+        }
         final existingDate = existing['date'] as DateTime;
         final existingNormalized = DateTime.utc(
             existingDate.year, existingDate.month, existingDate.day);
@@ -693,8 +694,9 @@ class _WellCreateScreenState extends State<WellCreateScreen> {
           try {
             final udoc =
                 await db.collection('users').doc(existing['userId']).get();
-            if (udoc.exists)
+            if (udoc.exists) {
               conflictingName = udoc.data()!['fullName'] ?? conflictingName;
+            }
           } catch (_) {}
 
           if (context.mounted) {

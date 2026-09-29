@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:nab3_gded/models/types.dart';
 import 'package:nab3_gded/providers/auth_provider.dart';
 import 'package:provider/provider.dart';
@@ -22,6 +23,9 @@ class _RegisterFormScreenState extends State<RegisterFormScreen> {
 
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  
+  String? _phoneErrorText;
+  String? _emailErrorText;
 
   @override
   void dispose() {
@@ -34,6 +38,11 @@ class _RegisterFormScreenState extends State<RegisterFormScreen> {
   }
 
   void _submitForm() async {
+    setState(() {
+      _phoneErrorText = null;
+      _emailErrorText = null;
+    });
+
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -56,45 +65,110 @@ class _RegisterFormScreenState extends State<RegisterFormScreen> {
       
       if (!mounted) return;
 
-      bool isFarmer = user.role == UserRole.farmer;
-      
-      await showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (ctx) => Directionality(
-          textDirection: TextDirection.rtl,
-          child: AlertDialog(
-            title: Text(
-              isFarmer ? 'مرحباً بك في تطبيق نبع! 🌾' : 'شريكاً معنا في نبع! 🤝',
-              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green),
-            ),
-            content: Text(
-              isFarmer 
-                ? 'نود التنويه بأن التطبيق سيعمل بكامل طاقته ومميزاته ابتداءً من 15-9-2026.\n\nالفترة الحالية مخصصة لتسجيل العمالة، المعدات، والمستلزمات الزراعية (والذي ينتهي في 15-9-2026). لذلك، يمكنك استكشاف التطبيق براحتك، لكن قد لا تجد جميع الخدمات متاحة أو مكتملة في الوقت الحالي.\n\nشكراً لانضمامك إلى مجتمعنا وتفهمك!'
-                : 'نود التنويه بأن فترة التسجيل الحالية للعمالة، المعدات، والمستلزمات الزراعية ستنتهي يوم 15-9-2026.\n\nيرجى التأكد من استكمال كافة بياناتك قبل هذا الموعد لضمان ظهور خدماتك للمزارعين فور انطلاق التطبيق بكامل طاقته.',
-              style: const TextStyle(height: 1.5, fontSize: 16),
-            ),
-            actions: [
-              ElevatedButton(
-                onPressed: () => Navigator.pop(ctx),
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade700),
-                child: const Text('حسناً، فهمت', style: TextStyle(color: Colors.white)),
-              ),
-            ],
-          ),
-        ),
-      );
-
-      if (!mounted) return;
-      Navigator.of(context).pushReplacementNamed('/home');
+      _showWhatsAppDialog();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('حدث خطأ: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      final errorString = e.toString().toLowerCase();
+      if (errorString.contains('email-already-in-use')) {
+        setState(() {
+          _phoneErrorText = 'رقم الهاتف أو البريد مسجل مسبقاً';
+          _emailErrorText = 'هذا البريد الإلكتروني مسجل مسبقاً';
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('حدث خطأ: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
+  }
+
+  void _showWhatsAppDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.groups_rounded,
+                    size: 48,
+                    color: Colors.green.shade600,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'انضم لعائلة نبع',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'مكان بيجمع كل العاملين في مجال الزراعة بنشارك فيه خبراتنا و نسند بعض عشان نكبر سوا',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.black87,
+                    height: 1.5,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      final url = Uri.parse('https://chat.whatsapp.com/HnYUFJUjD2j5gk0Bmcdlsx');
+                      if (await canLaunchUrl(url)) {
+                        await launchUrl(url, mode: LaunchMode.externalApplication);
+                      }
+                      if (mounted) {
+                        Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green.shade600,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
+                      'انضم لجروب زراعيين نبع',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () {
+                    Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+                  },
+                  child: const Text(
+                    'لا شكرا',
+                    style: TextStyle(color: Colors.grey, fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -135,6 +209,7 @@ class _RegisterFormScreenState extends State<RegisterFormScreen> {
                     controller: _emailController,
                     decoration: InputDecoration(
                       labelText: 'البريد الإلكتروني',
+                      errorText: _emailErrorText,
                       prefixIcon: const Icon(Icons.email),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
@@ -156,6 +231,7 @@ class _RegisterFormScreenState extends State<RegisterFormScreen> {
                     controller: _phoneController,
                     decoration: InputDecoration(
                       labelText: 'رقم الهاتف',
+                      errorText: _phoneErrorText,
                       prefixIcon: const Icon(Icons.phone),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),

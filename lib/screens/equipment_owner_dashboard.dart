@@ -14,6 +14,7 @@ import 'job_details_screen.dart';
 import 'settings_screen.dart';
 import 'wallet_screen.dart';
 import '../widgets/service_requests_panel.dart';
+import '../widgets/sell_crop_card.dart';
 
 class EquipmentOwnerDashboard extends StatefulWidget {
   const EquipmentOwnerDashboard({super.key});
@@ -366,9 +367,9 @@ class _AddEquipmentDialogState extends State<AddEquipmentDialog> {
       child: Directionality(
         textDirection: TextDirection.rtl,
         child: _isUploading
-            ? Column(
+            ? const Column(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
+                children: [
                   CircularProgressIndicator(color: NabaTheme.primary),
                   SizedBox(height: 16),
                   Text('جاري حفظ البيانات...',
@@ -559,7 +560,7 @@ class _AddEquipmentDialogState extends State<AddEquipmentDialog> {
                         Expanded(
                           flex: 1,
                           child: DropdownButtonFormField<String>(
-                            value: _pricingUnit,
+                            initialValue: _pricingUnit,
                             decoration: const InputDecoration(
                               contentPadding: EdgeInsets.symmetric(
                                   horizontal: 12, vertical: 8),
@@ -713,6 +714,8 @@ class _RentalRequestsTab extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
+                  const SellCropCard(),
+                  const SizedBox(height: 12),
                   // Ongoing Tasks
                   if (ongoingTasks.isNotEmpty) ...[
                     _buildSectionTitle('طلبات يتم تنفيذها الآن',

@@ -33,6 +33,7 @@ class CatalogProvider with ChangeNotifier {
           price: (data['price'] ?? 0.0).toDouble(),
           stockStatus: data['stockStatus'] ?? true,
           photoUrl: data['photoUrl'],
+          isApproved: data['isApproved'] ?? true,
         );
       }).toList();
       _isLoading = false;
@@ -75,6 +76,8 @@ class CatalogProvider with ChangeNotifier {
       'price': item.price,
       'stockStatus': item.stockStatus,
       'photoUrl': item.photoUrl,
+      'description': item.description,
+      'isApproved': item.isApproved,
     };
 
     if (item.id.startsWith('new_')) {

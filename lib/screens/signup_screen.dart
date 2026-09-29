@@ -1,10 +1,13 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:provider/provider.dart';
-
+import '../main.dart';
 import '../models/types.dart';
 import '../providers/auth_provider.dart';
 import '../theme.dart';
@@ -30,7 +33,9 @@ class _SignupScreenState extends State<SignupScreen> {
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
   final _nationalIdController = TextEditingController();
+  final _referralController = TextEditingController();
 
   Uint8List? _profileImageBytes;
   Uint8List? _idFrontBytes;
@@ -71,6 +76,9 @@ class _SignupScreenState extends State<SignupScreen> {
   // Delivery / Seller extra controllers
   final _extra1Controller = TextEditingController(); // ShopName, Delivery Model
   final _extra2Controller = TextEditingController(); // CommReg, Avg Price
+  final _paymentDetailsController = TextEditingController();
+  PaymentMethod? _selectedPaymentMethod = PaymentMethod.vodafoneCash;
+  Uint8List? _equipmentImageBytes;
   String? _selectedCategory; // category for seller / delivery
   String? _selectedVehicleType;
 
@@ -153,7 +161,9 @@ class _SignupScreenState extends State<SignupScreen> {
     _nameController.dispose();
     _phoneController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     _nationalIdController.dispose();
+    _referralController.dispose();
     _addressController.dispose();
     _experienceYearsController.dispose();
     _aboutMeController.dispose();
@@ -164,11 +174,14 @@ class _SignupScreenState extends State<SignupScreen> {
     _irrigationTypeController.dispose();
     _extra1Controller.dispose();
     _extra2Controller.dispose();
+    _paymentDetailsController.dispose();
     super.dispose();
   }
 
   Future<void> _pickImage(bool isProfile,
-      {bool isFrontId = false, bool isCertificate = false}) async {
+      {bool isFrontId = false,
+      bool isCertificate = false,
+      bool isEquipment = false}) async {
     try {
       final XFile? image = await _picker.pickImage(
         source: ImageSource.gallery,
@@ -183,6 +196,8 @@ class _SignupScreenState extends State<SignupScreen> {
             _profileImageBytes = bytes;
           else if (isCertificate)
             _certificateBytes = bytes;
+          else if (isEquipment)
+            _equipmentImageBytes = bytes;
           else if (isFrontId)
             _idFrontBytes = bytes;
           else
@@ -219,18 +234,20 @@ class _SignupScreenState extends State<SignupScreen> {
       if (_nameController.text.isEmpty ||
           _phoneController.text.length != 11 ||
           _passwordController.text.isEmpty ||
-          _nationalIdController.text.isEmpty) {
+          _passwordController.text != _confirmPasswordController.text ||
+          (widget.role != UserRole.generalUser && _nationalIdController.text.isEmpty)) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
               content: Text(
-                  'يرجى تعبئة كافة الحقول في هذه الصفحة بشكل صحيح. تأكد من أن رقم الجوال 11 رقم.'),
+                  'يرجى تعبئة كافة الحقول بشكل صحيح، والتأكد من تطابق كلمة المرور.'),
               backgroundColor: Colors.red),
         );
         return;
       }
     }
 
-    if (_currentStep < 2) {
+    int maxStep = widget.role == UserRole.generalUser ? 1 : 2;
+    if (_currentStep < maxStep) {
       _pageController.nextPage(
           duration: const Duration(milliseconds: 300), curve: Curves.easeIn);
       setState(() => _currentStep++);
@@ -250,7 +267,7 @@ class _SignupScreenState extends State<SignupScreen> {
   void _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    if (_idFrontBytes == null || _idBackBytes == null) {
+    if (widget.role != UserRole.generalUser && (_idFrontBytes == null || _idBackBytes == null)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             content: Text('صور البطاقة (الوجهين) مطلوبة للتحقق من هويتك'),
@@ -307,6 +324,10 @@ class _SignupScreenState extends State<SignupScreen> {
           if (_selectedEquipmentType == 'جرار')
             'attachments': _selectedAttachments.toList(),
         });
+        if (_equipmentImageBytes != null) {
+          extraData['equipmentImageBase64'] =
+              base64Encode(_equipmentImageBytes!);
+        }
       } else if (widget.role == UserRole.seller) {
         extraData.addAll({
           'shopName': _extra1Controller.text,
@@ -336,26 +357,131 @@ class _SignupScreenState extends State<SignupScreen> {
             ? base64Encode(_profileImageBytes!)
             : null,
         extraData: extraData,
+        referredBy: _referralController.text.trim(),
+        paymentMethod:
+            widget.role != UserRole.farmer ? _selectedPaymentMethod : null,
+        paymentDetails: widget.role != UserRole.farmer
+            ? _paymentDetailsController.text.trim()
+            : null,
       );
 
       // We should ideally upload ID images here or store base64 in extraData for verification
-      extraData['idFrontBase64'] = base64Encode(_idFrontBytes!);
-      extraData['idBackBase64'] = base64Encode(_idBackBytes!);
+      if (_idFrontBytes != null) {
+        extraData['nationalIdFrontBase64'] = base64Encode(_idFrontBytes!);
+      }
+      if (_idBackBytes != null) {
+        extraData['nationalIdBackBase64'] = base64Encode(_idBackBytes!);
+      }
 
       await auth.signup(newUser, _passwordController.text);
-      if (mounted)
-        Navigator.pop(context); // Pop back to login or continue to home
+      if (mounted) {
+        _showWhatsAppDialog();
+      }
     } catch (e) {
       if (mounted) {
+        final errorString = e.toString().toLowerCase();
+        String errorMessage = 'حدث خطأ غير متوقع';
+        if (errorString.contains('email-already-in-use')) {
+          errorMessage = 'رقم الهاتف مسجل مسبقاً في حساب آخر.';
+        } else {
+          errorMessage = e.toString();
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text('فشل التسجيل: ${e.toString()}'),
+              content: Text(errorMessage),
               backgroundColor: Colors.red),
         );
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _showWhatsAppDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.groups_rounded,
+                    size: 48,
+                    color: Colors.green.shade600,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'انضم لعائلة نبع',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'مكان بيجمع كل العاملين في مجال الزراعة بنشارك فيه خبراتنا و نسند بعض عشان نكبر سوا',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.black87,
+                    height: 1.5,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      final url = Uri.parse('https://chat.whatsapp.com/HnYUFJUjD2j5gk0Bmcdlsx');
+                      if (await canLaunchUrl(url)) {
+                        await launchUrl(url, mode: LaunchMode.externalApplication);
+                      }
+                      if (mounted) {
+                        Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const AuthWrapper()), (route) => false);
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green.shade600,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
+                      'انضم لجروب زراعيين نبع',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () {
+                    Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const AuthWrapper()), (route) => false);
+                  },
+                  child: const Text(
+                    'لا شكرا',
+                    style: TextStyle(color: Colors.grey, fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -383,7 +509,7 @@ class _SignupScreenState extends State<SignupScreen> {
                 children: [
                   _buildStep1(),
                   _buildStep2(),
-                  _buildStep3(),
+                  if (widget.role != UserRole.generalUser) _buildStep3(),
                 ],
               ),
             ),
@@ -457,7 +583,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
                 ),
-                child: Text(_currentStep == 2 ? 'تأكيد وحفظ' : 'التالي',
+                child: Text(_currentStep == (widget.role == UserRole.generalUser ? 1 : 2) ? 'تأكيد وحفظ' : 'التالي',
                     style: const TextStyle(
                         fontWeight: FontWeight.bold, fontSize: 16)),
               ),
@@ -509,10 +635,12 @@ class _SignupScreenState extends State<SignupScreen> {
                 .copyWith(counterText: ''),
           ),
           const SizedBox(height: 16),
-          _buildTextField(_nationalIdController, 'الرقم القومي (14 رقم)',
-              Icons.credit_card_rounded,
-              keyboardType: TextInputType.number, maxLength: 14),
-          const SizedBox(height: 16),
+          if (widget.role != UserRole.generalUser) ...[
+            _buildTextField(_nationalIdController, 'الرقم القومي (14 رقم)',
+                Icons.credit_card_rounded,
+                keyboardType: TextInputType.number, maxLength: 14),
+            const SizedBox(height: 16),
+          ],
           TextFormField(
             controller: _passwordController,
             obscureText: true,
@@ -520,21 +648,37 @@ class _SignupScreenState extends State<SignupScreen> {
                 (v == null || v.length < 6) ? 'كلمة المرور قصيرة' : null,
             decoration: _inputDecoration('كلمة المرور', Icons.lock_outline),
           ),
-          const SizedBox(height: 32),
-          const Text('صور البطاقة الشخصية (مطلوب للتوثيق)',
-              style: TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _buildIdUploadButton(true, 'الوجه الأمامي'),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildIdUploadButton(false, 'الوجه الخلفي'),
-              ),
-            ],
-          )
+          TextFormField(
+            controller: _confirmPasswordController,
+            obscureText: true,
+            validator: (v) =>
+                v != _passwordController.text ? 'كلمة المرور غير متطابقة' : null,
+            decoration: _inputDecoration('تأكيد كلمة المرور', Icons.lock_outline),
+          ),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: _referralController,
+            decoration: _inputDecoration(
+                'كود الإحالة (اختياري)', Icons.people_alt_outlined),
+          ),
+          if (widget.role != UserRole.generalUser) ...[
+            const SizedBox(height: 32),
+            const Text('صور البطاقة الشخصية (مطلوب للتوثيق)',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildIdUploadButton(true, 'الوجه الأمامي'),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: _buildIdUploadButton(false, 'الوجه الخلفي'),
+                ),
+              ],
+            ),
+          ]
         ],
       ),
     );
@@ -702,8 +846,21 @@ class _SignupScreenState extends State<SignupScreen> {
             ),
             if (_workerType == 'عامل') ...[
               const SizedBox(height: 16),
-              const Text('اختر مجالات تخصصك (يمكنك اختيار أكثر من تخصص):',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                textDirection: TextDirection.rtl,
+                children: [
+                  const Text('اختر مجالات تخصصك (حد أقصى 3):',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  Text('${_selectedWorkerSpecializations.length}/3',
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: _selectedWorkerSpecializations.length >= 3
+                              ? Colors.red
+                              : NabaTheme.primary)),
+                ],
+              ),
               const SizedBox(height: 12),
               Container(
                 decoration: BoxDecoration(
@@ -717,14 +874,22 @@ class _SignupScreenState extends State<SignupScreen> {
                             value:
                                 _selectedWorkerSpecializations.contains(spec),
                             activeColor: NabaTheme.primary,
-                            onChanged: (checked) {
-                              setState(() {
-                                if (checked == true)
-                                  _selectedWorkerSpecializations.add(spec);
-                                else
-                                  _selectedWorkerSpecializations.remove(spec);
-                              });
-                            },
+                            onChanged:
+                                (_selectedWorkerSpecializations.length >= 3 &&
+                                        !_selectedWorkerSpecializations
+                                            .contains(spec))
+                                    ? null
+                                    : (checked) {
+                                        setState(() {
+                                          if (checked == true) {
+                                            _selectedWorkerSpecializations
+                                                .add(spec);
+                                          } else {
+                                            _selectedWorkerSpecializations
+                                                .remove(spec);
+                                          }
+                                        });
+                                      },
                           ))
                       .toList(),
                 ),
@@ -799,8 +964,48 @@ class _SignupScreenState extends State<SignupScreen> {
                 Icons.timer_outlined,
                 keyboardType: TextInputType.number),
             const SizedBox(height: 16),
+            const SizedBox(height: 16),
             _buildTextField(_aboutMeController, 'نبذة عنك (اختياري)',
                 Icons.article_outlined),
+            const SizedBox(height: 16),
+            const Text('صورة الشهادة المهنية (مطلوب)',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            GestureDetector(
+              onTap: () => _pickImage(false, isCertificate: true),
+              child: Container(
+                height: 100,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: _certificateBytes != null
+                      ? Colors.green.shade50
+                      : Colors.grey.shade100,
+                  border: Border.all(
+                      color: _certificateBytes != null
+                          ? Colors.green
+                          : Colors.grey.shade300),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: _certificateBytes != null
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child:
+                            Image.memory(_certificateBytes!, fit: BoxFit.cover))
+                    : Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.camera_alt_outlined,
+                              color: Colors.grey.shade600),
+                          const SizedBox(height: 8),
+                          Text('اضغط لرفع صورة الشهادة',
+                              style: TextStyle(
+                                  color: Colors.grey.shade600,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+              ),
+            ),
           ] else if (widget.role == UserRole.equipmentOwner) ...[
             DropdownButtonFormField<String>(
               decoration: _inputDecoration(
@@ -867,7 +1072,46 @@ class _SignupScreenState extends State<SignupScreen> {
                             ))
                         .toList(),
               ),
-            ]
+            ],
+            const SizedBox(height: 24),
+            const Text('صورة المعدة (يجب رفع صورة ليتعرّف عليها المزارع):',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            GestureDetector(
+              onTap: () => _pickImage(false, isEquipment: true),
+              child: Container(
+                height: 120,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: _equipmentImageBytes != null
+                      ? Colors.green.shade50
+                      : Colors.grey.shade100,
+                  border: Border.all(
+                      color: _equipmentImageBytes != null
+                          ? Colors.green
+                          : Colors.grey.shade300),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: _equipmentImageBytes != null
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.memory(_equipmentImageBytes!,
+                            fit: BoxFit.cover))
+                    : Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.camera_enhance_rounded,
+                              color: Colors.grey.shade600),
+                          const SizedBox(height: 8),
+                          Text('اضغط لرفع صورة المعدة',
+                              style: TextStyle(
+                                  color: Colors.grey.shade600,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+              ),
+            ),
           ] else if (widget.role == UserRole.seller) ...[
             _buildTextField(
                 _extra1Controller, 'اسم المتجر / الشركة', Icons.store_rounded),
@@ -921,6 +1165,63 @@ class _SignupScreenState extends State<SignupScreen> {
             const SizedBox(height: 16),
             _buildTextField(
                 _extra1Controller, 'الموديل', Icons.directions_car_rounded),
+          ],
+          if (widget.role != UserRole.farmer) ...[
+            const SizedBox(height: 32),
+            const Divider(),
+            const SizedBox(height: 16),
+            const Text('طريقة استلام الأرباح والمستحقات',
+                style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: NabaTheme.primary)),
+            const SizedBox(height: 16),
+            Directionality(
+              textDirection: TextDirection.rtl,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: RadioListTile<PaymentMethod>(
+                      title: const Text('فودافون كاش',
+                          style: TextStyle(fontSize: 14)),
+                      value: PaymentMethod.vodafoneCash,
+                      groupValue: _selectedPaymentMethod,
+                      activeColor: NabaTheme.primary,
+                      contentPadding: EdgeInsets.zero,
+                      onChanged: (v) =>
+                          setState(() => _selectedPaymentMethod = v),
+                    ),
+                  ),
+                  Expanded(
+                    child: RadioListTile<PaymentMethod>(
+                      title: const Text('إنستاباي',
+                          style: TextStyle(fontSize: 14)),
+                      value: PaymentMethod.instaPay,
+                      groupValue: _selectedPaymentMethod,
+                      activeColor: NabaTheme.primary,
+                      contentPadding: EdgeInsets.zero,
+                      onChanged: (v) =>
+                          setState(() => _selectedPaymentMethod = v),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _paymentDetailsController,
+              decoration: _inputDecoration(
+                  _selectedPaymentMethod == PaymentMethod.vodafoneCash
+                      ? 'رقم محفظة فودافون كاش'
+                      : 'رقم الهاتف المربوط بإنستاباي أو عنوان IPA',
+                  Icons.account_balance_wallet_rounded),
+              keyboardType: _selectedPaymentMethod == PaymentMethod.vodafoneCash
+                  ? TextInputType.phone
+                  : TextInputType.text,
+              validator: (v) => v!.isEmpty
+                  ? 'هذا الحقل مطلوب لتتمكن من استلام مستحقاتك'
+                  : null,
+            ),
           ]
         ],
       ),

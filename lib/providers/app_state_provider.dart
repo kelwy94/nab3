@@ -124,6 +124,7 @@ class AppStateProvider with ChangeNotifier {
             description: data['description'],
             ratingAvg: (data['ratingAvg'] ?? 0.0).toDouble(),
             ratingCount: data['ratingCount'] ?? 0,
+            isApproved: data['isApproved'] ?? true,
           ));
         } catch (e) {
           debugPrint('CATALOG: Error parsing product ${doc.id}: $e');

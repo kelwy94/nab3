@@ -7,13 +7,12 @@ import '../models/types.dart';
 import '../providers/auth_provider.dart';
 import '../providers/job_provider.dart';
 import '../theme.dart';
-import '../widgets/naba_widgets.dart';
 import 'job_details_screen.dart';
-import 'job_history_screen.dart';
 import 'profile_screen.dart';
 import 'settings_screen.dart';
 import 'wallet_screen.dart';
 import '../widgets/service_requests_panel.dart';
+import '../widgets/sell_crop_card.dart';
 
 class WorkerDashboard extends StatefulWidget {
   const WorkerDashboard({super.key});
@@ -175,6 +174,8 @@ class WorkerHomeTab extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   _buildStatusHeader(context, isAvailable),
+                  const SizedBox(height: 12),
+                  const SellCropCard(),
                   const SizedBox(height: 24),
 
                   // Ongoing Tasks
@@ -434,7 +435,7 @@ class WorkerHomeTab extends StatelessWidget {
                 const SizedBox(width: 10),
                 Column(
                   children: [
-                    Text('${job.price?.toStringAsFixed(0) ?? "---"}',
+                    Text(job.price?.toStringAsFixed(0) ?? "---",
                         style: TextStyle(
                             color: accentColor,
                             fontWeight: FontWeight.bold,

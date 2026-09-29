@@ -88,7 +88,10 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
       try {
-        final sellerId = context.read<AuthProvider>().user!.id;
+        final user = context.read<AuthProvider>().user!;
+        final sellerId = user.id;
+        final bool isApproved = user.role == UserRole.seller || user.role == UserRole.admin;
+
         String? base64Image;
         if (_imageBytes != null) {
           base64Image = base64Encode(_imageBytes!);
@@ -105,10 +108,21 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
           stockStatus: _inStock,
           photoUrl: base64Image,
           description: _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
+          isApproved: isApproved,
         );
 
         await context.read<CatalogProvider>().addOrUpdateProduct(item);
-        if (mounted) Navigator.pop(context);
+        if (mounted) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(isApproved 
+                ? 'تم حفظ الإعلان بنجاح.' 
+                : 'تم إضافة الإعلان بنجاح، سيظهر في السوق بعد مراجعة الإدارة.'),
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

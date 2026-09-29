@@ -119,9 +119,9 @@ class _GuestDashboardState extends State<GuestDashboard> {
                 ),
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: Column(
+              child: const Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
-                children: const [
+                children: [
                   Text('مرحباً بك في نبع 👋',
                       style: TextStyle(
                           color: Colors.white,
