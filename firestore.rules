@@ -1,0 +1,318 @@
+rules_version = '2';
+
+// Security rules for Naba. Roles/statuses are stored as Dart enum strings
+// (e.g. "UserRole.admin", "AccountStatus.pending"); short forms are also
+// accepted where older data may use them.
+//
+// Wallet balances, transaction records and user ratings are written only by
+// Cloud Functions (functions/index.js), which bypass these rules.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------------------------------------------------------------- helpers
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // A real account (not the anonymous session used by guest mode).
+    function registered() {
+      return signedIn()
+        && request.auth.token.firebase.sign_in_provider != 'anonymous';
+    }
+
+    function uid() {
+      return request.auth.uid;
+    }
+
+    function me() {
+      return get(/databases/$(database)/documents/users/$(uid())).data;
+    }
+
+    function hasProfile() {
+      return registered()
+        && exists(/databases/$(database)/documents/users/$(uid()));
+    }
+
+    function hasRole(role) {
+      return hasProfile()
+        && me().role in ['UserRole.' + role, role];
+    }
+
+    function isAdmin() {
+      return hasRole('admin');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function unchanged(fields) {
+      return !incoming().diff(existing()).affectedKeys().hasAny(fields);
+    }
+
+    // extraData keys that only admins / Cloud Functions may set.
+    function protectedExtraKeys() {
+      return ['rating', 'reviewCount', 'ratingCount', 'isVerified', 'adminNote'];
+    }
+
+    // Admins can read and write everything (admin dashboard, data explorer).
+    match /{document=**} {
+      allow read, write: if isAdmin();
+    }
+
+    // ------------------------------------------------------------------ users
+
+    match /users/{userId} {
+      // Profiles are looked up by id across the app (sellers, engineers,
+      // well owners, workers). Listing is limited so the collection can't be
+      // dumped: engineers are browsable, otherwise single-result lookups only
+      // (e.g. inviting a well participant by phone).
+      allow get: if signedIn();
+      allow list: if registered()
+        && (resource.data.role == 'UserRole.engineer'
+            || request.query.limit <= 1);
+
+      allow create: if registered()
+        && uid() == userId
+        && !(incoming().role in ['UserRole.admin', 'admin'])
+        && (incoming().status == 'AccountStatus.pending'
+            || (incoming().role == 'UserRole.farmer'
+                && incoming().status == 'AccountStatus.approved'))
+        && !incoming().get('extraData', {}).keys().hasAny(protectedExtraKeys());
+
+      allow update: if registered()
+        && uid() == userId
+        && unchanged(['role', 'status', 'referralCode', 'referredBy', 'createdAt'])
+        && !incoming().get('extraData', {})
+              .diff(existing().get('extraData', {}))
+              .affectedKeys().hasAny(protectedExtraKeys());
+
+      match /notifications/{notificationId} {
+        allow read, update, delete: if registered() && uid() == userId;
+        // Other users notify sellers (e.g. delivery picked up).
+        allow create: if hasProfile();
+      }
+    }
+
+    // ---------------------------------------------------------------- catalog
+
+    match /catalog/{productId} {
+      allow read: if true;
+
+      // Sellers' products go live immediately; anyone else's need review.
+      allow create: if hasProfile()
+        && incoming().sellerUserId == uid()
+        && (incoming().get('isApproved', false) != true || hasRole('seller'));
+
+      allow update: if hasProfile()
+        && existing().sellerUserId == uid()
+        && incoming().sellerUserId == uid()
+        && (incoming().get('isApproved', false) != true
+            || existing().get('isApproved', false) == true
+            || hasRole('seller'));
+
+      allow delete: if hasProfile() && existing().sellerUserId == uid();
+    }
+
+    // ----------------------------------------------------------------- orders
+
+    match /orders/{orderId} {
+      // Orders hold buyers' addresses and payment proofs, so only the parties
+      // can read them. Delivery workers can also see placed delivery orders,
+      // which are the unclaimed ones waiting for pickup (claiming sets
+      // deliveryWorkerId and moves the status on). AppStateProvider queries
+      // by exactly these fields so its list queries pass.
+      allow read: if hasProfile()
+        && (existing().buyerUserId == uid()
+            || existing().sellerUserId == uid()
+            || existing().get('deliveryWorkerId', null) == uid()
+            || (hasRole('deliveryWorker')
+                && existing().status == 'OrderStatus.placed'
+                && existing().deliveryMethod == 'delivery'));
+
+      allow create: if hasProfile()
+        && incoming().buyerUserId == uid()
+        && incoming().sellerUserId != uid()
+        && incoming().status == 'OrderStatus.placed';
+
+      allow update: if hasProfile()
+        && unchanged(['buyerUserId', 'sellerUserId', 'items', 'total',
+                      'subtotal', 'deliveryFee', 'paymentProof', 'createdAt'])
+        && (uid() in [existing().buyerUserId, existing().sellerUserId,
+                      existing().get('deliveryWorkerId', null)]
+            || (hasRole('deliveryWorker')
+                && existing().get('deliveryWorkerId', null) == null));
+    }
+
+    // ------------------------------------------------- wallets / transactions
+
+    match /wallets/{userId} {
+      allow read: if registered() && uid() == userId;
+      // The wallet screen creates an empty wallet on first open.
+      allow create: if registered()
+        && uid() == userId
+        && incoming().balance == 0;
+    }
+
+    match /transactions/{transactionId} {
+      allow read: if registered() && existing().userId == uid();
+    }
+
+    match /payments/{paymentId} {
+      allow read: if registered() && existing().payerUserId == uid();
+    }
+
+    // ------------------------------------------------------------------- jobs
+
+    match /jobs/{jobId} {
+      allow read: if hasProfile();
+
+      allow create: if hasProfile() && incoming().requesterUserId == uid();
+
+      // Requester (farmer) and assigned worker manage the job; any worker may
+      // take an open job by assigning themself. Only the requester can set
+      // the price or mark the job paid (which credits the worker's wallet).
+      allow update: if hasProfile()
+        && unchanged(['requesterUserId', 'createdAt'])
+        && (uid() == existing().requesterUserId
+            || (unchanged(['price', 'paymentProof', 'paidAt'])
+                && incoming().status != 'JobStatus.paid'
+                && (uid() == existing().get('assignedUserId', null)
+                    || (existing().status == 'JobStatus.requested'
+                        && incoming().get('assignedUserId', null) == uid()))));
+
+      allow delete: if hasProfile() && existing().requesterUserId == uid();
+
+      match /bids/{bidId} {
+        function job() {
+          return get(/databases/$(database)/documents/jobs/$(jobId)).data;
+        }
+
+        allow read: if hasProfile();
+
+        // One bid per worker; the doc id is the worker's uid.
+        allow create: if hasProfile()
+          && bidId == uid()
+          && incoming().workerUserId == uid();
+
+        // Worker counters their own bid; requester counters or accepts.
+        allow update: if hasProfile()
+          && unchanged(['workerUserId'])
+          && (bidId == uid() || job().requesterUserId == uid());
+      }
+    }
+
+    // --------------------------------------------------------------- reviews
+
+    match /reviews/{reviewId} {
+      allow read: if hasProfile();
+      allow create: if hasProfile()
+        && incoming().reviewerUserId == uid()
+        && incoming().reviewedUserId != uid()
+        && incoming().stars is int
+        && incoming().stars >= 1
+        && incoming().stars <= 5;
+    }
+
+    // ---------------------------------------------------------- consultations
+
+    match /consultations/{consultationId} {
+      // Written as an OR (not `in`) so per-party list queries are provable.
+      allow read: if hasProfile()
+        && (resource.data.farmerUserId == uid()
+            || resource.data.engineerUserId == uid());
+
+      allow create: if hasProfile() && incoming().farmerUserId == uid();
+
+      allow update: if hasProfile()
+        && (existing().farmerUserId == uid()
+            || existing().engineerUserId == uid())
+        && unchanged(['farmerUserId', 'engineerUserId']);
+    }
+
+    // ------------------------------------------------------------------ wells
+
+    match /wells/{wellId} {
+      allow read: if hasProfile();
+
+      allow create: if hasProfile()
+        && incoming().adminUserId == uid()
+        && incoming().status == 'WellStatus.pending';
+
+      // Well owners can only propose edits; an admin applies them.
+      allow update: if hasProfile()
+        && existing().adminUserId == uid()
+        && incoming().diff(existing()).affectedKeys().hasOnly(['pendingEdits']);
+    }
+
+    match /well_members/{memberId} {
+      function wellOwner(wellId) {
+        return get(/databases/$(database)/documents/wells/$(wellId)).data.adminUserId;
+      }
+
+      allow read: if hasProfile();
+
+      // A farmer requests to join, or a well owner invites someone.
+      allow create: if hasProfile()
+        && incoming().status == 'pending'
+        && (incoming().userId == uid() || wellOwner(incoming().wellId) == uid());
+    }
+
+    match /land_plots/{plotId} {
+      allow read: if hasProfile() && existing().ownerId == uid();
+
+      allow create: if hasProfile()
+        && incoming().ownerId == uid()
+        && incoming().status == 'pending';
+
+      allow delete: if hasProfile() && existing().ownerId == uid();
+    }
+
+    // -------------------------------------------------------------- equipment
+
+    match /equipment/{equipmentId} {
+      allow read: if hasProfile();
+      allow create: if hasProfile() && incoming().ownerId == uid();
+      allow update: if hasProfile()
+        && existing().ownerId == uid()
+        && incoming().ownerId == uid();
+      allow delete: if hasProfile() && existing().ownerId == uid();
+    }
+
+    // ------------------------------------------------------- crop sale orders
+
+    match /crop_sale_orders/{orderId} {
+      allow read: if hasProfile() && resource.data.submitterId == uid();
+      allow create: if hasProfile()
+        && incoming().userId == uid()
+        && incoming().submitterId == uid();
+    }
+
+    // -------------------------------------------------- reports and feedback
+
+    match /complaints/{complaintId} {
+      allow read: if hasProfile() && existing().get('fromUserId', null) == uid();
+      allow create: if hasProfile() && incoming().fromUserId == uid();
+    }
+
+    match /disputes/{disputeId} {
+      allow create: if hasProfile() && incoming().reportedBy == uid();
+    }
+
+    match /app_ratings/{ratingId} {
+      allow create: if hasProfile() && incoming().userId == uid();
+    }
+
+    match /referrals/{referralId} {
+      allow create: if hasProfile()
+        && incoming().inviteeId == uid()
+        && incoming().status == 'pendingActivity';
+    }
+  }
+}

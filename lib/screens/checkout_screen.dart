@@ -19,6 +19,28 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   bool _isProcessing = false;
   bool _leaveAtDoor = false;
   String _selectedPaymentMethod = 'الدفع عند الاستلام';
+  final Map<String, String?> _sellerDistricts = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSellerDistricts();
+  }
+
+  Future<void> _loadSellerDistricts() async {
+    final sellerIds = context
+        .read<AppStateProvider>()
+        .cart
+        .map((item) => item.sellerUserId)
+        .toSet();
+    for (final sellerId in sellerIds) {
+      final data = await _fetchSellerInfo(sellerId);
+      _sellerDistricts[sellerId] =
+          (data?['extraData'] as Map<String, dynamic>?)?['district']
+              as String?;
+    }
+    if (mounted) setState(() {});
+  }
 
   final List<String> _paymentMethods = [
     'الدفع عند الاستلام',
@@ -247,6 +269,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 'screenshotBase64': screenshotBase64,
                 'submittedAt': FieldValue.serverTimestamp(),
               },
+              'buyerName': user.fullName,
               'createdAt': FieldValue.serverTimestamp(),
               'items': sellerItems
                   .map((item) => {
@@ -257,27 +280,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       })
                   .toList(),
             });
-
-            await FirebaseFirestore.instance.collection('transactions').add({
-              'userId': sellerId,
-              'type': 'incoming',
-              'amount': sellerTotal,
-              'note': 'طلب من ${user.fullName} ($_selectedPaymentMethod)',
-              'paymentMethod': _selectedPaymentMethod,
-              'buyerName': user.fullName,
-              'createdAt': FieldValue.serverTimestamp(),
-            });
-
-            final walletRef =
-                FirebaseFirestore.instance.collection('wallets').doc(sellerId);
-            final walletDoc = await walletRef.get();
-            if (walletDoc.exists) {
-              final currentBalance =
-                  ((walletDoc.data() ?? {})['balance'] ?? 0.0).toDouble();
-              await walletRef.update({'balance': currentBalance + sellerTotal});
-            } else {
-              await walletRef.set({'balance': sellerTotal, 'userId': sellerId});
-            }
+            // The seller's wallet and transaction log are credited
+            // server-side by the onOrderCreated Cloud Function.
           },
         ),
       );
@@ -336,10 +340,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     // Check if any seller is from a different district
     final hasCrossDistrict = buyerDistrict != null &&
         cart.any((item) {
-          final seller = authProvider.allUsers
-              .where((u) => u.id == item.sellerUserId)
-              .firstOrNull;
-          final sellerDistrict = seller?.extraData?['district'] as String?;
+          final sellerDistrict = _sellerDistricts[item.sellerUserId];
           return sellerDistrict != null && sellerDistrict != buyerDistrict;
         });
     final itemCount =

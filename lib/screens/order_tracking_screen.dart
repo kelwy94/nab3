@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart' hide Order;
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/types.dart';
 import '../theme.dart';
 import '../widgets/naba_widgets.dart';
@@ -123,24 +124,16 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
                 onPressed: () async {
                   Navigator.pop(context);
                   try {
-                    // Update seller's rating in Firestore
-                    final sellerDoc = FirebaseFirestore.instance.collection('users').doc(widget.order.sellerUserId);
-                    final snapshot = await sellerDoc.get();
-                    if (snapshot.exists) {
-                      final Map<String, dynamic> dataMap = snapshot.data() ?? {};
-                      final Map<String, dynamic> extraData = dataMap['extraData'] is Map ? dataMap['extraData'] as Map<String, dynamic> : {};
-                      final double currentRating = extraData['rating'] != null ? (extraData['rating'] as num).toDouble() : 5.0;
-                      final int ratingCount = extraData['ratingCount'] != null ? (extraData['ratingCount'] as num).toInt() : 1;
-                      
-                      final newRating = ((currentRating * ratingCount) + selectedRating) / (ratingCount + 1);
-                      
-                      await sellerDoc.set({
-                        'extraData': {
-                          'rating': newRating,
-                          'ratingCount': ratingCount + 1,
-                        }
-                      }, SetOptions(merge: true));
-                    }
+                    // The seller's average rating is recomputed from reviews
+                    // by the onReviewCreated Cloud Function.
+                    await FirebaseFirestore.instance.collection('reviews').add({
+                      'reviewerUserId': FirebaseAuth.instance.currentUser?.uid,
+                      'reviewedUserId': widget.order.sellerUserId,
+                      'stars': selectedRating,
+                      'relatedType': 'order',
+                      'relatedId': widget.order.id,
+                      'createdAt': FieldValue.serverTimestamp(),
+                    });
                     if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إرسال التقييم بنجاح. شكراً لك!')));
                   } catch (e) {
                     if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('حدث خطأ أثناء إرسال التقييم: $e')));

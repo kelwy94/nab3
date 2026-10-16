@@ -19,7 +19,10 @@ class AppStateProvider with ChangeNotifier {
   bool _disposed = false;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   StreamSubscription? _catalogSub;
-  StreamSubscription? _ordersSub;
+  StreamSubscription? _profileSub;
+  final List<StreamSubscription> _orderQuerySubs = [];
+  final Map<int, Map<String, naba.Order>> _orderResults = {};
+  String? _orderRole;
   StreamSubscription? _authSub;
 
   List<naba.Well> get wells => _wells;
@@ -96,14 +99,14 @@ class AppStateProvider with ChangeNotifier {
   void dispose() {
     _disposed = true;
     _catalogSub?.cancel();
-    _ordersSub?.cancel();
+    _profileSub?.cancel();
+    _cancelOrderQueries();
     _authSub?.cancel();
     super.dispose();
   }
 
   void _listenToCatalog() {
     _catalogSub?.cancel();
-    _ordersSub?.cancel();
     _isLoading = true;
     if (!_disposed) notifyListeners();
 
@@ -139,35 +142,120 @@ class AppStateProvider with ChangeNotifier {
       if (!_disposed) notifyListeners();
     });
 
-    _ordersSub = _firestore.collection('orders').snapshots().listen((snapshot) {
+    _listenToOrders();
+  }
+
+  /// Orders are only readable by the parties involved (see firestore.rules),
+  /// so instead of the whole collection we listen to role-scoped queries:
+  /// everyone sees what they bought; sellers what they sold; delivery
+  /// workers what they carry plus unclaimed orders; admins everything.
+  /// The user's profile is watched so the queries follow role changes and
+  /// start once a freshly signed-up profile exists.
+  void _listenToOrders() {
+    _profileSub?.cancel();
+    _cancelOrderQueries();
+    _orderRole = null;
+    _orders.clear();
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null || user.isAnonymous) {
+      if (!_disposed) notifyListeners();
+      return;
+    }
+
+    _profileSub = _firestore.collection('users').doc(user.uid).snapshots().listen(
+        (profile) {
+      final role = profile.exists ? (profile.data()?['role'] as String? ?? '') : null;
+      if (role == _orderRole && _orderQuerySubs.isNotEmpty) return;
+      _orderRole = role;
+      _cancelOrderQueries();
       _orders.clear();
-      for (var doc in snapshot.docs) {
-        try {
-          final data = doc.data();
-          _orders.add(naba.Order(
-            id: doc.id,
-            buyerUserId: data['buyerUserId'] ?? '',
-            sellerUserId: data['sellerUserId'] ?? '',
-            deliveryWorkerId: data['deliveryWorkerId'],
-            status: naba.OrderStatus.values.firstWhere(
-              (e) => e.toString() == data['status'] || e.toString().split('.').last == (data['status'] ?? ''),
-              orElse: () => naba.OrderStatus.placed,
-            ),
-            total: (data['total'] ?? 0.0).toDouble(),
-            deliveryFee: (data['deliveryFee'] ?? 0.0).toDouble(),
-            deliveryMethod: data['deliveryMethod'] ?? 'delivery',
-            paymentMethod: data['paymentMethod'],
-            createdAt:
-                (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-          ));
-        } catch (e) {
-          debugPrint('ORDERS: Error parsing order ${doc.id}: $e');
+      if (role == null) {
+        if (!_disposed) notifyListeners();
+        return;
+      }
+
+      final orders = _firestore.collection('orders');
+      final List<Query<Map<String, dynamic>>> queries;
+      if (_roleIs(role, 'admin')) {
+        queries = [orders];
+      } else {
+        queries = [orders.where('buyerUserId', isEqualTo: user.uid)];
+        if (_roleIs(role, 'seller')) {
+          queries.add(orders.where('sellerUserId', isEqualTo: user.uid));
+        }
+        if (_roleIs(role, 'deliveryWorker')) {
+          queries.add(orders.where('deliveryWorkerId', isEqualTo: user.uid));
+          // Ready for pickup: placed delivery orders nobody has claimed yet
+          // (claiming sets deliveryWorkerId and moves the status on).
+          queries.add(orders
+              .where('status', isEqualTo: naba.OrderStatus.placed.toString())
+              .where('deliveryMethod', isEqualTo: 'delivery'));
         }
       }
-      if (!_disposed) notifyListeners();
+
+      for (var i = 0; i < queries.length; i++) {
+        _orderQuerySubs.add(queries[i].snapshots().listen((snapshot) {
+          _orderResults[i] = {
+            for (final doc in snapshot.docs)
+              if (_parseOrder(doc) case final order?) doc.id: order,
+          };
+          _rebuildOrders();
+        }, onError: (e) {
+          debugPrint('ORDERS: Error: $e');
+        }));
+      }
     }, onError: (e) {
-      debugPrint('ORDERS: Error: $e');
+      debugPrint('ORDERS: Error loading profile: $e');
     });
+  }
+
+  static bool _roleIs(String role, String name) =>
+      role == 'UserRole.$name' || role == name;
+
+  void _cancelOrderQueries() {
+    for (final sub in _orderQuerySubs) {
+      sub.cancel();
+    }
+    _orderQuerySubs.clear();
+    _orderResults.clear();
+  }
+
+  void _rebuildOrders() {
+    final merged = <String, naba.Order>{};
+    for (final results in _orderResults.values) {
+      merged.addAll(results);
+    }
+    _orders
+      ..clear()
+      ..addAll(merged.values.toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt)));
+    if (!_disposed) notifyListeners();
+  }
+
+  naba.Order? _parseOrder(DocumentSnapshot<Map<String, dynamic>> doc) {
+    try {
+      final data = doc.data()!;
+      return naba.Order(
+        id: doc.id,
+        buyerUserId: data['buyerUserId'] ?? '',
+        sellerUserId: data['sellerUserId'] ?? '',
+        deliveryWorkerId: data['deliveryWorkerId'],
+        status: naba.OrderStatus.values.firstWhere(
+          (e) => e.toString() == data['status'] || e.toString().split('.').last == (data['status'] ?? ''),
+          orElse: () => naba.OrderStatus.placed,
+        ),
+        total: (data['total'] ?? 0.0).toDouble(),
+        deliveryFee: (data['deliveryFee'] ?? 0.0).toDouble(),
+        deliveryMethod: data['deliveryMethod'] ?? 'delivery',
+        paymentMethod: data['paymentMethod'],
+        createdAt:
+            (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      );
+    } catch (e) {
+      debugPrint('ORDERS: Error parsing order ${doc.id}: $e');
+      return null;
+    }
   }
 
   void addWell(naba.Well well) {

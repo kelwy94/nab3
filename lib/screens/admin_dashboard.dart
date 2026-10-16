@@ -26,6 +26,8 @@ class AdminDashboard extends StatefulWidget {
 class _AdminDashboardState extends State<AdminDashboard>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  String _phoneSearchQuery = '';
+  User? _searchedUser;
   bool _isUnlocked = true;
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _adminNoteController = TextEditingController();
@@ -244,7 +246,7 @@ class _AdminDashboardState extends State<AdminDashboard>
           Tab(text: 'الأراضي', height: 36),
           Tab(text: 'الشكاوى', height: 36),
           Tab(text: 'البيانات', height: 36),
-          Tab(text: 'بيع المحاصيل', height: 36),
+          Tab(text: 'المنتجات للبيع', height: 36),
         ],
       ),
     );
@@ -794,6 +796,11 @@ class _AdminDashboardState extends State<AdminDashboard>
   }
 
   Widget _buildUsersTab() {
+    final allUsers2 = context.watch<AuthProvider>().allUsers;
+    final searchResult = _phoneSearchQuery.length >= 7
+        ? allUsers2.where((u) => u.phone.contains(_phoneSearchQuery)).toList()
+        : <User>[];
+
     final allUsers = context.watch<AuthProvider>().allUsers;
 
     final categories = [
@@ -831,7 +838,82 @@ class _AdminDashboardState extends State<AdminDashboard>
       },
     ];
 
-    return GridView.builder(
+    return Column(
+      children: [
+        // Phone search bar
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+          child: TextField(
+            textDirection: TextDirection.rtl,
+            keyboardType: TextInputType.phone,
+            decoration: InputDecoration(
+              hintText: 'ابحث برقم الموبايل...',
+              hintTextDirection: TextDirection.rtl,
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: _phoneSearchQuery.isNotEmpty
+                  ? IconButton(icon: const Icon(Icons.clear), onPressed: () => setState(() => _phoneSearchQuery = ''))
+                  : null,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
+            onChanged: (v) => setState(() => _phoneSearchQuery = v),
+          ),
+        ),
+
+        // Search results
+        if (searchResult.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: searchResult.map((u) => Card(
+                margin: const EdgeInsets.only(bottom: 8),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: NabaTheme.primary.withOpacity(0.15),
+                    child: Text(u.fullName.isNotEmpty ? u.fullName[0] : '?',
+                        style: const TextStyle(color: NabaTheme.primary, fontWeight: FontWeight.bold)),
+                  ),
+                  title: Text(u.fullName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('📞 ${u.phone}'),
+                      Text('الدور: ${_getRoleName(u.role)} | الحالة: ${u.status == AccountStatus.approved ? 'موافق عليه' : u.status == AccountStatus.pending ? 'قيد المراجعة' : 'مرفوض'}'),
+                    ],
+                  ),
+                  trailing: PopupMenuButton<String>(
+                    onSelected: (action) async {
+                      final auth = context.read<AuthProvider>();
+                      if (action == 'approve') {
+                        await auth.updateUserStatus(u.id, {'status': 'AccountStatus.approved'});
+                      } else if (action == 'reject') {
+                        await auth.updateUserStatus(u.id, {'status': 'AccountStatus.rejected'});
+                      } else if (action == 'delete') {
+                        await auth.deleteUser(u.id);
+                      }
+                    },
+                    itemBuilder: (ctx) => [
+                      const PopupMenuItem(value: 'approve', child: Text('موافقة')),
+                      const PopupMenuItem(value: 'reject', child: Text('رفض')),
+                      const PopupMenuItem(value: 'delete', child: Text('حذف', style: TextStyle(color: Colors.red))),
+                    ],
+                  ),
+                  isThreeLine: true,
+                ),
+              )).toList(),
+            ),
+          )
+        else if (_phoneSearchQuery.length >= 7)
+          const Padding(
+            padding: EdgeInsets.all(16),
+            child: Text('لم يتم العثور على مستخدم بهذا الرقم', style: TextStyle(color: Colors.grey)),
+          ),
+
+        // Grid
+        Expanded(
+          child: GridView.builder(
       padding: const EdgeInsets.all(24),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
@@ -858,6 +940,9 @@ class _AdminDashboardState extends State<AdminDashboard>
           onTap: () => _showRoleUsersSheet(role, roleUsers),
         );
       },
+    ),
+        ),
+      ],
     );
   }
 

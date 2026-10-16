@@ -697,70 +697,25 @@ class _SellerDashboardState extends State<SellerDashboard>
                                                     onPressed: () async {
                                                       Navigator.pop(context);
                                                       try {
-                                                        final workerDoc =
-                                                            FirebaseFirestore
-                                                                .instance
-                                                                .collection(
-                                                                    'users')
-                                                                .doc(o
-                                                                    .deliveryWorkerId);
-                                                        final snapshot =
-                                                            await workerDoc
-                                                                .get();
-                                                        if (snapshot.exists) {
-                                                          final Map<String,
-                                                                  dynamic>
-                                                              dataMap =
-                                                              snapshot.data() ??
-                                                                  {};
-                                                          final Map<String,
-                                                                  dynamic>
-                                                              extraData =
-                                                              dataMap['extraData']
-                                                                      is Map
-                                                                  ? dataMap[
-                                                                          'extraData']
-                                                                      as Map<
-                                                                          String,
-                                                                          dynamic>
-                                                                  : {};
-                                                          final double
-                                                              currentRating =
-                                                              extraData['rating'] !=
-                                                                      null
-                                                                  ? (extraData[
-                                                                              'rating']
-                                                                          as num)
-                                                                      .toDouble()
-                                                                  : 5.0;
-                                                          final int
-                                                              ratingCount =
-                                                              extraData['ratingCount'] !=
-                                                                      null
-                                                                  ? (extraData[
-                                                                              'ratingCount']
-                                                                          as num)
-                                                                      .toInt()
-                                                                  : 1;
-                                                          final newRating =
-                                                              ((currentRating *
-                                                                          ratingCount) +
-                                                                      selectedRating) /
-                                                                  (ratingCount +
-                                                                      1);
-                                                          await workerDoc.set(
-                                                              {
-                                                                'extraData': {
-                                                                  'rating':
-                                                                      newRating,
-                                                                  'ratingCount':
-                                                                      ratingCount +
-                                                                          1,
-                                                                }
-                                                              },
-                                                              SetOptions(
-                                                                  merge: true));
-                                                        }
+                                                        // Rating is recomputed
+                                                        // by onReviewCreated.
+                                                        await FirebaseFirestore
+                                                            .instance
+                                                            .collection(
+                                                                'reviews')
+                                                            .add({
+                                                          'reviewerUserId':
+                                                              o.sellerUserId,
+                                                          'reviewedUserId': o
+                                                              .deliveryWorkerId,
+                                                          'stars':
+                                                              selectedRating,
+                                                          'relatedType':
+                                                              'delivery',
+                                                          'relatedId': o.id,
+                                                          'createdAt': FieldValue
+                                                              .serverTimestamp(),
+                                                        });
                                                         if (context.mounted) {
                                                           ScaffoldMessenger.of(
                                                                   context)

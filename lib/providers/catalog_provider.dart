@@ -34,6 +34,13 @@ class CatalogProvider with ChangeNotifier {
           stockStatus: data['stockStatus'] ?? true,
           photoUrl: data['photoUrl'],
           isApproved: data['isApproved'] ?? true,
+          discountPercentage: (data['discountPercentage'] ?? 0.0).toDouble(),
+          additionalPhotos: List<String>.from(data['additionalPhotos'] ?? []),
+          quantity: (data['quantity'] ?? 0.0).toDouble(),
+          address: data['address'] ?? '',
+          condition: data['condition'] ?? 'جديد',
+          minOrderQuantity: (data['minOrderQuantity'] ?? 1.0).toDouble(),
+          deliveryAvailable: data['deliveryAvailable'] ?? false,
         );
       }).toList();
       _isLoading = false;
@@ -78,6 +85,13 @@ class CatalogProvider with ChangeNotifier {
       'photoUrl': item.photoUrl,
       'description': item.description,
       'isApproved': item.isApproved,
+      'discountPercentage': item.discountPercentage,
+      'additionalPhotos': item.additionalPhotos,
+      'quantity': item.quantity,
+      'address': item.address,
+      'condition': item.condition,
+      'minOrderQuantity': item.minOrderQuantity,
+      'deliveryAvailable': item.deliveryAvailable,
     };
 
     if (item.id.startsWith('new_')) {

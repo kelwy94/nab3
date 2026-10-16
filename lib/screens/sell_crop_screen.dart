@@ -28,7 +28,7 @@ class _SellCropScreenState extends State<SellCropScreen> {
   final _quantityController = TextEditingController();
   final _addressController = TextEditingController();
 
-  String _selectedCrop = 'بلح';
+  String _selectedCrop = 'قمح';
   String _selectedGrade = 'درجة أولى (النخبة)';
   LatLng? _selectedLocation;
   Uint8List? _cropImageBytes;
@@ -104,6 +104,7 @@ class _SellCropScreenState extends State<SellCropScreen> {
       // Save order to Firestore
       await FirebaseFirestore.instance.collection('crop_sale_orders').add({
         'userId': user.id,
+        'submitterId': user.id,
         'submitterName': user.fullName,
         'accountType': user.role.name,
         'phone': user.phone,
@@ -124,7 +125,7 @@ class _SellCropScreenState extends State<SellCropScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content: Text('تم إرسال الطب بنجاح! سيتم التواصل معك قريباً.'),
+              content: Text('تم إرسال الطلب بنجاح! سيتم التواصل معك قريباً.'),
               backgroundColor: Colors.green),
         );
         Navigator.pop(context);
@@ -229,7 +230,25 @@ class _SellCropScreenState extends State<SellCropScreen> {
                       decoration:
                           _inputDecoration('نوع المحصول', Icons.grass_rounded),
                       value: _selectedCrop,
-                      items: ['بلح'] // more can be added later
+                      items: [
+                          'قمح',
+                          'أرز',
+                          'ذرة',
+                          'برسيم',
+                          'قطن',
+                          'بلح / تمور',
+                          'طماطم',
+                          'بطاطس',
+                          'بصل',
+                          'قصب السكر',
+                          'بنجر السكر',
+                          'موالح / حمضيات',
+                          'عنب',
+                          'مانجو',
+                          'خضروات أخرى',
+                          'فواكه أخرى',
+                          'محاصيل أخرى'
+                        ]
                           .map((e) => DropdownMenuItem(
                               value: e,
                               child: Text(e, textDirection: TextDirection.rtl)))

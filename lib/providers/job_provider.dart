@@ -221,35 +221,9 @@ class JobProvider with ChangeNotifier {
       });
 
       // 2. Mark this job as reviewed (optional but good practice)
+      // The worker's average rating is recomputed by the onReviewCreated
+      // Cloud Function, since clients can't write other users' profiles.
       await updateJobStatus(jobId, JobStatus.reviewed);
-
-      // 3. Update worker's average rating
-      final reviewsSnapshot = await _firestore
-          .collection('reviews')
-          .where('reviewedUserId', isEqualTo: workerId)
-          .get();
-
-      if (reviewsSnapshot.docs.isNotEmpty) {
-        double totalStars = 0;
-        for (var doc in reviewsSnapshot.docs) {
-          totalStars += (doc.data()['stars'] as num).toDouble();
-        }
-        double newAvg = totalStars / reviewsSnapshot.docs.length;
-
-        // Fetch user data to update extraData
-        final userDoc =
-            await _firestore.collection('users').doc(workerId).get();
-        if (userDoc.exists) {
-          final extraData =
-              Map<String, dynamic>.from(userDoc.data()?['extraData'] ?? {});
-          extraData['rating'] = newAvg;
-          extraData['reviewCount'] = reviewsSnapshot.docs.length;
-
-          await _firestore.collection('users').doc(workerId).update({
-            'extraData': extraData,
-          });
-        }
-      }
     } catch (e) {
       debugPrint('Error submitting review: $e');
       rethrow;
@@ -260,45 +234,12 @@ class JobProvider with ChangeNotifier {
     try {
       if (job.assignedUserId == null || job.price == null) return;
 
-      final batch = _firestore.batch();
-
-      // 1. Update Job Status
-      final jobRef = _firestore.collection('jobs').doc(job.id);
-      batch.update(jobRef, {
+      // The wallet credit and transaction record are written server-side by
+      // the onJobPaid Cloud Function when the status flips to paid.
+      await _firestore.collection('jobs').doc(job.id).update({
         'status': JobStatus.paid.toString(),
         'paidAt': FieldValue.serverTimestamp(),
       });
-
-      // 2. Update Provider Wallet
-      final walletRef =
-          _firestore.collection('wallets').doc(job.assignedUserId);
-      final walletDoc = await walletRef.get();
-
-      if (walletDoc.exists) {
-        batch.update(walletRef, {
-          'balance': FieldValue.increment(job.price!),
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-      } else {
-        batch.set(walletRef, {
-          'userId': job.assignedUserId,
-          'balance': job.price!,
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-      }
-
-      // 3. Record Transaction
-      final transRef = _firestore.collection('transactions').doc();
-      batch.set(transRef, {
-        'userId': job.assignedUserId,
-        'amount': job.price!,
-        'type': 'incoming',
-        'note': 'مقابل خدمة: ${job.serviceType}',
-        'relatedId': job.id,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-
-      await batch.commit();
     } catch (e) {
       debugPrint('Error in confirmPaymentAndTransfer: $e');
       rethrow;

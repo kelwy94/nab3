@@ -559,6 +559,13 @@ class CatalogItem {
   final double ratingAvg;
   final int ratingCount;
   final bool isApproved;
+  final double discountPercentage;
+  final List<String> additionalPhotos; // up to 5 photos
+  final double quantity; // stock quantity
+  final String address; // product location/address
+  final String condition; // new / used
+  final double minOrderQuantity;
+  final bool deliveryAvailable;
 
   CatalogItem({
     required this.id,
@@ -573,6 +580,13 @@ class CatalogItem {
     this.ratingAvg = 0.0,
     this.ratingCount = 0,
     this.isApproved = true,
+    this.discountPercentage = 0.0,
+    this.additionalPhotos = const [],
+    this.quantity = 0.0,
+    this.address = '',
+    this.condition = 'جديد',
+    this.minOrderQuantity = 1.0,
+    this.deliveryAvailable = false,
   });
 }
 

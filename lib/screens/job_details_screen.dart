@@ -721,33 +721,9 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
             },
           });
 
-          // Confirm payment and transfer
+          // Marks the job paid; the onJobPaid Cloud Function credits the
+          // worker's wallet.
           await jobProvider.confirmPaymentAndTransfer(widget.job);
-
-          // Add transaction to worker's wallet
-          final workerId = widget.job.assignedUserId!;
-          final amount = widget.job.price ?? 0.0;
-          final auth = Provider.of<AuthProvider>(context, listen: false);
-          final buyerName = auth.user?.fullName ?? 'المزارع';
-
-          await FirebaseFirestore.instance.collection('transactions').add({
-            'userId': workerId,
-            'type': 'incoming',
-            'amount': amount,
-            'note': 'أجر عمل: ${widget.job.serviceType} من $buyerName',
-            'createdAt': FieldValue.serverTimestamp(),
-          });
-
-          // Update worker wallet balance
-          final walletRef =
-              FirebaseFirestore.instance.collection('wallets').doc(workerId);
-          final walletDoc = await walletRef.get();
-          if (walletDoc.exists) {
-            final bal = ((walletDoc.data() ?? {})['balance'] ?? 0.0).toDouble();
-            await walletRef.update({'balance': bal + amount});
-          } else {
-            await walletRef.set({'balance': amount, 'userId': workerId});
-          }
         },
       ),
     );

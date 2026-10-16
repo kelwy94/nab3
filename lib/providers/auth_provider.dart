@@ -53,16 +53,14 @@ class AuthProvider with ChangeNotifier {
 
   AuthProvider() {
     _init();
-    _listenToUsers();
   }
 
   void _init() {
     _auth.authStateChanges().listen((fb_auth.User? fbUser) async {
       if (fbUser == null) {
-        if (_user?.role != UserRole.admin) {
-          _user = null;
-          notifyListeners();
-        }
+        _user = null;
+        _stopListeningToUsers();
+        notifyListeners();
       } else {
         await _fetchUserProfile(fbUser.uid);
         await NotificationService.updateToken(fbUser.uid);
@@ -70,6 +68,13 @@ class AuthProvider with ChangeNotifier {
     });
   }
 
+  void _stopListeningToUsers() {
+    _usersSubscription?.cancel();
+    _usersSubscription = null;
+    _allUsers = [];
+  }
+
+  // The full user list is only needed (and only readable) by admins.
   void _listenToUsers() {
     // Cancel previous subscription if any
     _usersSubscription?.cancel();
@@ -159,6 +164,11 @@ class AuthProvider with ChangeNotifier {
               : null,
           paymentDetails: data['paymentDetails'],
         );
+        if (_user!.role == UserRole.admin) {
+          if (_usersSubscription == null) _listenToUsers();
+        } else {
+          _stopListeningToUsers();
+        }
         notifyListeners();
       }
     } catch (e) {
@@ -200,42 +210,11 @@ class AuthProvider with ChangeNotifier {
         password: password,
       );
       final uid = cred.user!.uid;
-
-      // Check if National ID is already registered (now that we are authenticated)
-      final idQuery = await _firestore
-          .collection('users')
-          .where('nationalIdHash', isEqualTo: user.nationalIdHash)
-          .limit(1)
-          .get();
-      if (idQuery.docs.isNotEmpty) {
-        await cred.user!.delete(); // Cleanup auth if taken
-        throw Exception('الرقم القومي مسجل بالفعل في حساب آخر. يرجى التأكد.');
-      }
-
-      // Device ID Check
+      
       final deviceId = await DeviceInfoHelper.getDeviceId();
-      final deviceQuery = await _firestore
-          .collection('users')
-          .where('extraData.deviceId', isEqualTo: deviceId)
-          .limit(1)
-          .get();
-
-      bool isFlagged = deviceQuery.docs.isNotEmpty;
-
-      // Handle Referral
+      bool isFlagged = false;
       String? actualInviterId;
-      if (user.referredBy != null && user.referredBy!.isNotEmpty) {
-        final refQuery = await _firestore
-            .collection('users')
-            .where('referralCode', isEqualTo: user.referredBy)
-            .limit(1)
-            .get();
-        if (refQuery.docs.isNotEmpty) {
-          actualInviterId = refQuery.docs.first.id;
-        }
-      }
 
-      // Generate Referral Code
       final randomStr = String.fromCharCodes(Iterable.generate(
           4,
           (_) => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
@@ -414,16 +393,13 @@ class AuthProvider with ChangeNotifier {
   }
 
   Future<void> logout() async {
-    if (_user?.role == UserRole.admin) {
-      _user = null;
-    } else {
-      await _auth.signOut();
-      final isBioEnabled = await _secureStorage.read(key: 'biometric_enabled');
-      if (isBioEnabled != 'true') {
-        await _secureStorage.delete(key: 'saved_email');
-        await _secureStorage.delete(key: 'saved_password');
-      }
+    await _auth.signOut();
+    final isBioEnabled = await _secureStorage.read(key: 'biometric_enabled');
+    if (isBioEnabled != 'true') {
+      await _secureStorage.delete(key: 'saved_email');
+      await _secureStorage.delete(key: 'saved_password');
     }
+    _user = null;
     notifyListeners();
   }
 
@@ -473,39 +449,6 @@ class AuthProvider with ChangeNotifier {
       debugPrint('Error fetching user: $e');
     }
     return null;
-  }
-
-  Future<void> loginAsAdmin() async {
-    try {
-      await _auth.signInAnonymously();
-
-      _user = User(
-        id: 'admin_123',
-        role: UserRole.admin,
-        fullName: 'مدير النظام',
-        phone: '01000000000',
-        nationalIdHash: 'admin_hash',
-        address: 'المقر الرئيسي',
-        createdAt: DateTime.now(),
-      );
-      debugPrint('AUTH_PROVIDER: Logged in as Admin (Anonymous Session).');
-      notifyListeners();
-      // Re-establish Firestore listener now that we have auth
-      _listenToUsers();
-    } catch (e) {
-      debugPrint('AUTH_PROVIDER: Anonymous Sign-in failed: $e');
-      _user = User(
-        id: 'admin_123',
-        role: UserRole.admin,
-        fullName: 'مدير النظام',
-        phone: '01000000000',
-        nationalIdHash: 'admin_hash',
-        address: 'المقر الرئيسي',
-        createdAt: DateTime.now(),
-      );
-      notifyListeners();
-      _listenToUsers();
-    }
   }
 
   Future<void> seedDemoData() async {

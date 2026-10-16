@@ -156,18 +156,11 @@ class OnboardingScreen extends StatefulWidget {
       elevation: 2,
       shadowColor: color.withOpacity(0.15),
       child: InkWell(
-        onTap: () async {
-          if (role == UserRole.admin) {
-            await Provider.of<AuthProvider>(context, listen: false)
-                .loginAsAdmin();
-            if (!context.mounted) return;
-            Navigator.of(context).pop();
-          } else {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => SignupScreen(role: role)),
-            );
-          }
+        onTap: () {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => SignupScreen(role: role)),
+          );
         },
         borderRadius: BorderRadius.circular(20),
         splashColor: color.withOpacity(0.1),
@@ -279,70 +272,6 @@ class OnboardingScreen extends StatefulWidget {
 }
 
 class _OnboardingScreenState extends State<OnboardingScreen> {
-  final TextEditingController _adminPinController = TextEditingController();
-
-  @override
-  void dispose() {
-    _adminPinController.dispose();
-    super.dispose();
-  }
-
-  void _showAdminPinDialog() {
-    _adminPinController.clear();
-    showDialog(
-      context: context,
-      builder: (ctx) => Directionality(
-        textDirection: TextDirection.rtl,
-        child: AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text('دخول الإدارة',
-              style: TextStyle(fontWeight: FontWeight.bold)),
-          content: TextField(
-            controller: _adminPinController,
-            obscureText: true,
-            decoration: InputDecoration(
-              hintText: 'أدخل الرقم السري',
-              prefixIcon: const Icon(Icons.lock_rounded),
-              border:
-                  OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('إلغاء'),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: NabaTheme.primary,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-              ),
-              onPressed: () async {
-                if (_adminPinController.text == '12321') {
-                  Navigator.pop(ctx);
-                  await Provider.of<AuthProvider>(context, listen: false)
-                      .loginAsAdmin();
-                } else {
-                  Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('الرقم السري غير صحيح'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              },
-              child: const Text('دخول'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -355,28 +284,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 colors: [NabaTheme.primary, NabaTheme.primaryLight],
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-              ),
-            ),
-          ),
-
-          // Hidden Admin Button - top right
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 8,
-            right: 12,
-            child: GestureDetector(
-              onTap: _showAdminPinDialog,
-              child: Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(
-                  Icons.tune_rounded,
-                  color: Colors.white.withOpacity(0.15),
-                  size: 18,
-                ),
               ),
             ),
           ),

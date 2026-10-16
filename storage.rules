@@ -1,0 +1,41 @@
+rules_version = '2';
+
+// Uploads: avatars, product/equipment/crop images and consultation voice notes.
+service firebase.storage {
+  match /b/{bucket}/o {
+    function registered() {
+      return request.auth != null
+        && request.auth.token.firebase.sign_in_provider != 'anonymous';
+    }
+
+    function validUpload() {
+      return request.resource.size < 10 * 1024 * 1024
+        && (request.resource.contentType.matches('image/.*')
+            || request.resource.contentType.matches('audio/.*'));
+    }
+
+    // Product and profile images are shown to guests in the marketplace.
+    match /{allPaths=**} {
+      allow read: if request.auth != null;
+    }
+
+    // Each user can only replace their own avatar.
+    match /avatars/{fileName} {
+      allow write: if registered()
+        && fileName.matches(request.auth.uid + '\\..*')
+        && validUpload();
+    }
+
+    match /voice_notes/{fileName} {
+      allow create: if registered() && validUpload();
+    }
+
+    match /equipment_images/{allPaths=**} {
+      allow create: if registered() && validUpload();
+    }
+
+    match /products/{allPaths=**} {
+      allow create: if registered() && validUpload();
+    }
+  }
+}

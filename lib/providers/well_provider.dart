@@ -281,6 +281,7 @@ class WellProvider with ChangeNotifier {
       final query = await _firestore
           .collection('users')
           .where('phone', isEqualTo: phone)
+          .limit(1) // security rules only allow single-user lookups
           .get();
       if (query.docs.isEmpty) return false;
 

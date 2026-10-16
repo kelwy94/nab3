@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme.dart';
+import '../widgets/naba_top_header.dart';
 import 'farmer_dashboard.dart' show ProfileScreen;
 import 'marketplace_screen.dart';
 
@@ -56,34 +57,35 @@ class _GeneralUserDashboardState extends State<GeneralUserDashboard> {
       onTap: () => setState(() => _selectedIndex = index),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
         decoration: BoxDecoration(
-          color: isSelected
-              ? NabaTheme.primary.withOpacity(0.1)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
+          color: isSelected ? NabaTheme.primary.withOpacity(0.1) : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
         ),
-        child: Row(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            if (isSelected)
-              Padding(
-                padding: const EdgeInsets.only(right: 6.0),
-                child: Text(
-                  label,
-                  style: const TextStyle(
-                    color: NabaTheme.primary,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
-                ),
-              ),
             imageAsset != null
-                ? Image.asset(imageAsset, width: 28, height: 28)
+                ? Image.asset(
+                    imageAsset,
+                    width: 24,
+                    height: 24,
+                  )
                 : Icon(
                     icon,
-                    color: isSelected ? NabaTheme.primary : Colors.grey,
-                    size: 28,
+                    color: isSelected ? NabaTheme.primary : Colors.grey.shade400,
+                    size: 24,
                   ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? NabaTheme.primary : Colors.grey.shade600,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                fontSize: 10,
+              ),
+            ),
           ],
         ),
       ),

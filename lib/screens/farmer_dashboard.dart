@@ -9,6 +9,7 @@ import '../models/types.dart';
 import '../providers/auth_provider.dart';
 import '../providers/well_provider.dart';
 import '../theme.dart';
+import '../widgets/naba_top_header.dart';
 import '../widgets/irrigation_calendar.dart';
 import '../widgets/naba_widgets.dart';
 import '../widgets/sell_crop_card.dart';
@@ -96,34 +97,35 @@ class _FarmerDashboardState extends State<FarmerDashboard> {
       onTap: () => setState(() => _selectedIndex = index),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
         decoration: BoxDecoration(
-          color: isSelected
-              ? NabaTheme.primary.withOpacity(0.1)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
+          color: isSelected ? NabaTheme.primary.withOpacity(0.1) : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
         ),
-        child: Row(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            if (isSelected)
-              Padding(
-                padding: const EdgeInsets.only(right: 6.0),
-                child: Text(
-                  label,
-                  style: const TextStyle(
-                    color: NabaTheme.primary,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
             imageAsset != null
-                ? Image.asset(imageAsset, width: 24, height: 24)
+                ? Image.asset(
+                    imageAsset,
+                    width: 24,
+                    height: 24,
+                  )
                 : Icon(
                     icon,
-                    color: isSelected ? NabaTheme.primary : Colors.grey,
+                    color: isSelected ? NabaTheme.primary : Colors.grey.shade400,
                     size: 24,
                   ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? NabaTheme.primary : Colors.grey.shade600,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                fontSize: 10,
+              ),
+            ),
           ],
         ),
       ),
@@ -322,7 +324,7 @@ class FarmerHomeTab extends StatelessWidget {
     if (wells.isEmpty) {
       if (hasPendingCreation) {
         return const Scaffold(
-          appBar: NabaAppBar(title: 'الرئيسية', showBackButton: false),
+          appBar: PreferredSize(preferredSize: const Size.fromHeight(80), child: SafeArea(child: NabaTopHeader(title: 'الرئيسية'))),
           backgroundColor: NabaTheme.background,
           body: Center(
             child: Padding(
@@ -352,7 +354,7 @@ class FarmerHomeTab extends StatelessWidget {
 
       if (hasPendingJoin) {
         return const Scaffold(
-          appBar: NabaAppBar(title: 'الرئيسية', showBackButton: false),
+          appBar: PreferredSize(preferredSize: const Size.fromHeight(80), child: SafeArea(child: NabaTopHeader(title: 'الرئيسية'))),
           backgroundColor: NabaTheme.background,
           body: Center(
             child: Padding(
@@ -381,7 +383,7 @@ class FarmerHomeTab extends StatelessWidget {
       }
 
       return Scaffold(
-        appBar: const NabaAppBar(title: 'الرئيسية', showBackButton: false),
+        appBar: PreferredSize(preferredSize: const Size.fromHeight(80), child: SafeArea(child: NabaTopHeader(title: 'الرئيسية'))),
         body: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
           child: Column(
@@ -437,14 +439,17 @@ class FarmerHomeTab extends StatelessWidget {
     // Has wells - show calendar with next irrigation date banner using land plots
     return Scaffold(
       backgroundColor: NabaTheme.background,
-      appBar: NabaAppBar(
-        title: 'جدول الري',
-        showBackButton: false,
-        actions: [
-          IconButton(
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(80),
+        child: SafeArea(
+          child: NabaTopHeader(
+            title: 'جدول الري',
+            trailing: IconButton(
               icon: const Icon(Icons.notifications_none_rounded),
-              onPressed: () {}),
-        ],
+              onPressed: () {},
+            ),
+          ),
+        ),
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
@@ -956,15 +961,17 @@ class LandPlotsTab extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: NabaTheme.background,
-      appBar: NabaAppBar(
-        title: 'قطع الأراضي',
-        showBackButton: false,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add_circle_rounded),
-            onPressed: () => _showAddPlotDialog(context),
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(80),
+        child: SafeArea(
+          child: NabaTopHeader(
+            title: 'قطع الأراضي',
+            trailing: IconButton(
+              icon: const Icon(Icons.add_circle_rounded),
+              onPressed: () => _showAddPlotDialog(context),
+            ),
           ),
-        ],
+        ),
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
@@ -1382,7 +1389,7 @@ class WellManagementScreen extends StatelessWidget {
     final userId = auth.user?.id;
 
     return Scaffold(
-      appBar: const NabaAppBar(title: 'إدارة البئر', showBackButton: false),
+      appBar: PreferredSize(preferredSize: const Size.fromHeight(80), child: SafeArea(child: NabaTopHeader(title: 'إدارة البئر'))),
       body: userId == null
           ? const Center(child: CircularProgressIndicator())
           : StreamBuilder<QuerySnapshot>(
@@ -1648,18 +1655,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final auth = Provider.of<AuthProvider>(context);
     final user = auth.user!;
     return Scaffold(
-      appBar: NabaAppBar(
-        title: 'حسابي - المطوّر',
-        showBackButton: false,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const SettingsScreen()),
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(80),
+        child: SafeArea(
+          child: NabaTopHeader(
+            title: 'حسابي - المزارع',
+            trailing: IconButton(
+              icon: const Icon(Icons.settings),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SettingsScreen()),
+              ),
             ),
           ),
-        ],
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
