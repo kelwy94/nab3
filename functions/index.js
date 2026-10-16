@@ -2,10 +2,10 @@ const {onDocumentCreated, onDocumentUpdated} =
     require("firebase-functions/v2/firestore");
 const {setGlobalOptions} = require("firebase-functions/v2");
 const admin = require("firebase-admin");
+const {FieldValue} = require("firebase-admin/firestore");
 
 admin.initializeApp();
 const db = admin.firestore();
-const {FieldValue} = admin.firestore;
 
 setGlobalOptions({region: "us-central1"});
 
@@ -13,11 +13,18 @@ setGlobalOptions({region: "us-central1"});
 // Helpers
 // ---------------------------------------------------------------------------
 
+// FCM isn't emulated, so local runs log pushes instead of sending them.
+const IS_EMULATOR = process.env.FUNCTIONS_EMULATOR === "true";
+
 async function sendToUser(userId, notification, data = {}) {
   if (!userId) return null;
   const userDoc = await db.collection("users").doc(userId).get();
   const token = userDoc.exists ? userDoc.data().fcmToken : null;
   if (!token) return null;
+  if (IS_EMULATOR) {
+    console.log("[emulator] push to", userId, JSON.stringify(notification));
+    return null;
+  }
   return admin.messaging().send({token, notification, data});
 }
 
@@ -164,6 +171,10 @@ exports.onJobRequested = onDocumentCreated("jobs/{jobId}", async (event) => {
     if (token) tokens.push(token);
   });
 
+  if (IS_EMULATOR) {
+    console.log("[emulator] job broadcast to", tokens.length, "workers");
+    return;
+  }
   // sendEachForMulticast accepts at most 500 tokens per call.
   for (let i = 0; i < tokens.length; i += 500) {
     await admin.messaging().sendEachForMulticast({

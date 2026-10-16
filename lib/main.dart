@@ -1,4 +1,7 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -30,6 +33,21 @@ import 'screens/general_user_dashboard.dart';
 import 'screens/guest_dashboard.dart';
 import 'theme.dart';
 
+// Local testing against the Firebase Emulator Suite:
+//   flutter run --dart-define=USE_EMULATORS=true
+// 10.0.2.2 is the host machine as seen from the Android emulator; override
+// with --dart-define=EMULATOR_HOST=<ip> for a physical device.
+const bool _useEmulators = bool.fromEnvironment('USE_EMULATORS');
+const String _emulatorHost =
+    String.fromEnvironment('EMULATOR_HOST', defaultValue: '10.0.2.2');
+
+Future<void> _connectToEmulators() async {
+  await fb_auth.FirebaseAuth.instance.useAuthEmulator(_emulatorHost, 9099);
+  FirebaseFirestore.instance.useFirestoreEmulator(_emulatorHost, 8080);
+  await FirebaseStorage.instance.useStorageEmulator(_emulatorHost, 9199);
+  debugPrint('Using Firebase emulators at $_emulatorHost');
+}
+
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
@@ -42,6 +60,7 @@ void main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+    if (_useEmulators) await _connectToEmulators();
     try {
       await NotificationService.initialize();
       FirebaseMessaging.onBackgroundMessage(
