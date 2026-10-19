@@ -14,6 +14,7 @@ import '../providers/job_provider.dart';
 import '../providers/well_provider.dart';
 import '../theme.dart';
 import 'admin_crop_sales_tab.dart';
+import 'land/admin_land_review_tab.dart';
 import 'settings_screen.dart';
 
 class AdminDashboard extends StatefulWidget {
@@ -37,7 +38,7 @@ class _AdminDashboardState extends State<AdminDashboard>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 9, vsync: this);
+    _tabController = TabController(length: 10, vsync: this);
     _tabController.addListener(() {
       setState(() {});
     });
@@ -189,6 +190,7 @@ class _AdminDashboardState extends State<AdminDashboard>
                       _buildShopsTab(),
                       _buildWellsTab(),
                       _buildLandPlotsTab(),
+                      const AdminLandReviewTab(),
                       _buildComplaintsTab(),
                       _buildDataExplorerTab(),
                       _buildCropSalesTab(),
@@ -244,6 +246,7 @@ class _AdminDashboardState extends State<AdminDashboard>
           Tab(text: 'المحلات', height: 36),
           Tab(text: 'الآبار', height: 36),
           Tab(text: 'الأراضي', height: 36),
+          Tab(text: 'سوق الأراضي', height: 36),
           Tab(text: 'الشكاوى', height: 36),
           Tab(text: 'البيانات', height: 36),
           Tab(text: 'المنتجات للبيع', height: 36),

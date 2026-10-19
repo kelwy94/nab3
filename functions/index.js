@@ -188,6 +188,21 @@ exports.onJobRequested = onDocumentCreated("jobs/{jobId}", async (event) => {
   }
 });
 
+// Every in-app notification (approvals, land listing reviews, viewing
+// requests, delivery updates...) is also sent as a push to the user's phone.
+exports.onUserNotificationCreated = onDocumentCreated(
+    "users/{userId}/notifications/{notificationId}", async (event) => {
+      const n = event.data && event.data.data();
+      if (!n || !n.title) return;
+      await sendToUser(event.params.userId, {
+        title: String(n.title),
+        body: String(n.body || ""),
+      }, {
+        type: String(n.type || ""),
+        listingId: String(n.listingId || ""),
+      });
+    });
+
 // Notify the equipment owner of a rental request.
 exports.onRentalRequest = onDocumentCreated("rental_requests/{requestId}", async (event) => {
   const req = event.data && event.data.data();

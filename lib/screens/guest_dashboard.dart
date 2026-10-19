@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../theme.dart';
 import '../providers/auth_provider.dart';
+import 'land/land_market_banner.dart';
 import 'marketplace_screen.dart';
 import '../utils/guest_utils.dart';
 
@@ -134,6 +135,8 @@ class _GuestDashboardState extends State<GuestDashboard> {
                 ],
               ),
             ),
+            const SizedBox(height: 16),
+            const LandMarketBanner(),
             const SizedBox(height: 24),
             const Padding(
               padding: EdgeInsets.only(right: 4),

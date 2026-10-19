@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../theme.dart';
 import '../widgets/naba_top_header.dart';
 import 'farmer_dashboard.dart' show ProfileScreen;
+import 'land/land_market_screen.dart';
 import 'marketplace_screen.dart';
 
 class GeneralUserDashboard extends StatefulWidget {
@@ -17,6 +18,7 @@ class _GeneralUserDashboardState extends State<GeneralUserDashboard> {
 
   static const List<Widget> _screens = [
     MarketplaceScreen(),
+    LandMarketScreen(embedded: true),
     ProfileScreen(),
   ];
 
@@ -42,7 +44,8 @@ class _GeneralUserDashboardState extends State<GeneralUserDashboard> {
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 _buildNavItem(0, Icons.shopping_bag_rounded, 'السوق', imageAsset: 'assets/images/icons/market_v2.png'),
-                _buildNavItem(1, Icons.person_rounded, 'حسابي', imageAsset: 'assets/images/icons/profile.png'),
+                _buildNavItem(1, Icons.terrain_rounded, 'الأراضي'),
+                _buildNavItem(2, Icons.person_rounded, 'حسابي', imageAsset: 'assets/images/icons/profile.png'),
               ],
             ),
           ),

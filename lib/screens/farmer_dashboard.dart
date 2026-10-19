@@ -25,6 +25,7 @@ import 'request_equipment_screen.dart';
 import 'consultation_market_screen.dart';
 import 'farmer_consultations_screen.dart';
 import 'settings_screen.dart';
+import 'land/land_market_banner.dart';
 import 'wallet_screen.dart';
 import 'well_create_screen.dart';
 import 'well_details_screen.dart';
@@ -723,6 +724,10 @@ class FarmerHomeTab extends StatelessWidget {
               ),
             ],
           ),
+        ),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: LandMarketBanner(),
         ),
         const SizedBox(height: 8),
 // Active Tracking Section

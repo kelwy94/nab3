@@ -98,6 +98,84 @@ service cloud.firestore {
         // Other users notify sellers (e.g. delivery picked up).
         allow create: if hasProfile();
       }
+
+      // Land listings the user saved (favorites).
+      match /saved_lands/{listingId} {
+        allow read, write: if registered() && uid() == userId;
+      }
+    }
+
+    // ------------------------------------------------------------ land market
+
+    match /land_listings/{listingId} {
+      // Owner writes always land in review; an admin publishes them.
+      function validOwnerWrite(d) {
+        return d.ownerId == uid()
+          && d.status == 'pending'
+          && d.title is string && d.title.size() >= 5 && d.title.size() <= 120
+          && d.price is number && d.price > 0
+          && d.areaFeddan is number && d.areaFeddan > 0
+          && d.photos is list && d.photos.size() >= 1 && d.photos.size() <= 6;
+      }
+
+      function onlyStatusFlip(from, to) {
+        return existing().status == from
+          && incoming().status == to
+          && incoming().diff(existing()).affectedKeys()
+               .hasOnly(['status', 'updatedAt']);
+      }
+
+      // Published (and sold) listings are public, including to guests.
+      allow read: if resource.data.status in ['approved', 'sold']
+        || (registered() && resource.data.ownerId == uid());
+
+      allow create: if hasProfile() && validOwnerWrite(incoming());
+
+      allow update: if hasProfile()
+        && existing().ownerId == uid()
+        && unchanged(['ownerId', 'createdAt', 'approvedAt'])
+        && (validOwnerWrite(incoming())
+            || onlyStatusFlip('approved', 'sold')
+            || onlyStatusFlip('sold', 'approved'));
+
+      allow delete: if hasProfile() && existing().ownerId == uid();
+
+      // Ownership documents: owner and admins only.
+      match /private/{docId} {
+        function listingOwner() {
+          return get(/databases/$(database)/documents/land_listings/$(listingId)).data.ownerId;
+        }
+
+        allow read, delete: if registered() && listingOwner() == uid();
+        allow create, update: if registered()
+          && listingOwner() == uid()
+          && incoming().ownerId == uid()
+          && incoming().documents is list
+          && incoming().documents.size() <= 3;
+      }
+    }
+
+    match /land_inquiries/{inquiryId} {
+      function listing(id) {
+        return get(/databases/$(database)/documents/land_listings/$(id)).data;
+      }
+
+      allow read: if hasProfile()
+        && (resource.data.ownerId == uid() || resource.data.buyerId == uid());
+
+      // Buyers can only ask about live listings, and the ownerId must match
+      // the listing so requests can't be routed to someone else.
+      allow create: if hasProfile()
+        && incoming().buyerId == uid()
+        && incoming().ownerId != uid()
+        && incoming().status == 'new'
+        && listing(incoming().listingId).status == 'approved'
+        && listing(incoming().listingId).ownerId == incoming().ownerId;
+
+      allow update: if hasProfile()
+        && existing().ownerId == uid()
+        && incoming().diff(existing()).affectedKeys().hasOnly(['status'])
+        && incoming().status in ['new', 'contacted', 'closed'];
     }
 
     // ---------------------------------------------------------------- catalog
