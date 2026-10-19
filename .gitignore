@@ -47,3 +47,7 @@ functions/node_modules/
 .firebase/
 firebase-debug.log
 firestore-debug.log
+
+# Java crash/heap dumps
+*.hprof
+hs_err_pid*.log
