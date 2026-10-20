@@ -114,21 +114,7 @@ class AppStateProvider with ChangeNotifier {
       List<naba.CatalogItem> parsed = [];
       for (var doc in snapshot.docs) {
         try {
-          final data = doc.data();
-          parsed.add(naba.CatalogItem(
-            id: doc.id,
-            sellerUserId: data['sellerUserId'] ?? '',
-            name: data['name'] ?? '',
-            category: data['category'] ?? 'أخرى',
-            unit: data['unit'] ?? '',
-            price: (data['price'] ?? 0.0).toDouble(),
-            stockStatus: data['stockStatus'] ?? true,
-            photoUrl: data['photoUrl'],
-            description: data['description'],
-            ratingAvg: (data['ratingAvg'] ?? 0.0).toDouble(),
-            ratingCount: data['ratingCount'] ?? 0,
-            isApproved: data['isApproved'] ?? true,
-          ));
+          parsed.add(naba.CatalogItem.fromMap(doc.id, doc.data()));
         } catch (e) {
           debugPrint('CATALOG: Error parsing product ${doc.id}: $e');
         }

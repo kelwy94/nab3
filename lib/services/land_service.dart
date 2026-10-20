@@ -1,11 +1,10 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 
 import '../models/land_listing.dart';
+import 'image_upload.dart';
 
 /// Firestore access for the land marketplace.
 ///
@@ -112,7 +111,7 @@ class LandService {
         .doc(listing.ownerId)
         .collection('notifications')
         .add({
-      'title': approve ? 'تم نشر أرضك 🎉' : 'لم يتم قبول إعلان الأرض',
+      'title': approve ? 'تم نشر إعلان أرضك' : 'لم يتم قبول إعلان الأرض',
       'body': approve
           ? 'إعلان "${listing.title}" ظاهر الآن في سوق الأراضي.'
           : 'إعلان "${listing.title}" يحتاج تعديل: ${reason ?? ''}',
@@ -199,20 +198,8 @@ class LandService {
 
   // ---------------------------------------------------------------- images
 
-  /// Uploads to Firebase Storage, falling back to inline base64 (the same
-  /// fallback the rest of the app uses) when Storage isn't set up.
-  static Future<String> uploadImage(Uint8List bytes, String path) async {
-    try {
-      final ref = FirebaseStorage.instance.ref().child(path);
-      await ref
-          .putData(bytes, SettableMetadata(contentType: 'image/jpeg'))
-          .timeout(const Duration(seconds: 25));
-      return await ref.getDownloadURL();
-    } catch (e) {
-      debugPrint('Land image upload fell back to base64: $e');
-      return 'base64,${base64Encode(bytes)}';
-    }
-  }
+  static Future<String> uploadImage(Uint8List bytes, String path) =>
+      uploadImageOrInline(bytes, path);
 
   /// Rough size of inline images, used to keep docs under Firestore's 1 MB.
   static int inlineBytes(List<String> images) => images

@@ -10,7 +10,6 @@ class HomeScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('نب3 جديد'),
-        backgroundColor: Colors.green.shade700,
         centerTitle: true,
         actions: [
           IconButton(

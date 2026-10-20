@@ -204,9 +204,6 @@ class _AdminDashboardState extends State<AdminDashboard>
 
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
-      backgroundColor: NabaTheme.primary,
-      elevation: 4,
-      foregroundColor: Colors.white,
       title: const Text('لوحة التحكم',
           style: TextStyle(fontWeight: FontWeight.bold)),
       actions: [

@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state_provider.dart';
@@ -6,6 +5,7 @@ import '../providers/auth_provider.dart';
 import '../theme.dart';
 import '../utils/guest_utils.dart';
 import 'checkout_screen.dart';
+import '../widgets/smart_image.dart';
 
 class CartScreen extends StatefulWidget {
   const CartScreen({super.key});
@@ -38,8 +38,6 @@ class _CartScreenState extends State<CartScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F6FA),
       appBar: AppBar(
-        backgroundColor: NabaTheme.primary,
-        foregroundColor: Colors.white,
         title: const Text('سلة المشتريات',
             style: TextStyle(fontWeight: FontWeight.bold)),
         centerTitle: true,
@@ -631,21 +629,6 @@ class _CartItemCard extends StatelessWidget {
             child: Icon(icon, color: color, size: 20)));
   }
 
-  Widget _buildImage(String? base64String) {
-    if (base64String == null || base64String.isEmpty) {
-      return const Center(
-          child:
-              Icon(Icons.shopping_bag_outlined, color: Colors.grey, size: 32));
-    }
-    try {
-      String clean = base64String;
-      if (clean.contains(',')) clean = clean.split(',').last;
-      return Image.memory(base64Decode(clean.trim()),
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => const Center(
-              child: Icon(Icons.broken_image, color: Colors.grey)));
-    } catch (_) {
-      return const Center(child: Icon(Icons.broken_image, color: Colors.grey));
-    }
-  }
+  Widget _buildImage(String? image) =>
+      SmartImage(image, placeholderIcon: Icons.shopping_bag_outlined);
 }

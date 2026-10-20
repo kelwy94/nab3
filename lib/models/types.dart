@@ -566,6 +566,8 @@ class CatalogItem {
   final String condition; // new / used
   final double minOrderQuantity;
   final bool deliveryAvailable;
+  final bool negotiable;
+  final Map<String, String> specs; // machinery: brand, model, year, hours, power
 
   CatalogItem({
     required this.id,
@@ -587,7 +589,46 @@ class CatalogItem {
     this.condition = 'جديد',
     this.minOrderQuantity = 1.0,
     this.deliveryAvailable = false,
+    this.negotiable = false,
+    this.specs = const {},
   });
+
+  /// Builds an item from a `catalog` document. Shared by every screen and
+  /// provider that reads the catalog so no field is silently dropped.
+  factory CatalogItem.fromMap(String id, Map<String, dynamic> data) {
+    final rawSpecs = data['specs'];
+    return CatalogItem(
+      id: id,
+      sellerUserId: data['sellerUserId'] ?? '',
+      name: data['name'] ?? '',
+      category: data['category'] ?? 'أخرى',
+      unit: data['unit'] ?? '',
+      price: (data['price'] as num?)?.toDouble() ?? 0.0,
+      stockStatus: data['stockStatus'] ?? true,
+      photoUrl: data['photoUrl'],
+      description: data['description'],
+      ratingAvg: (data['ratingAvg'] as num?)?.toDouble() ?? 0.0,
+      ratingCount: (data['ratingCount'] as num?)?.toInt() ?? 0,
+      isApproved: data['isApproved'] ?? true,
+      discountPercentage:
+          (data['discountPercentage'] as num?)?.toDouble() ?? 0.0,
+      additionalPhotos: List<String>.from(data['additionalPhotos'] ?? []),
+      quantity: (data['quantity'] as num?)?.toDouble() ?? 0.0,
+      address: data['address'] ?? '',
+      condition: data['condition'] ?? 'جديد',
+      minOrderQuantity: (data['minOrderQuantity'] as num?)?.toDouble() ?? 1.0,
+      deliveryAvailable: data['deliveryAvailable'] ?? false,
+      negotiable: data['negotiable'] ?? false,
+      specs: rawSpecs is Map
+          ? rawSpecs.map((k, v) => MapEntry(k.toString(), v.toString()))
+          : const {},
+    );
+  }
+
+  List<String> get allPhotos => [
+        if (photoUrl != null && photoUrl!.isNotEmpty) photoUrl!,
+        ...additionalPhotos.where((p) => p.isNotEmpty),
+      ];
 }
 
 class Payment {

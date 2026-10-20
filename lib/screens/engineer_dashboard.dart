@@ -31,19 +31,17 @@ class _EngineerDashboardState extends State<EngineerDashboard> {
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
         title: const Text('لوحة الحساب الاحترافي',
-            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
-        backgroundColor: NabaTheme.primary,
+            style: TextStyle(fontWeight: FontWeight.bold)),
         elevation: 0,
         centerTitle: true,
         automaticallyImplyLeading: false,
         actions: [
           IconButton(
-            icon: const Icon(Icons.notifications_active_rounded,
-                color: Colors.white),
+            icon: const Icon(Icons.notifications_active_rounded),
             onPressed: () {}, // For future notifications
           ),
           IconButton(
-            icon: const Icon(Icons.logout_rounded, color: Colors.white),
+            icon: const Icon(Icons.logout_rounded),
             onPressed: () => auth.logout(),
           ),
         ],

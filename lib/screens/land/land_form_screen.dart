@@ -306,8 +306,6 @@ class _LandFormScreenState extends State<LandFormScreen> {
           backgroundColor: NabaTheme.background,
           appBar: AppBar(
             title: Text(_isEdit ? 'تعديل إعلان الأرض' : 'اعرض أرضك للبيع'),
-            backgroundColor: NabaTheme.primary,
-            foregroundColor: Colors.white,
           ),
           body: Column(
             children: [

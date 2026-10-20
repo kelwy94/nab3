@@ -112,8 +112,6 @@ class WorkerHomeTab extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF0F4F8),
       appBar: AppBar(
-        backgroundColor: NabaTheme.primary,
-        foregroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
         title: const Text('لوحة العمل والتوظيف',

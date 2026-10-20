@@ -129,10 +129,7 @@ class NabaAppBar extends StatelessWidget implements PreferredSizeWidget {
     return AppBar(
       title: Text(title),
       leading: showBackButton && Navigator.canPop(context)
-          ? IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new, size: 20),
-              onPressed: () => Navigator.pop(context),
-            )
+          ? const NabaBackButton()
           : null,
       actions: actions,
     );
@@ -140,4 +137,27 @@ class NabaAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+}
+
+/// Back button used in headers: small rounded square, as on the market tab.
+class NabaBackButton extends StatelessWidget {
+  final Color? background;
+  const NabaBackButton({super.key, this.background});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(8),
+      child: Material(
+        color: background ?? const Color(0xFFE2EBE5),
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () => Navigator.maybePop(context),
+          child: const Icon(Icons.arrow_back_ios_new_rounded,
+              size: 18, color: Color(0xFF265B33)),
+        ),
+      ),
+    );
+  }
 }

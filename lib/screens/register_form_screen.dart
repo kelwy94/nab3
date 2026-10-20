@@ -176,7 +176,6 @@ class _RegisterFormScreenState extends State<RegisterFormScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('إنشاء حساب جديد'),
-        backgroundColor: Colors.green.shade700,
         centerTitle: true,
       ),
       body: Consumer<AuthProvider>(
@@ -315,8 +314,7 @@ class _RegisterFormScreenState extends State<RegisterFormScreen> {
                   ElevatedButton(
                     onPressed: authProvider.isLoading ? null : _submitForm,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green.shade700,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
+                                    padding: const EdgeInsets.symmetric(vertical: 16),
                       disabledBackgroundColor: Colors.grey.shade400,
                     ),
                     child: authProvider.isLoading

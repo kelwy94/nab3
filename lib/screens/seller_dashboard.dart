@@ -1,4 +1,3 @@
-import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' as intl;
@@ -18,6 +17,7 @@ import 'map_picker_screen.dart';
 import 'package:latlong2/latlong.dart';
 import '../widgets/service_requests_panel.dart';
 import '../widgets/sell_crop_card.dart';
+import '../widgets/smart_image.dart';
 
 class SellerDashboard extends StatefulWidget {
   const SellerDashboard({super.key});
@@ -128,7 +128,7 @@ class _SellerDashboardState extends State<SellerDashboard>
 
     return Column(
       children: [
-        const SellCropCard(),
+        const SellCropCard(showLandMarket: false),
         _buildSearchAndFilters(),
         Expanded(
           child: products.isEmpty
@@ -401,42 +401,12 @@ class _SellerDashboardState extends State<SellerDashboard>
     );
   }
 
-  Widget _buildImageSafe(String? base64String, String heroTag) {
-    if (base64String == null || base64String.isEmpty) {
-      return Center(
-        child: Hero(
-          tag: 'prod_$heroTag',
-          child: Icon(Icons.inventory_2_rounded,
-              size: 48, color: Colors.grey.shade300),
-        ),
-      );
-    }
-
-    try {
-      String cleanBase64 = base64String;
-      if (cleanBase64.contains(',')) {
-        cleanBase64 = cleanBase64.split(',').last;
-      }
-      final bytes = base64Decode(cleanBase64.trim());
-      return Hero(
-        tag: 'prod_$heroTag',
-        child: Image.memory(
-          bytes,
-          fit: BoxFit.contain,
-          width: double.infinity,
-          height: double.infinity,
-          errorBuilder: (context, error, stackTrace) {
-            return Center(
-                child: Icon(Icons.broken_image,
-                    color: Colors.grey.shade300, size: 48));
-          },
-        ),
-      );
-    } catch (e) {
-      return Center(
-          child:
-              Icon(Icons.broken_image, color: Colors.grey.shade300, size: 48));
-    }
+  Widget _buildImageSafe(String? image, String heroTag) {
+    return Hero(
+      tag: 'prod_$heroTag',
+      child: SmartImage(image,
+          fit: BoxFit.contain, placeholderIcon: Icons.inventory_2_rounded),
+    );
   }
 
   Widget _buildOrdersTab() {

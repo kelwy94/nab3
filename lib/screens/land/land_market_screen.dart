@@ -8,6 +8,7 @@ import '../../services/land_service.dart';
 import '../../theme.dart';
 import '../../utils/guest_utils.dart';
 import '../../widgets/land_widgets.dart';
+import '../../widgets/naba_widgets.dart';
 import 'land_details_screen.dart';
 import 'land_form_screen.dart';
 import 'my_land_listings_screen.dart';
@@ -201,10 +202,9 @@ class _LandMarketScreenState extends State<LandMarketScreen> {
   Widget _buildHeader(String? uid, List<LandListing> all) {
     return SliverAppBar(
       pinned: true,
-      expandedHeight: 190,
-      automaticallyImplyLeading: !widget.embedded,
-      backgroundColor: NabaTheme.primary,
-      foregroundColor: Colors.white,
+      expandedHeight: 150,
+      automaticallyImplyLeading: false,
+      leading: widget.embedded ? null : const NabaBackButton(),
       title: const Text('سوق الأراضي'),
       actions: [
         if (uid != null)
@@ -219,8 +219,8 @@ class _LandMarketScreenState extends State<LandMarketScreen> {
       ],
       flexibleSpace: FlexibleSpaceBar(
         background: Container(
-          decoration: const BoxDecoration(gradient: NabaTheme.primaryGradient),
-          padding: const EdgeInsets.fromLTRB(16, 90, 16, 16),
+          color: Colors.white,
+          padding: const EdgeInsets.fromLTRB(16, 64, 16, 12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -228,7 +228,8 @@ class _LandMarketScreenState extends State<LandMarketScreen> {
                 all.isEmpty
                     ? 'اشتري أو بيع أرضك بأمان'
                     : '${all.length} أرض معروضة • كل الإعلانات مراجَعة',
-                style: const TextStyle(color: Colors.white70, fontSize: 13),
+                style: const TextStyle(
+                    color: NabaTheme.textSecondary, fontSize: 13),
               ),
               const SizedBox(height: 10),
               TextField(
@@ -248,8 +249,9 @@ class _LandMarketScreenState extends State<LandMarketScreen> {
                           },
                         ),
                   contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                  fillColor: NabaTheme.background,
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(14),
                     borderSide: BorderSide.none,
                   ),
                 ),
@@ -309,9 +311,12 @@ class _LandMarketScreenState extends State<LandMarketScreen> {
         label: Text(label),
         selected: selected,
         onSelected: (_) => setState(() => _filters.district = value),
-        selectedColor: NabaTheme.primary.withOpacity(0.15),
+        showCheckmark: false,
+        selectedColor: const Color(0xFFE2EBE5),
+        side: BorderSide(
+            color: selected ? Colors.transparent : NabaTheme.divider),
         labelStyle: TextStyle(
-          color: selected ? NabaTheme.primary : NabaTheme.textSecondary,
+          color: selected ? const Color(0xFF265B33) : NabaTheme.textSecondary,
           fontWeight: selected ? FontWeight.bold : FontWeight.normal,
         ),
         backgroundColor: Colors.white,
@@ -410,7 +415,7 @@ class _LandMarketScreenState extends State<LandMarketScreen> {
                       contentPadding: EdgeInsets.zero,
                       value: savedOnly,
                       activeColor: NabaTheme.primary,
-                      title: const Text('المحفوظة فقط ❤️'),
+                      title: const Text('المحفوظة فقط'),
                       onChanged: (v) => setSheet(() => savedOnly = v),
                     ),
                   const SizedBox(height: 12),

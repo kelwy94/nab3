@@ -37,9 +37,15 @@ class NabaTheme {
         boxShadow: premiumShadows,
       );
 
+  static const String fontFamily = 'Tajawal';
+
+  /// Hairline used for header bottoms and card outlines.
+  static const Color divider = Color(0xFFE6EAE8);
+
   static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,
+      fontFamily: fontFamily,
       colorScheme: ColorScheme.fromSeed(
         seedColor: primary,
         primary: primary,
@@ -50,22 +56,43 @@ class NabaTheme {
       scaffoldBackgroundColor: background,
       textTheme: const TextTheme(
         displayLarge: TextStyle(fontWeight: FontWeight.bold),
-        titleLarge: TextStyle(fontWeight: FontWeight.w600),
+        titleLarge: TextStyle(fontWeight: FontWeight.w700),
       ),
+      // White header everywhere, matching the main tabs (market, home).
       appBarTheme: const AppBarTheme(
-        backgroundColor: primary,
+        backgroundColor: Colors.white,
+        foregroundColor: textPrimary,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
+        scrolledUnderElevation: 0,
         centerTitle: true,
-        iconTheme: IconThemeData(color: Colors.white),
+        iconTheme: IconThemeData(color: primary),
+        actionsIconTheme: IconThemeData(color: primary),
+        shape: Border(bottom: BorderSide(color: divider)),
         titleTextStyle: TextStyle(
-          color: Colors.white,
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
+          fontFamily: fontFamily,
+          color: textPrimary,
+          fontSize: 18,
+          fontWeight: FontWeight.w700,
         ),
       ),
+      tabBarTheme: const TabBarThemeData(
+        labelColor: primary,
+        unselectedLabelColor: textSecondary,
+        indicatorColor: primary,
+        dividerColor: divider,
+        labelStyle:
+            TextStyle(fontFamily: fontFamily, fontWeight: FontWeight.w700),
+        unselectedLabelStyle: TextStyle(fontFamily: fontFamily),
+      ),
       cardTheme: CardThemeData(
-        elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        elevation: 0,
+        color: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: divider),
+        ),
         clipBehavior: Clip.antiAlias,
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(

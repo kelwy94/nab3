@@ -92,16 +92,14 @@ class _GuestDashboardState extends State<GuestDashboard> {
     return Scaffold(
       backgroundColor: NabaTheme.background,
       appBar: AppBar(
-        backgroundColor: NabaTheme.primary,
-        foregroundColor: Colors.white,
         title: const Text('نبع',
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22)),
         centerTitle: true,
         actions: [
           TextButton.icon(
             onPressed: () => context.read<AuthProvider>().exitGuestMode(),
-            icon: const Icon(Icons.login, color: Colors.white, size: 18),
-            label: const Text('سجّل', style: TextStyle(color: Colors.white)),
+            icon: const Icon(Icons.login, size: 18),
+            label: const Text('سجّل'),
           ),
         ],
       ),
@@ -261,8 +259,6 @@ class _GuestDashboardState extends State<GuestDashboard> {
     return Scaffold(
       backgroundColor: NabaTheme.background,
       appBar: AppBar(
-        backgroundColor: NabaTheme.primary,
-        foregroundColor: Colors.white,
         title:
             const Text('حسابي', style: TextStyle(fontWeight: FontWeight.bold)),
         centerTitle: true,

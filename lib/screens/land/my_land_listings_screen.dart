@@ -27,14 +27,7 @@ class MyLandListingsScreen extends StatelessWidget {
           backgroundColor: NabaTheme.background,
           appBar: AppBar(
             title: const Text('أراضيّ'),
-            backgroundColor: NabaTheme.primary,
-            foregroundColor: Colors.white,
             bottom: const TabBar(
-              indicatorColor: NabaTheme.accent,
-              indicatorWeight: 3,
-              labelColor: Colors.white,
-              unselectedLabelColor: Colors.white70,
-              labelStyle: TextStyle(fontWeight: FontWeight.bold),
               tabs: [
                 Tab(text: 'إعلاناتي'),
                 Tab(text: 'طلبات وصلتلي'),

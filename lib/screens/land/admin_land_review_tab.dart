@@ -63,7 +63,7 @@ class _AdminLandReviewTabState extends State<AdminLandReviewTab> {
                     child: Text(
                       _showLive
                           ? 'لا توجد أراضي معروضة'
-                          : 'لا توجد إعلانات بانتظار المراجعة 👌',
+                          : 'لا توجد إعلانات بانتظار المراجعة',
                       style: const TextStyle(color: NabaTheme.textSecondary),
                     ),
                   );
@@ -157,7 +157,7 @@ class _ReviewCard extends StatelessWidget {
     await LandService.review(listing, approve: true);
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('تم نشر الإعلان ✅'), backgroundColor: Colors.green));
+          content: Text('تم نشر الإعلان'), backgroundColor: Colors.green));
     }
   }
 
@@ -219,7 +219,7 @@ class _ReviewCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: NabaTheme.premiumShadows,
+        border: Border.all(color: NabaTheme.divider),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(

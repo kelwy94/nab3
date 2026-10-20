@@ -22,27 +22,9 @@ class CatalogProvider with ChangeNotifier {
         .where('sellerUserId', isEqualTo: sellerId)
         .snapshots()
         .listen((snapshot) {
-      _sellerProducts = snapshot.docs.map((doc) {
-        final data = doc.data();
-        return CatalogItem(
-          id: doc.id,
-          sellerUserId: data['sellerUserId'] ?? '',
-          name: data['name'] ?? '',
-          category: data['category'] ?? 'أخرى',
-          unit: data['unit'] ?? '',
-          price: (data['price'] ?? 0.0).toDouble(),
-          stockStatus: data['stockStatus'] ?? true,
-          photoUrl: data['photoUrl'],
-          isApproved: data['isApproved'] ?? true,
-          discountPercentage: (data['discountPercentage'] ?? 0.0).toDouble(),
-          additionalPhotos: List<String>.from(data['additionalPhotos'] ?? []),
-          quantity: (data['quantity'] ?? 0.0).toDouble(),
-          address: data['address'] ?? '',
-          condition: data['condition'] ?? 'جديد',
-          minOrderQuantity: (data['minOrderQuantity'] ?? 1.0).toDouble(),
-          deliveryAvailable: data['deliveryAvailable'] ?? false,
-        );
-      }).toList();
+      _sellerProducts = snapshot.docs
+          .map((doc) => CatalogItem.fromMap(doc.id, doc.data()))
+          .toList();
       _isLoading = false;
       notifyListeners();
     });
@@ -92,6 +74,8 @@ class CatalogProvider with ChangeNotifier {
       'condition': item.condition,
       'minOrderQuantity': item.minOrderQuantity,
       'deliveryAvailable': item.deliveryAvailable,
+      'negotiable': item.negotiable,
+      'specs': item.specs,
     };
 
     if (item.id.startsWith('new_')) {

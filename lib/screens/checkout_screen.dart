@@ -350,8 +350,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F6FA),
       appBar: AppBar(
-        backgroundColor: NabaTheme.primary,
-        foregroundColor: Colors.white,
         title: const Text('إتمام الطلب',
             style: TextStyle(fontWeight: FontWeight.bold)),
         centerTitle: true,

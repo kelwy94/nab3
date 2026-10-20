@@ -1,7 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../data/delivery_data.dart';
+import '../data/product_categories.dart';
+import '../widgets/smart_image.dart';
 import '../providers/app_state_provider.dart';
 import '../providers/auth_provider.dart';
 import '../theme.dart';
@@ -30,6 +31,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   String? _selectedDistrict;
   bool _initialized = false;
   String _searchQuery = '';
+  static const _usedFilter = 'مستعمل';
   String _selectedCategory = 'الكل';
   String _sortOption = 'newest';
   int _selectedDiscount = 0;
@@ -238,46 +240,59 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                     ),
                   ),
 
-                  // Banner
-                  Container(
-                    margin: const EdgeInsets.all(16),
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE2EBE5),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      textDirection: TextDirection.rtl,
-                      children: [
-                        Expanded(
-                          flex: 2,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'خصم حتى 20% على المستلزمات الزراعية!',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black87),
-                                textDirection: TextDirection.rtl,
-                              ),
-                              const SizedBox(height: 12),
-                              ElevatedButton(
-                                onPressed: () {},
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.white,
-                                  foregroundColor: const Color(0xFF265B33),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                                  elevation: 0,
-                                ),
-                                child: const Text('تسوق الآن', style: TextStyle(fontWeight: FontWeight.bold)),
-                              ),
-                            ],
+                  // Sell used equipment banner
+                  GestureDetector(
+                    onTap: () {
+                      if (context.read<AuthProvider>().isGuest) {
+                        GuestUtils.showGuestLoginPrompt(context);
+                        return;
+                      }
+                      Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const ProductFormScreen(
+                                  initialCategory: 'آلات زراعية')));
+                    },
+                    child: Container(
+                      margin: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE2EBE5),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Row(
+                        textDirection: TextDirection.rtl,
+                        children: [
+                          Container(
+                            width: 52,
+                            height: 52,
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: Image.asset('assets/images/icons/tractor.png'),
                           ),
-                        ),
-                        const Expanded(
-                          flex: 1,
-                          child: Icon(Icons.agriculture_rounded, size: 70, color: Color(0xFF265B33)),
-                        ),
-                      ],
+                          const SizedBox(width: 14),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'بيع معداتك المستعملة',
+                                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Color(0xFF265B33)),
+                                ),
+                                SizedBox(height: 2),
+                                Text(
+                                  'جرارات، محاريث، طلمبات، ألواح شمسية',
+                                  style: TextStyle(fontSize: 12, color: NabaTheme.textSecondary),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(Icons.chevron_left_rounded, color: Color(0xFF265B33)),
+                        ],
+                      ),
                     ),
                   ),
 
@@ -302,11 +317,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       reverse: true, // RTL
                       children: [
-                        _buildCategoryChip('الكل', null, _selectedCategory == 'الكل'),
-                        _buildCategoryChip('بذور', null, _selectedCategory == 'بذور'),
-                        _buildCategoryChip('أسمدة', null, _selectedCategory == 'أسمدة'),
-                        _buildCategoryChip('مبيدات', null, _selectedCategory == 'مبيدات'),
-                        _buildCategoryChip('معدات', null, _selectedCategory == 'معدات'),
+                        _buildCategoryChip('الكل', Icons.apps_rounded, _selectedCategory == 'الكل'),
+                        _buildCategoryChip(_usedFilter, Icons.autorenew_rounded, _selectedCategory == _usedFilter),
+                        for (final c in kProductCategories)
+                          _buildCategoryChip(c.name, c.icon, _selectedCategory == c.name),
                       ],
                     ),
                   ),
@@ -483,12 +497,12 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       }).toList();
     }
 
-    if (_selectedCategory != 'الكل') {
-      filteredProducts = filteredProducts.where((p) {
-        final cat = p.category.toLowerCase();
-        final sel = _selectedCategory.toLowerCase();
-        return cat.contains(sel) || sel.contains(cat);
-      }).toList();
+    if (_selectedCategory == _usedFilter) {
+      filteredProducts = filteredProducts.where((p) => isUsedCondition(p.condition)).toList();
+    } else if (_selectedCategory != 'الكل') {
+      filteredProducts = filteredProducts
+          .where((p) => categoryByName(p.category).name == _selectedCategory)
+          .toList();
     }
 
     if (_selectedDiscount > 0) {
@@ -543,7 +557,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     );
   }
 
-  Widget _buildProductCard(BuildContext context, dynamic p) {
+  Widget _buildProductCard(BuildContext context, CatalogItem p) {
     return GestureDetector(
       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ProductDetailsScreen(product: p))),
       child: Container(
@@ -561,7 +575,26 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
             Expanded(
               child: ClipRRect(
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                child: _buildImageSafe(p.photoUrl),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    SmartImage(p.photoUrl, placeholderIcon: categoryByName(p.category).icon),
+                    if (isUsedCondition(p.condition))
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.shade700,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Text('مستعمل',
+                              style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
             Padding(
@@ -585,10 +618,23 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                         children: [
                           if (p.discountPercentage > 0) Text('${(p.price / (1 - p.discountPercentage / 100)).toStringAsFixed(0)} ج.م',
                               style: const TextStyle(color: Colors.grey, decoration: TextDecoration.lineThrough, fontSize: 11)),
-                          Text('${p.price} ج.م',
+                          Text('${p.price == p.price.roundToDouble() ? p.price.toStringAsFixed(0) : p.price} ج.م',
                               style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.bold, fontSize: 16)),
+                          if (p.negotiable)
+                            Text('قابل للتفاوض', style: TextStyle(color: Colors.orange.shade800, fontSize: 10)),
                         ],
                       ),
+                      if (categoryByName(p.category).isMachinery || isUsedCondition(p.condition))
+                        // Machinery and used items are arranged with the seller.
+                        GestureDetector(
+                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ProductDetailsScreen(product: p))),
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: const BoxDecoration(color: Color(0xFFE2EBE5), shape: BoxShape.circle),
+                            child: const Icon(Icons.call_rounded, color: Color(0xFF265B33), size: 18),
+                          ),
+                        )
+                      else
                       GestureDetector(
                         onTap: () {
                           if (context.read<AuthProvider>().isGuest) {
@@ -616,36 +662,6 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         ),
       ),
     );
-  }
-
-  Widget _buildImageSafe(String? imageString) {
-    if (imageString == null || imageString.isEmpty) {
-      return const Center(child: Icon(Icons.image_outlined, color: Colors.grey, size: 40));
-    }
-    if (imageString.startsWith('http')) {
-      return Image.network(
-        imageString,
-        fit: BoxFit.cover,
-        width: double.infinity,
-        height: double.infinity,
-        errorBuilder: (context, error, stackTrace) => const Center(child: Icon(Icons.broken_image, color: Colors.grey, size: 40)),
-      );
-    }
-    try {
-      String clean = imageString;
-      if (clean.startsWith('base64,')) clean = clean.substring(7);
-      else if (clean.contains(',')) clean = clean.split(',').last;
-      final bytes = base64Decode(clean.trim());
-      return Image.memory(
-        bytes,
-        fit: BoxFit.cover,
-        width: double.infinity,
-        height: double.infinity,
-        errorBuilder: (context, error, stackTrace) => const Center(child: Icon(Icons.broken_image, color: Colors.grey, size: 40)),
-      );
-    } catch (e) {
-      return const Center(child: Icon(Icons.broken_image, color: Colors.grey, size: 40));
-    }
   }
 }
 

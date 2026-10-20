@@ -12,6 +12,7 @@ import '../../services/land_service.dart';
 import '../../theme.dart';
 import '../../utils/guest_utils.dart';
 import '../../widgets/land_widgets.dart';
+import '../../widgets/naba_widgets.dart';
 import 'land_form_screen.dart';
 
 class LandDetailsScreen extends StatefulWidget {
@@ -150,8 +151,8 @@ class _LandDetailsScreenState extends State<LandDetailsScreen> {
     return SliverAppBar(
       pinned: true,
       expandedHeight: 300,
-      backgroundColor: NabaTheme.primary,
-      foregroundColor: Colors.white,
+      automaticallyImplyLeading: false,
+      leading: const NabaBackButton(background: Colors.white),
       flexibleSpace: FlexibleSpaceBar(
         background: Stack(
           fit: StackFit.expand,
@@ -205,7 +206,10 @@ class _LandDetailsScreenState extends State<LandDetailsScreen> {
         builder: (_) => Scaffold(
           backgroundColor: Colors.black,
           appBar: AppBar(
-              backgroundColor: Colors.black, foregroundColor: Colors.white),
+              backgroundColor: Colors.black,
+              foregroundColor: Colors.white,
+              iconTheme: const IconThemeData(color: Colors.white),
+              shape: const Border()),
           body: PageView.builder(
             controller: PageController(initialPage: index),
             itemCount: photos.length,
@@ -699,7 +703,7 @@ class _LandDetailsScreenState extends State<LandDetailsScreen> {
                             messenger.showSnackBar(
                               const SnackBar(
                                 content: Text(
-                                    'تم إرسال طلبك ✅ صاحب الأرض هيتواصل معاك قريباً'),
+                                    'تم إرسال طلبك، وصاحب الأرض هيتواصل معاك قريباً'),
                                 backgroundColor: Colors.green,
                               ),
                             );

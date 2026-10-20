@@ -1,11 +1,31 @@
 import 'package:flutter/material.dart';
+import '../screens/land/land_market_banner.dart';
 import '../screens/sell_crop_screen.dart';
 
+/// "Sell your crop" home card, followed by the land market entry.
 class SellCropCard extends StatelessWidget {
-  const SellCropCard({super.key});
+  /// Hide the land market banner where vertical space is tight.
+  final bool showLandMarket;
+  const SellCropCard({super.key, this.showLandMarket = true});
 
   @override
   Widget build(BuildContext context) {
+    final card = _buildCard(context);
+    if (!showLandMarket) return card;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        card,
+        const Padding(
+          padding: EdgeInsets.fromLTRB(16, 4, 16, 8),
+          child: LandMarketBanner(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCard(BuildContext context) {
     return GestureDetector(
       onTap: () {
         Navigator.push(
