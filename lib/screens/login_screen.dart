@@ -6,6 +6,7 @@ import '../widgets/naba_widgets.dart';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../services/biometric_helper.dart';
+import '../services/support_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -107,6 +108,50 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  /// Accounts use placeholder emails, so reset links can't be delivered.
+  /// Users contact support, and an admin issues a temporary password.
+  Future<void> _showForgotPassword() async {
+    final support = await SupportService.supportWhatsapp();
+    if (!mounted) return;
+    final phone = _phoneController.text.trim();
+    showDialog(
+      context: context,
+      builder: (ctx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          title: const Text('نسيت كلمة المرور؟'),
+          content: Text(
+            support != null
+                ? 'كلّم الدعم على واتساب، وبعد ما نتأكد إن الحساب بتاعك هنبعتلك كلمة مرور مؤقتة تدخل بيها وتغيّرها.'
+                : 'تواصل مع إدارة التطبيق، وبعد ما يتأكدوا إن الحساب بتاعك هيبعتولك كلمة مرور مؤقتة تدخل بيها وتغيّرها.',
+            style: const TextStyle(height: 1.6),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('إغلاق')),
+            if (support != null)
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF25D366),
+                    foregroundColor: Colors.white),
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  SupportService.openWhatsapp(
+                    support,
+                    'السلام عليكم، نسيت كلمة المرور بتاعة حسابي على تطبيق نبع'
+                    '${phone.isNotEmpty ? ' (رقم الحساب: $phone)' : ''}.',
+                  );
+                },
+                icon: const Icon(Icons.chat_rounded, size: 18),
+                label: const Text('كلّم الدعم'),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -179,59 +224,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ],
                 const SizedBox(height: 16),
                 TextButton(
-                  onPressed: () {
-                    if (_phoneController.text.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text(
-                                'الرجاء إدخال رقم الهاتف أولاً لإرسال رابط الاستعادة')),
-                      );
-                      return;
-                    }
-                    showDialog(
-                      context: context,
-                      builder: (ctx) => Directionality(
-                        textDirection: TextDirection.rtl,
-                        child: AlertDialog(
-                          title: const Text('استعادة كلمة المرور'),
-                          content: Text(
-                              'هل تريد إرسال رابط استعادة كلمة المرور إلى الحساب المرتبط برقم ${_phoneController.text}؟\n(ملاحظة: النظام يستخدم بريداً افتراضياً)'),
-                          actions: [
-                            TextButton(
-                                onPressed: () => Navigator.pop(ctx),
-                                child: const Text('إلغاء')),
-                            ElevatedButton(
-                              onPressed: () async {
-                                Navigator.pop(ctx);
-                                try {
-                                  await Provider.of<AuthProvider>(context,
-                                          listen: false)
-                                      .resetPassword(
-                                          "${_phoneController.text}@naba.app");
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                          content: Text(
-                                              'تم إرسال طلب استعادة كلمة المرور بنجاح!')),
-                                    );
-                                  }
-                                } catch (e) { print('Login error: $e');
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                          content: Text(
-                                              'حدث خطأ، تأكد من أن الرقم مسجل')),
-                                    );
-                                  }
-                                }
-                              },
-                              child: const Text('إرسال'),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
+                  onPressed: _showForgotPassword,
                   child: const Text('نسيت كلمة المرور؟',
                       style: TextStyle(color: Colors.grey)),
                 ),

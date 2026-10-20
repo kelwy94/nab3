@@ -2,6 +2,8 @@ const {onDocumentCreated, onDocumentUpdated} =
     require("firebase-functions/v2/firestore");
 const {setGlobalOptions} = require("firebase-functions/v2");
 const {onSchedule} = require("firebase-functions/v2/scheduler");
+const {onCall, HttpsError} = require("firebase-functions/v2/https");
+const crypto = require("crypto");
 const admin = require("firebase-admin");
 const {FieldValue} = require("firebase-admin/firestore");
 
@@ -297,4 +299,43 @@ exports.turnReminders = onSchedule("every 10 minutes", async () => {
     jobs.push(doc.ref.update({reminderKey: key}));
   });
   await Promise.all(jobs);
+});
+
+// ---------------------------------------------------------------------------
+// Account support
+// ---------------------------------------------------------------------------
+
+// Admin sets a temporary password for a user who forgot theirs (accounts
+// use placeholder emails, so email reset links can't reach anyone). The
+// user is signed out everywhere and must choose a new password at login.
+exports.adminResetPassword = onCall(async (request) => {
+  const caller = request.auth;
+  if (!caller) throw new HttpsError("unauthenticated", "سجّل دخول الأول");
+
+  const me = await db.collection("users").doc(caller.uid).get();
+  const role = me.exists ? me.data().role : null;
+  if (!["UserRole.admin", "admin"].includes(role)) {
+    throw new HttpsError("permission-denied", "الإجراء ده للإدارة بس");
+  }
+
+  const uid = request.data && request.data.uid;
+  if (typeof uid !== "string" || !uid) {
+    throw new HttpsError("invalid-argument", "المستخدم مش محدد");
+  }
+  if (uid === caller.uid) {
+    throw new HttpsError("failed-precondition", "غيّر باسوردك من شاشة تغيير كلمة المرور");
+  }
+
+  // 8 digits: easy to read out over the phone or WhatsApp.
+  const temp = Array.from({length: 8}, () => crypto.randomInt(10)).join("");
+  await admin.auth().updateUser(uid, {password: temp});
+  await admin.auth().revokeRefreshTokens(uid);
+  await db.collection("users").doc(uid).update({mustChangePassword: true});
+  await db.collection("admin_actions").add({
+    type: "password_reset",
+    by: caller.uid,
+    target: uid,
+    at: FieldValue.serverTimestamp(),
+  });
+  return {password: temp};
 });

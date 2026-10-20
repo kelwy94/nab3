@@ -21,6 +21,7 @@ import 'providers/locale_provider.dart';
 import 'providers/well_provider.dart';
 import 'l10n/app_localizations.dart';
 import 'screens/admin_dashboard.dart';
+import 'screens/change_password_screen.dart';
 import 'screens/equipment_owner_dashboard.dart';
 import 'screens/farmer_dashboard.dart';
 import 'screens/onboarding_screen.dart';
@@ -131,6 +132,9 @@ class AuthWrapper extends StatelessWidget {
       if (auth.user!.status == AccountStatus.pending &&
           auth.user!.role != UserRole.admin) {
         return const PendingApprovalScreen();
+      }
+      if (auth.mustChangePassword) {
+        return const ChangePasswordScreen(forced: true);
       }
       return const DashboardSwitcher();
     } else {

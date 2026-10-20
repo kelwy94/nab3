@@ -178,6 +178,12 @@ service cloud.firestore {
         && incoming().status in ['new', 'contacted', 'closed'];
     }
 
+    // Public app settings (e.g. support WhatsApp number). Admins write via
+    // the catch-all rule above.
+    match /app_config/{docId} {
+      allow read: if true;
+    }
+
     // ---------------------------------------------------------------- catalog
 
     match /catalog/{productId} {

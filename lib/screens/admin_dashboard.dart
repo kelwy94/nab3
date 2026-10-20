@@ -1,3 +1,5 @@
+import 'package:flutter/services.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -15,6 +17,7 @@ import '../providers/well_provider.dart';
 import '../theme.dart';
 import 'admin_crop_sales_tab.dart';
 import 'land/admin_land_review_tab.dart';
+import '../services/support_service.dart';
 import 'settings_screen.dart';
 
 class AdminDashboard extends StatefulWidget {
@@ -214,6 +217,11 @@ class _AdminDashboardState extends State<AdminDashboard>
             onPressed: _exportAllData,
           ),
         IconButton(
+          icon: const Icon(Icons.support_agent_rounded),
+          tooltip: 'رقم الدعم',
+          onPressed: _editSupportNumber,
+        ),
+        IconButton(
           icon: const Icon(Icons.settings),
           onPressed: () => Navigator.push(
             context,
@@ -222,6 +230,163 @@ class _AdminDashboardState extends State<AdminDashboard>
         ),
       ],
     );
+  }
+
+  Future<void> _editSupportNumber() async {
+    final ctrl = TextEditingController(
+        text: await SupportService.supportWhatsapp() ?? '');
+    if (!mounted) return;
+    final save = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          title: const Text('رقم الدعم على واتساب'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'المستخدمين اللي ينسوا كلمة المرور هيكلموا الرقم ده من شاشة الدخول.',
+                style: TextStyle(color: Colors.grey, height: 1.5),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: ctrl,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(
+                    labelText: 'رقم الواتساب', hintText: '01xxxxxxxxx'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('إلغاء')),
+            ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('حفظ')),
+          ],
+        ),
+      ),
+    );
+    if (save == true) {
+      await SupportService.setSupportWhatsapp(ctrl.text);
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('تم حفظ رقم الدعم')));
+      }
+    }
+  }
+
+  /// Issues a temporary password via the adminResetPassword Function after
+  /// the admin confirms they verified the caller's identity.
+  Future<void> _issueTempPassword(User u) async {
+    var verified = false;
+    final go = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: StatefulBuilder(
+          builder: (ctx, setD) => AlertDialog(
+            title: Text('كلمة مرور مؤقتة لـ ${u.fullName}'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('رقم الحساب: ${u.phone}'),
+                const SizedBox(height: 8),
+                const Text(
+                  'قبل ما تكمل، اتأكد إن اللي بيكلمك هو صاحب الحساب: اسأله عن اسمه الكامل والمركز والعنوان، واتأكد إنه بيكلمك من نفس الرقم.',
+                  style: TextStyle(color: Colors.grey, height: 1.5),
+                ),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: verified,
+                  onChanged: (v) => setD(() => verified = v ?? false),
+                  title: const Text('اتأكدت إنه صاحب الحساب'),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('إلغاء')),
+              ElevatedButton(
+                onPressed: verified ? () => Navigator.pop(ctx, true) : null,
+                child: const Text('إنشاء كلمة مرور'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (go != true || !mounted) return;
+
+    try {
+      final res = await FirebaseFunctions.instance
+          .httpsCallable('adminResetPassword')
+          .call({'uid': u.id});
+      final password = (res.data as Map)['password'] as String;
+      if (!mounted) return;
+      await showDialog(
+        context: context,
+        builder: (ctx) => Directionality(
+          textDirection: TextDirection.rtl,
+          child: AlertDialog(
+            title: const Text('كلمة المرور المؤقتة'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SelectableText(password,
+                    style: const TextStyle(
+                        fontSize: 30,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 4)),
+                const SizedBox(height: 8),
+                const Text(
+                  'ابعتها لصاحب الحساب. أول ما يدخل بيها التطبيق هيطلب منه يختار كلمة مرور جديدة، وأي جهاز تاني كان داخل بالحساب اتعمله خروج.',
+                  style: TextStyle(color: Colors.grey, height: 1.5),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(text: password));
+                  Navigator.pop(ctx);
+                },
+                child: const Text('نسخ'),
+              ),
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  SupportService.openWhatsapp(
+                    u.phone,
+                    'كلمة المرور المؤقتة لحسابك على تطبيق نبع: $password\n'
+                    'ادخل بيها برقم موبايلك، والتطبيق هيطلب منك تختار كلمة مرور جديدة.',
+                  );
+                },
+                icon: const Icon(Icons.chat_rounded, size: 18),
+                label: const Text('ابعتها واتساب'),
+              ),
+            ],
+          ),
+        ),
+      );
+    } on FirebaseFunctionsException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(e.message ?? 'تعذّر إنشاء كلمة المرور'),
+            backgroundColor: Colors.red));
+      }
+    } catch (e) {
+      debugPrint('Temp password failed: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('تعذّر إنشاء كلمة المرور، حاول تاني'),
+            backgroundColor: Colors.red));
+      }
+    }
   }
 
   Widget _buildClassicTabBar() {
@@ -892,9 +1057,12 @@ class _AdminDashboardState extends State<AdminDashboard>
                         await auth.updateUserStatus(u.id, {'status': 'AccountStatus.rejected'});
                       } else if (action == 'delete') {
                         await auth.deleteUser(u.id);
+                      } else if (action == 'temp_password') {
+                        await _issueTempPassword(u);
                       }
                     },
                     itemBuilder: (ctx) => [
+                      const PopupMenuItem(value: 'temp_password', child: Text('كلمة مرور مؤقتة')),
                       const PopupMenuItem(value: 'approve', child: Text('موافقة')),
                       const PopupMenuItem(value: 'reject', child: Text('رفض')),
                       const PopupMenuItem(value: 'delete', child: Text('حذف', style: TextStyle(color: Colors.red))),

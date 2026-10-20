@@ -7,7 +7,10 @@ import '../theme.dart';
 import '../widgets/naba_widgets.dart';
 
 class ChangePasswordScreen extends StatefulWidget {
-  const ChangePasswordScreen({super.key});
+  /// Shown right after login with a temporary password from the admin; the
+  /// user can't skip it.
+  final bool forced;
+  const ChangePasswordScreen({super.key, this.forced = false});
 
   @override
   State<ChangePasswordScreen> createState() => _ChangePasswordScreenState();
@@ -53,10 +56,15 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       // Update password
       await firebaseUser.updatePassword(_newPasswordController.text);
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('تم تغيير كلمة المرور بنجاح'),
-            backgroundColor: Colors.green));
+      if (!mounted) return;
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('تم تغيير كلمة المرور بنجاح'),
+          backgroundColor: Colors.green));
+      if (widget.forced) {
+        // AuthWrapper swaps this screen for the dashboard.
+        await authProvider.clearMustChangePassword();
+      } else {
         Navigator.pop(context);
       }
     } on auth.FirebaseAuthException catch (e) {
@@ -84,10 +92,24 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PopScope(
+      canPop: !widget.forced,
+      child: Scaffold(
       backgroundColor: Colors.white,
-      appBar:
-          const NabaAppBar(title: 'تغيير كلمة المرور', showBackButton: true),
+      appBar: widget.forced
+          ? AppBar(
+              title: const Text('اختار كلمة مرور جديدة'),
+              automaticallyImplyLeading: false,
+              actions: [
+                TextButton(
+                  onPressed: () =>
+                      Provider.of<AuthProvider>(context, listen: false)
+                          .logout(),
+                  child: const Text('خروج'),
+                ),
+              ],
+            )
+          : const NabaAppBar(title: 'تغيير كلمة المرور', showBackButton: true),
       body: Directionality(
         textDirection: TextDirection.rtl,
         child: SingleChildScrollView(
@@ -100,9 +122,11 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 const Icon(Icons.lock_reset_rounded,
                     size: 80, color: NabaTheme.primary),
                 const SizedBox(height: 24),
-                const Text(
-                  'يرجى إدخال كلمة المرور الحالية للتأكد من هويتك، ثم أدخل كلمة المرور الجديدة.',
-                  style: TextStyle(fontSize: 16, color: Colors.grey),
+                Text(
+                  widget.forced
+                      ? 'دخلت بكلمة مرور مؤقتة من الإدارة. اكتبها تاني تحت، وبعدين اختار كلمة مرور جديدة تفتكرها.'
+                      : 'يرجى إدخال كلمة المرور الحالية للتأكد من هويتك، ثم أدخل كلمة المرور الجديدة.',
+                  style: const TextStyle(fontSize: 16, color: Colors.grey),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 32),
@@ -110,7 +134,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                   controller: _currentPasswordController,
                   obscureText: true,
                   decoration: InputDecoration(
-                    labelText: 'كلمة المرور الحالية',
+                    labelText: widget.forced
+                        ? 'كلمة المرور المؤقتة'
+                        : 'كلمة المرور الحالية',
                     prefixIcon: const Icon(Icons.lock_outline),
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12)),
@@ -158,6 +184,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             ),
           ),
         ),
+      ),
       ),
     );
   }

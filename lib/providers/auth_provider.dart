@@ -29,6 +29,11 @@ class AuthProvider with ChangeNotifier {
   bool _isGuest = false;
   bool get isGuest => _isGuest;
 
+  /// Set after an admin issues a temporary password; the user must pick a
+  /// new one before using the app.
+  bool _mustChangePassword = false;
+  bool get mustChangePassword => _mustChangePassword;
+
   Future<void> enterGuestMode() async {
     try {
       await _auth.signInAnonymously();
@@ -134,6 +139,7 @@ class AuthProvider with ChangeNotifier {
       final doc = await _firestore.collection('users').doc(uid).get();
       if (doc.exists) {
         final data = doc.data()!;
+        _mustChangePassword = data['mustChangePassword'] == true;
         _user = User(
           id: uid,
           role: UserRole.values.firstWhere(
@@ -390,6 +396,17 @@ class AuthProvider with ChangeNotifier {
       debugPrint('Error deleting user: $e');
       rethrow;
     }
+  }
+
+  /// Called after the user replaces a temporary password.
+  Future<void> clearMustChangePassword() async {
+    if (_user == null) return;
+    await _firestore
+        .collection('users')
+        .doc(_user!.id)
+        .update({'mustChangePassword': false});
+    _mustChangePassword = false;
+    notifyListeners();
   }
 
   Future<void> logout() async {
