@@ -266,6 +266,9 @@ class WellSearchScreen extends StatelessWidget {
 
       final wellData = wellDoc.data()!;
       final cycleDays = wellData['irrigationFrequencyDays'] ?? 1;
+      // With a daily cycle everyone irrigates every day (at different
+      // hours), so a same-day match isn't a conflict.
+      if (cycleDays <= 1) return false;
 
       final List<Map<String, dynamic>> memberDates = [];
 

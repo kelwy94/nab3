@@ -360,7 +360,7 @@ class _IrrigationCalendarState extends State<IrrigationCalendar> {
       hours = ((plotArea / totalArea) * totalHoursAvailable).round();
       if (hours < 1) hours = 1;
       final startHourOffset =
-          (userHash + colorIndex * 3) % (16 - (hours > 0 ? hours : 1));
+          (userHash + colorIndex * 3) % (16 - hours).clamp(1, 16);
       timePrefix = 6 + startHourOffset;
     } else if (well.fairnessRule == FairnessRule.manual &&
         plotInfo['manualSchedule'] != null) {
@@ -373,7 +373,7 @@ class _IrrigationCalendarState extends State<IrrigationCalendar> {
     } else {
       hours = plotInfo['manualHours'] ?? well.hoursPerPerson.toInt();
       final startHourOffset =
-          (userHash + colorIndex * 3) % (16 - (hours > 0 ? hours : 1));
+          (userHash + colorIndex * 3) % (16 - hours).clamp(1, 16);
       timePrefix = 6 + startHourOffset;
     }
 
@@ -472,7 +472,7 @@ class _IrrigationCalendarState extends State<IrrigationCalendar> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.end,
                             children: [
-                              _buildMiniBadge('${well.hoursPerPerson} ساعة',
+                              _buildMiniBadge('$hours ساعة',
                                   Icons.access_time_rounded),
                               const SizedBox(width: 8),
                               _buildMiniBadge(plotName, Icons.landscape_rounded,

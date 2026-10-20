@@ -342,6 +342,75 @@ service cloud.firestore {
         && (incoming().userId == uid() || wellOwner(incoming().wellId) == uid());
     }
 
+    // Irrigation rotation ("الدور") per well. The well owner manages order
+    // and hours; whoever's turn it is starts/stops/finishes it.
+    match /well_turns/{wellId} {
+      function wellManager() {
+        return get(/databases/$(database)/documents/wells/$(wellId)).data.adminUserId;
+      }
+
+      function isManager() {
+        return hasProfile() && wellManager() == uid();
+      }
+
+      function isTurnMember() {
+        return hasProfile() && uid() in resource.data.memberIds;
+      }
+
+      function currentTurnUser() {
+        return resource.data.memberIds[resource.data.currentIndex];
+      }
+
+      // The turn may stay or move to the next member (wrapping around).
+      function validAdvance() {
+        return incoming().currentIndex == existing().currentIndex
+          || incoming().currentIndex == existing().currentIndex + 1
+          || (incoming().currentIndex == 0
+              && existing().currentIndex == existing().memberIds.size() - 1);
+      }
+
+      allow read: if isManager() || isTurnMember();
+
+      allow create: if isManager()
+        && incoming().managerId == uid()
+        && incoming().memberIds is list
+        && incoming().memberIds.size() >= 1
+        && incoming().currentIndex == 0;
+
+      allow update: if isManager()
+        || (isTurnMember()
+            && currentTurnUser() == uid()
+            && incoming().diff(existing()).affectedKeys().hasOnly([
+                 'state', 'startedAt', 'pausedAt', 'pausedMinutes',
+                 'pauseReason', 'currentIndex', 'cycle', 'updatedAt'])
+            && incoming().state in ['waiting', 'running', 'paused']
+            && validAdvance());
+
+      function parentTurn() {
+        return get(/databases/$(database)/documents/well_turns/$(wellId)).data;
+      }
+
+      function canSeeTurn() {
+        return hasProfile()
+          && (wellManager() == uid() || uid() in parentTurn().memberIds);
+      }
+
+      // Actual irrigation log: the current member logs their own turn.
+      match /log/{entryId} {
+        allow read: if canSeeTurn();
+        allow create: if hasProfile()
+          && (wellManager() == uid()
+              || (incoming().userId == uid()
+                  && parentTurn().memberIds[parentTurn().currentIndex] == uid()));
+      }
+
+      // Bills split by actual hours, managed by the well owner.
+      match /bills/{billId} {
+        allow read: if canSeeTurn();
+        allow create, delete: if hasProfile() && wellManager() == uid();
+      }
+    }
+
     match /land_plots/{plotId} {
       allow read: if hasProfile() && existing().ownerId == uid();
 

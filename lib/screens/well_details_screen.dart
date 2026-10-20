@@ -3,6 +3,7 @@ import '../widgets/naba_widgets.dart';
 import '../models/types.dart';
 import 'package:provider/provider.dart';
 import '../providers/well_provider.dart';
+import 'irrigation/well_turn_card.dart';
 
 class WellDetailsScreen extends StatelessWidget {
   final Well well;
@@ -50,6 +51,8 @@ class WellDetailsScreen extends StatelessWidget {
                 ],
               ),
             ),
+            const SizedBox(height: 16),
+            WellTurnCard(well: well),
             const SizedBox(height: 24),
             const Text('خيارات التعديل', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),

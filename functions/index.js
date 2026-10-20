@@ -1,6 +1,7 @@
 const {onDocumentCreated, onDocumentUpdated} =
     require("firebase-functions/v2/firestore");
 const {setGlobalOptions} = require("firebase-functions/v2");
+const {onSchedule} = require("firebase-functions/v2/scheduler");
 const admin = require("firebase-admin");
 const {FieldValue} = require("firebase-admin/firestore");
 
@@ -211,4 +212,89 @@ exports.onRentalRequest = onDocumentCreated("rental_requests/{requestId}", async
     title: "طلب إيجار معدة!",
     body: `يطلب ${req.requesterName} معدة ${req.equipmentName}`,
   });
+});
+
+// ---------------------------------------------------------------------------
+// Irrigation rotation ("الدور")
+// ---------------------------------------------------------------------------
+
+// In-app notification (also pushed by onUserNotificationCreated).
+function notifyUser(userId, title, body, extra = {}) {
+  if (!userId) return Promise.resolve();
+  return db.collection("users").doc(userId).collection("notifications").add({
+    title, body, isRead: false, createdAt: FieldValue.serverTimestamp(), ...extra,
+  });
+}
+
+function turnUser(turn) {
+  const ids = turn.memberIds || [];
+  return ids.length ? ids[(turn.currentIndex || 0) % ids.length] : null;
+}
+
+function hoursText(h) {
+  if (h === 1) return "ساعة";
+  if (h === 2) return "ساعتين";
+  return Number.isInteger(h) ? `${h} ساعات` : `${h} ساعة`;
+}
+
+// Tell the next member when the turn reaches them, and everyone when the
+// well stops or starts again.
+exports.onWellTurnUpdated = onDocumentUpdated("well_turns/{wellId}", async (event) => {
+  const before = event.data.before.data();
+  const after = event.data.after.data();
+  if (!before || !after) return;
+  const wellName = after.wellName || "البئر";
+  const extra = {type: "well_turn", wellId: event.params.wellId};
+  const jobs = [];
+
+  const turnMoved = before.currentIndex !== after.currentIndex ||
+      before.cycle !== after.cycle;
+  if (turnMoved && after.state === "waiting") {
+    const uid = turnUser(after);
+    const h = (after.hours || {})[uid] || 1;
+    jobs.push(notifyUser(uid, "دورك في الري جه",
+        `${wellName}: حصتك ${hoursText(h)}. افتح المية ودوس «بدأت».`, extra));
+  }
+
+  if (before.state !== "paused" && after.state === "paused") {
+    for (const uid of after.memberIds || []) {
+      jobs.push(notifyUser(uid, `${wellName} واقف`,
+          `${after.pauseReason || "البئر وقف"}، والمواعيد هتتأخر لحد ما يرجع.`, extra));
+    }
+  }
+  if (before.state === "paused" && after.state === "running") {
+    for (const uid of after.memberIds || []) {
+      jobs.push(notifyUser(uid, `${wellName} رجع يشتغل`,
+          "الدور كمل، شوف ميعادك الجديد في التطبيق.", extra));
+    }
+  }
+  await Promise.all(jobs);
+});
+
+// About an hour before a running turn ends, remind the next member. Runs
+// every 10 minutes; reminderKey makes sure each turn reminds only once.
+exports.turnReminders = onSchedule("every 10 minutes", async () => {
+  const snap = await db.collection("well_turns")
+      .where("state", "==", "running").get();
+  const now = Date.now();
+  const jobs = [];
+  snap.forEach((doc) => {
+    const t = doc.data();
+    const ids = t.memberIds || [];
+    if (ids.length < 2 || !t.startedAt) return;
+    const current = turnUser(t);
+    const allotted = ((t.hours || {})[current] || 1) * 60;
+    const elapsed = (now - t.startedAt.toMillis()) / 60000 - (t.pausedMinutes || 0);
+    const remaining = allotted - elapsed;
+    const key = `${t.cycle || 0}_${t.currentIndex || 0}`;
+    if (remaining > 60 || remaining < 0 || t.reminderKey === key) return;
+
+    const next = ids[((t.currentIndex || 0) + 1) % ids.length];
+    const mins = Math.max(5, Math.round(remaining / 5) * 5);
+    jobs.push(notifyUser(next, "قرّب دورك في الري",
+        `${t.wellName || "البئر"}: دورك بعد حوالي ${mins} دقيقة.`,
+        {type: "well_turn", wellId: doc.id}));
+    jobs.push(doc.ref.update({reminderKey: key}));
+  });
+  await Promise.all(jobs);
 });
