@@ -69,7 +69,9 @@ const MAX_DELIVERY_FEE = 200;
 // Item prices come from the catalog, not from the client-submitted total.
 exports.onOrderCreated = onDocumentCreated("orders/{orderId}", async (event) => {
   const order = event.data && event.data.data();
-  if (!order || !order.paymentProof) return;
+  if (!order) return;
+  await qualifyReferral(order.buyerUserId, "أول طلب من السوق");
+  if (!order.paymentProof) return;
 
   let subtotal = 0;
   for (const item of order.items || []) {
@@ -102,7 +104,9 @@ exports.onJobPaid = onDocumentUpdated("jobs/{jobId}", async (event) => {
   const before = event.data.before.data();
   const after = event.data.after.data();
   if (!after || before.status === after.status) return;
-  if (after.status !== "JobStatus.paid" || !after.paymentProof) return;
+  if (after.status !== "JobStatus.paid") return;
+  await qualifyReferral(after.requesterUserId, "دفع أول شغلانة");
+  if (!after.paymentProof) return;
 
   await creditWallet({
     userId: after.assignedUserId,
@@ -338,4 +342,112 @@ exports.adminResetPassword = onCall(async (request) => {
     at: FieldValue.serverTimestamp(),
   });
   return {password: temp};
+});
+
+// ---------------------------------------------------------------------------
+// Invites ("ادعي أصحابك")
+// ---------------------------------------------------------------------------
+//
+// referrals/{inviteeId}: one per invited user.
+//   pendingActivity -> underReview (invitee did a real first action)
+//   -> paid (admin paid the inviter) | rejected
+//   flagged: same device as the inviter, admin decides.
+
+const DEFAULT_REFERRAL_REWARD = 50;
+
+async function referralReward() {
+  const cfg = await db.collection("app_config").doc("public").get();
+  const v = cfg.exists ? Number(cfg.data().referralReward) : NaN;
+  return v > 0 ? v : DEFAULT_REFERRAL_REWARD;
+}
+
+async function notifyAdmins(title, body, extra = {}) {
+  const admins = await db.collection("users")
+      .where("role", "in", ["UserRole.admin", "admin"]).get();
+  await Promise.all(admins.docs.map((d) => notifyUser(d.id, title, body, extra)));
+}
+
+// Links a new account to its inviter from the code typed at signup.
+exports.onUserCreated = onDocumentCreated("users/{userId}", async (event) => {
+  const user = event.data && event.data.data();
+  const inviteeId = event.params.userId;
+  const code = String((user && user.referredByCode) || "").trim().toUpperCase();
+  if (!code) return;
+
+  const match = await db.collection("users")
+      .where("referralCode", "==", code).limit(1).get();
+  if (match.empty) return;
+  const inviter = match.docs[0];
+  if (inviter.id === inviteeId) return;
+
+  const inviterDevice = (inviter.data().extraData || {}).deviceId;
+  const inviteeDevice = (user.extraData || {}).deviceId;
+  const sameDevice = !!inviterDevice && inviterDevice === inviteeDevice;
+  const amount = await referralReward();
+
+  await db.collection("referrals").doc(inviteeId).set({
+    inviterId: inviter.id,
+    inviterName: inviter.data().fullName || "",
+    inviteeId,
+    inviteeName: user.fullName || "",
+    code,
+    amount,
+    status: sameDevice ? "flagged" : "pendingActivity",
+    createdAt: FieldValue.serverTimestamp(),
+  });
+  await db.collection("users").doc(inviteeId).update({referredBy: inviter.id});
+  if (!sameDevice) {
+    await notifyUser(inviter.id, "صاحبك سجّل بكودك",
+        `${user.fullName || "مستخدم جديد"} انضم لنبع. هتاخد ${amount} ج.م أول ما يعمل أول عملية على التطبيق.`,
+        {type: "referral"});
+  }
+});
+
+// Moves an invite to review once the invitee does something real.
+async function qualifyReferral(inviteeId, reason) {
+  if (!inviteeId) return;
+  const ref = db.collection("referrals").doc(inviteeId);
+  const qualified = await db.runTransaction(async (t) => {
+    const r = await t.get(ref);
+    if (!r.exists || r.data().status !== "pendingActivity") return null;
+    t.update(ref, {
+      status: "underReview",
+      qualifiedBy: reason,
+      qualifiedAt: FieldValue.serverTimestamp(),
+    });
+    return r.data();
+  });
+  if (!qualified) return;
+  await notifyAdmins("مكافأة دعوة مستنية الدفع",
+      `${qualified.inviterName || "مستخدم"} يستحق ${qualified.amount} ج.م (دعا ${qualified.inviteeName || "مستخدم جديد"}).`,
+      {type: "referral_review"});
+}
+
+exports.onCropSaleCreated = onDocumentCreated("crop_sale_orders/{id}", async (event) => {
+  const d = event.data && event.data.data();
+  if (d) await qualifyReferral(d.userId, "أول طلب بيع محصول");
+});
+
+exports.onTurnLogged = onDocumentCreated("well_turns/{wellId}/log/{entryId}", async (event) => {
+  const d = event.data && event.data.data();
+  if (d && !d.skipped && (d.minutes || 0) > 0) {
+    await qualifyReferral(d.userId, "أول رية على دور البئر");
+  }
+});
+
+// When the admin marks a reward paid, record it in the inviter's wallet.
+exports.onReferralUpdated = onDocumentUpdated("referrals/{inviteeId}", async (event) => {
+  const before = event.data.before.data();
+  const after = event.data.after.data();
+  if (!after || before.status === after.status || after.status !== "paid") return;
+  await creditWallet({
+    userId: after.inviterId,
+    amount: Number(after.amount) || 0,
+    txId: `referral_${event.params.inviteeId}`,
+    note: `مكافأة دعوة ${after.inviteeName || ""}`.trim(),
+    extra: {relatedId: event.params.inviteeId},
+  });
+  await notifyUser(after.inviterId, "وصلتك مكافأة الدعوة",
+      `${after.amount} ج.م مقابل دعوتك لـ${after.inviteeName || "صاحبك"}. شكراً إنك بتنشر نبع!`,
+      {type: "referral"});
 });

@@ -9,6 +9,7 @@ import 'package:firebase_auth/firebase_auth.dart' as auth;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../services/biometric_helper.dart';
+import 'invite_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -88,6 +89,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ]),
             const SizedBox(height: 32),
             _buildSettingsSection('الأمن والحساب', [
+              _buildSettingsItem(
+                  Icons.card_giftcard_rounded, 'ادعي أصحابك واكسب', '',
+                  onTap: () => Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const InviteScreen()))),
               _buildSettingsItem(Icons.lock_outline_rounded,
                   loc?.changePassword ?? 'تغيير كلمة المرور', '',
                   onTap: () => _showChangePasswordDialog(context)),

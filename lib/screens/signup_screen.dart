@@ -660,7 +660,7 @@ class _SignupScreenState extends State<SignupScreen> {
           TextFormField(
             controller: _referralController,
             decoration: _inputDecoration(
-                'كود الإحالة (اختياري)', Icons.people_alt_outlined),
+                'كود الدعوة من صاحبك (اختياري)', Icons.people_alt_outlined),
           ),
           if (widget.role != UserRole.generalUser) ...[
             const SizedBox(height: 32),

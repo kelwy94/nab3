@@ -84,11 +84,16 @@ service cloud.firestore {
         && (incoming().status == 'AccountStatus.pending'
             || (incoming().role == 'UserRole.farmer'
                 && incoming().status == 'AccountStatus.approved'))
-        && !incoming().get('extraData', {}).keys().hasAny(protectedExtraKeys());
+        && !incoming().get('extraData', {}).keys().hasAny(protectedExtraKeys())
+        // The inviter is resolved from referredByCode by a Function.
+        && incoming().get('referredBy', null) == null;
 
       allow update: if registered()
         && uid() == userId
-        && unchanged(['role', 'status', 'referralCode', 'referredBy', 'createdAt'])
+        && unchanged(['role', 'status', 'referredBy', 'referredByCode', 'createdAt'])
+        // An invite code can be set once (older accounts had none).
+        && (unchanged(['referralCode'])
+            || existing().get('referralCode', null) == null)
         && !incoming().get('extraData', {})
               .diff(existing().get('extraData', {}))
               .affectedKeys().hasAny(protectedExtraKeys());
@@ -462,10 +467,9 @@ service cloud.firestore {
       allow create: if hasProfile() && incoming().userId == uid();
     }
 
+    // Created and advanced by Functions; inviters can see their own.
     match /referrals/{referralId} {
-      allow create: if hasProfile()
-        && incoming().inviteeId == uid()
-        && incoming().status == 'pendingActivity';
+      allow read: if hasProfile() && resource.data.inviterId == uid();
     }
   }
 }

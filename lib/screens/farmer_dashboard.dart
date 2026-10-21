@@ -25,6 +25,7 @@ import 'request_equipment_screen.dart';
 import 'consultation_market_screen.dart';
 import 'farmer_consultations_screen.dart';
 import 'settings_screen.dart';
+import 'invite_screen.dart';
 import 'irrigation/well_turn_card.dart';
 import 'wallet_screen.dart';
 import 'well_create_screen.dart';
@@ -1771,6 +1772,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const SnackBar(
                     content: Text('لا يوجد عمليات ري سابقة لعرضها.')),
               );
+            }),
+            _buildProfileItem(
+                context, Icons.card_giftcard_rounded, 'ادعي أصحابك واكسب',
+                onTap: () {
+              Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const InviteScreen()));
             }),
             _buildProfileItem(context, Icons.account_balance_wallet_outlined,
                 'المحفظة المالية', onTap: () {

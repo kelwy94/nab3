@@ -8,6 +8,7 @@ import '../theme.dart';
 import '../widgets/naba_widgets.dart';
 import 'edit_profile_screen.dart';
 import 'change_password_screen.dart';
+import 'invite_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final bool isTab;
@@ -267,6 +268,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       onTap: _showRequestSpecializationDialog,
                     ),
                   ],
+                  const SizedBox(height: 12),
+                  _buildActionCard(
+                    icon: Icons.card_giftcard_rounded,
+                    title: 'ادعي أصحابك واكسب',
+                    color: NabaTheme.primary,
+                    onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const InviteScreen())),
+                  ),
                   const SizedBox(height: 12),
                   _buildActionCard(
                     icon: Icons.lock_rounded,

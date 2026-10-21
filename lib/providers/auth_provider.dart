@@ -218,8 +218,9 @@ class AuthProvider with ChangeNotifier {
       final uid = cred.user!.uid;
       
       final deviceId = await DeviceInfoHelper.getDeviceId();
-      bool isFlagged = false;
-      String? actualInviterId;
+      // The invite code is resolved server-side (onUserCreated Function),
+      // which also flags invites made from the inviter's own device.
+      final inviteCode = (user.referredBy ?? '').trim().toUpperCase();
 
       final randomStr = String.fromCharCodes(Iterable.generate(
           4,
@@ -228,22 +229,14 @@ class AuthProvider with ChangeNotifier {
       final generatedReferralCode =
           '${user.phone.substring(user.phone.length > 4 ? user.phone.length - 4 : 0)}-$randomStr';
 
-      // Determine initial status based on role and Flag
+      // Farmers start approved; other roles need admin review.
       AccountStatus initialStatus = AccountStatus.approved;
       if (user.role != UserRole.farmer && user.role != UserRole.admin) {
         initialStatus = AccountStatus.pending;
       }
-      if (isFlagged) {
-        initialStatus =
-            AccountStatus.pending; // Flagged accounts always require review
-      }
 
       final extraData = user.extraData ?? {};
       extraData['deviceId'] = deviceId;
-      if (isFlagged) {
-        extraData['adminNote'] =
-            'Multiple accounts registered from the same device ($deviceId)';
-      }
 
       await _firestore.collection('users').doc(uid).set({
         'role': user.role.toString(),
@@ -259,18 +252,9 @@ class AuthProvider with ChangeNotifier {
         'paymentMethod': user.paymentMethod?.name,
         'paymentDetails': user.paymentDetails,
         'referralCode': generatedReferralCode,
-        'referredBy': actualInviterId,
+        'referredBy': null,
+        if (inviteCode.isNotEmpty) 'referredByCode': inviteCode,
       });
-
-      if (actualInviterId != null) {
-        await _firestore.collection('referrals').add({
-          'inviterId': actualInviterId,
-          'inviteeId': uid,
-          'amount': 50.0, // configurable admin value
-          'status': 'pendingActivity',
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-      }
 
       if (user.role == UserRole.equipmentOwner && user.extraData != null) {
         final eName = user.extraData!['equipmentName'];
@@ -300,7 +284,7 @@ class AuthProvider with ChangeNotifier {
         id: uid,
         status: initialStatus,
         referralCode: generatedReferralCode,
-        referredBy: actualInviterId,
+        referredBy: null,
         extraData: extraData,
       );
       notifyListeners();
