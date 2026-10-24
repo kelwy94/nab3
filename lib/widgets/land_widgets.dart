@@ -160,8 +160,10 @@ class LandCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: NabaTheme.divider),
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: const [
+          BoxShadow(color: Color(0x141B1F1D), blurRadius: 28, offset: Offset(0, 10)),
+        ],
       ),
       clipBehavior: Clip.antiAlias,
       child: Material(
@@ -172,7 +174,7 @@ class LandCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               SizedBox(
-                height: 180,
+                height: 190,
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
@@ -186,8 +188,8 @@ class LandCard extends StatelessWidget {
                         gradient: LinearGradient(
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
-                          stops: [0.45, 1],
-                          colors: [Colors.transparent, Colors.black54],
+                          stops: [0.4, 1],
+                          colors: [Color(0x000A1410), Color(0xB80A1410)],
                         ),
                       ),
                     ),
@@ -198,15 +200,12 @@ class LandCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(formatLandPrice(l.price),
-                              style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w900)),
+                              style: NabaTheme.display(24, color: Colors.white)),
                           Text(
                               '${formatLandPrice(l.pricePerFeddan)} / فدان'
                               '${l.negotiable ? ' • قابل للتفاوض' : ''}',
                               style: const TextStyle(
-                                  color: Colors.white70, fontSize: 12)),
+                                  color: Color(0xFFF3EBDD), fontSize: 13)),
                         ],
                       ),
                     ),

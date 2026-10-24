@@ -1,44 +1,43 @@
 import 'package:flutter/material.dart';
-import 'dart:convert';
 import '../theme.dart';
-import '../providers/auth_provider.dart';
-import 'package:provider/provider.dart';
+import 'naba_widgets.dart';
 
+/// Page header: large title with an optional subtitle, a back button when the
+/// page was pushed, and an optional trailing action.
 class NabaTopHeader extends StatelessWidget {
   final String? title;
+  final String? subtitle;
   final Widget? trailing;
 
-  const NabaTopHeader({super.key, this.title, this.trailing});
+  const NabaTopHeader({super.key, this.title, this.subtitle, this.trailing});
 
   @override
   Widget build(BuildContext context) {
-    final user = Provider.of<AuthProvider>(context, listen: false).user;
-    final userName = user?.fullName ?? 'ضيف';
+    final canPop = Navigator.of(context).canPop();
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 10),
+      padding: EdgeInsets.fromLTRB(16, 12, canPop ? 8 : 20, 8),
       child: Row(
         textDirection: TextDirection.rtl,
         children: [
-          CircleAvatar(
-            backgroundColor: NabaTheme.primary.withOpacity(0.2),
-            radius: 22,
-            backgroundImage: (user != null && user.profileImageUrl != null)
-                ? NetworkImage(user.profileImageUrl!) as ImageProvider
-                : (user != null && user.profileImageBase64 != null)
-                    ? MemoryImage(base64Decode(user.profileImageBase64!))
-                    : null,
-            child: (user == null || (user.profileImageUrl == null && user.profileImageBase64 == null))
-                ? const Icon(Icons.person, color: NabaTheme.primary)
-                : null,
-          ),
-          const SizedBox(width: 12),
+          if (canPop)
+            const SizedBox(
+                width: 52,
+                height: 52,
+                child: NabaBackButton(background: Colors.white)),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(title ?? 'أهلاً بك 👋', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
-                Text(userName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                Text(title ?? 'نبع',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: NabaTheme.display(24)),
+                if (subtitle != null)
+                  Text(subtitle!,
+                      style: const TextStyle(
+                          color: NabaTheme.textSecondary, fontSize: 13)),
               ],
             ),
           ),

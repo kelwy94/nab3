@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 
 class NabaTheme {
-  // Colors
-  static const Color primary = Color(0xFF046231); // Dark Islamic Green
-  static const Color primaryLight = Color(0xFF0A8F4A); // Lighter Islamic Green
-  static const Color accent = Color(0xFFF0B323); // Soft Gold/Yellow
-  static const Color background = Color(0xFFF5F7F7); // Soft Grey
+  // Colors ("ذهب الواحة" design: palm green + date gold on warm sand).
+  static const Color primary = Color(0xFF1F6B2E); // Palm green (text, icons)
+  static const Color primaryLight = Color(0xFF2E8A40);
+  static const Color brand = Color(0xFF44B658); // Bright leaf green (fills)
+  static const Color primaryTint = Color(0xFFE5F1E7);
+  static const Color accent = Color(0xFFE2B04A); // Date gold
+  static const Color accentTint = Color(0xFFFBF1DA);
+  static const Color background = Color(0xFFF7F4EE); // Warm sand
   static const Color surface = Colors.white;
-  static const Color textPrimary = Color(0xFF263238); // Dark Blue Grey
-  static const Color textSecondary = Color(0xFF546E7A); // Blue Grey
+  static const Color textPrimary = Color(0xFF1B1F1D);
+  static const Color textSecondary = Color(0xFF5A615D);
 
   // Gradients
   static const LinearGradient primaryGradient = LinearGradient(
@@ -37,10 +40,23 @@ class NabaTheme {
         boxShadow: premiumShadows,
       );
 
-  static const String fontFamily = 'Tajawal';
+  static const String fontFamily = 'IBMPlexSansArabic';
+  static const String displayFamily = 'Alexandria';
 
   /// Hairline used for header bottoms and card outlines.
-  static const Color divider = Color(0xFFE6EAE8);
+  static const Color divider = Color(0xFFECE6DA);
+
+  /// Headings in Alexandria (a variable font, so weight is an axis).
+  static TextStyle display(double size,
+          {double weight = 800, Color color = textPrimary, double? height}) =>
+      TextStyle(
+        fontFamily: displayFamily,
+        fontSize: size,
+        fontWeight: weight >= 700 ? FontWeight.w800 : FontWeight.w600,
+        fontVariations: [FontVariation('wght', weight)],
+        color: color,
+        height: height,
+      );
 
   static ThemeData get lightTheme {
     return ThemeData(
@@ -97,7 +113,7 @@ class NabaTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          elevation: 4,
+          elevation: 0,
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),

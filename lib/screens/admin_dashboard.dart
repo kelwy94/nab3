@@ -2201,6 +2201,19 @@ class _AdminDashboardState extends State<AdminDashboard>
                       ),
                     ),
                   ),
+                if (u.id != context.read<AuthProvider>().user?.id) ...[
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: SizedBox(
+                      height: 30,
+                      child: _buildActionButton(
+                        'كلمة مرور',
+                        Colors.orange.shade800,
+                        () => _issueTempPassword(u),
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(width: 6),
                 Expanded(
                   child: SizedBox(

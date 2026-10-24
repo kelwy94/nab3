@@ -9,7 +9,7 @@ import '../../models/types.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/well_turn_service.dart';
 import '../../theme.dart';
-import '../../widgets/naba_widgets.dart';
+import '../../widgets/naba_top_header.dart';
 import 'well_turn_setup_screen.dart';
 
 /// Live irrigation rotation for one well: who is irrigating now, who is
@@ -87,17 +87,28 @@ class _WellTurnScreenState extends State<WellTurnScreen> {
         builder: (context, snap) {
           final turn = snap.data;
           return Scaffold(
-            appBar: AppBar(
-              title: Text('دور الري • ${widget.well.wellName}'),
-              leading: const NabaBackButton(),
-              actions: [
-                if (_isManager && turn != null)
-                  IconButton(
-                    tooltip: 'ترتيب الدور والساعات',
-                    icon: const Icon(Icons.tune_rounded),
-                    onPressed: () => _openSetup(turn),
-                  ),
-              ],
+            backgroundColor: NabaTheme.background,
+            appBar: PreferredSize(
+              preferredSize: const Size.fromHeight(76),
+              child: SafeArea(
+                child: NabaTopHeader(
+                  title: 'دور الري',
+                  subtitle: widget.well.wellName,
+                  trailing: _isManager && turn != null
+                      ? Material(
+                          color: Colors.white,
+                          shape: const CircleBorder(
+                              side: BorderSide(color: NabaTheme.divider)),
+                          child: IconButton(
+                            tooltip: 'ترتيب الدور والساعات',
+                            icon: const Icon(Icons.tune_rounded,
+                                color: NabaTheme.textPrimary),
+                            onPressed: () => _openSetup(turn),
+                          ),
+                        )
+                      : null,
+                ),
+              ),
             ),
             body: () {
               if (snap.connectionState == ConnectionState.waiting &&
@@ -147,7 +158,7 @@ class _WellTurnScreenState extends State<WellTurnScreen> {
               height: 72,
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: const Color(0xFFE2EBE5),
+                color: NabaTheme.primaryTint,
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Image.asset('assets/images/icons/well.png'),
@@ -267,7 +278,7 @@ class _WellTurnScreenState extends State<WellTurnScreen> {
               child: LinearProgressIndicator(
                 value: progress,
                 minHeight: 8,
-                backgroundColor: const Color(0xFFE2EBE5),
+                backgroundColor: NabaTheme.primaryTint,
                 color: color,
               ),
             ),
@@ -467,7 +478,7 @@ class _WellTurnScreenState extends State<WellTurnScreen> {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFE2EBE5),
+        color: NabaTheme.primaryTint,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Row(children: [

@@ -127,11 +127,13 @@ class _LandMarketScreenState extends State<LandMarketScreen> {
         backgroundColor: NabaTheme.background,
         floatingActionButton: FloatingActionButton.extended(
           onPressed: _openForm,
-          backgroundColor: NabaTheme.primary,
-          foregroundColor: Colors.white,
-          icon: const Icon(Icons.add_location_alt_rounded),
+          backgroundColor: NabaTheme.accent,
+          foregroundColor: NabaTheme.textPrimary,
+          elevation: 3,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          icon: const Icon(Icons.add_rounded),
           label: const Text('اعرض أرضك',
-              style: TextStyle(fontWeight: FontWeight.bold)),
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
         ),
         body: StreamBuilder<Set<String>>(
           stream: uid != null ? LandService.savedIds(uid) : Stream.value({}),
@@ -204,13 +206,15 @@ class _LandMarketScreenState extends State<LandMarketScreen> {
       pinned: true,
       expandedHeight: 150,
       automaticallyImplyLeading: false,
-      leading: widget.embedded ? null : const NabaBackButton(),
-      title: const Text('سوق الأراضي'),
+      backgroundColor: NabaTheme.background,
+      surfaceTintColor: Colors.transparent,
+      leading: widget.embedded ? null : const NabaBackButton(background: Colors.white),
+      title: Text('سوق الأراضي', style: NabaTheme.display(22)),
       actions: [
         if (uid != null)
           IconButton(
             tooltip: 'إعلاناتي',
-            icon: const Icon(Icons.dashboard_customize_rounded),
+            icon: Image.asset('assets/images/icons/lands_v2.png', width: 26, height: 26),
             onPressed: () => Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -219,7 +223,7 @@ class _LandMarketScreenState extends State<LandMarketScreen> {
       ],
       flexibleSpace: FlexibleSpaceBar(
         background: Container(
-          color: Colors.white,
+          color: NabaTheme.background,
           padding: const EdgeInsets.fromLTRB(16, 64, 16, 12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -249,10 +253,14 @@ class _LandMarketScreenState extends State<LandMarketScreen> {
                           },
                         ),
                   contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                  fillColor: NabaTheme.background,
+                  fillColor: Colors.white,
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide.none,
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: const BorderSide(color: NabaTheme.divider),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: const BorderSide(color: NabaTheme.divider),
                   ),
                 ),
               ),

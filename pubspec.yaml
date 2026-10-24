@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.10+11
+version: 1.0.11+12
 
 environment:
   sdk: '>=3.4.3 <4.0.0'
@@ -109,17 +109,21 @@ flutter:
     - assets/images/icons/
     - assets/images/dates_bg.png
 
-  # Tajawal (SIL Open Font License, see assets/fonts/OFL.txt)
+  # Alexandria (headings) and IBM Plex Sans Arabic (text), SIL Open Font
+  # License: see assets/fonts/*-OFL.txt
   fonts:
-    - family: Tajawal
+    - family: Alexandria
       fonts:
-        - asset: assets/fonts/Tajawal-Regular.ttf
-        - asset: assets/fonts/Tajawal-Medium.ttf
+        - asset: assets/fonts/Alexandria-Variable.ttf
+    - family: IBMPlexSansArabic
+      fonts:
+        - asset: assets/fonts/IBMPlexSansArabic-Regular.ttf
+        - asset: assets/fonts/IBMPlexSansArabic-Medium.ttf
           weight: 500
-        - asset: assets/fonts/Tajawal-Bold.ttf
+        - asset: assets/fonts/IBMPlexSansArabic-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/IBMPlexSansArabic-Bold.ttf
           weight: 700
-        - asset: assets/fonts/Tajawal-ExtraBold.ttf
-          weight: 800
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware

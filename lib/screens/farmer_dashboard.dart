@@ -24,8 +24,12 @@ import 'request_worker_screen.dart';
 import 'request_equipment_screen.dart';
 import 'consultation_market_screen.dart';
 import 'farmer_consultations_screen.dart';
+import 'home/e_home_screen.dart';
 import 'settings_screen.dart';
 import 'invite_screen.dart';
+import 'land/my_land_listings_screen.dart';
+import 'user_crop_sales_tracking_screen.dart';
+import '../services/support_service.dart';
 import 'irrigation/well_turn_card.dart';
 import 'wallet_screen.dart';
 import 'well_create_screen.dart';
@@ -48,43 +52,36 @@ class _FarmerDashboardState extends State<FarmerDashboard> {
     Provider.of<WellProvider>(context, listen: false).disableAdminMode();
   }
 
-  static const List<Widget> _screens = [
-    FarmerHomeTab(),
-    LandPlotsTab(),
-    WellManagementScreen(),
-    MarketplaceScreen(),
-    FarmerConsultationsScreen(),
-    ProfileScreen(),
-  ];
+  void _switchTab(int index) => setState(() => _selectedIndex = index);
 
   @override
   Widget build(BuildContext context) {
+    // Plots, well management and consultations moved into the profile list.
+    final screens = [
+      EHomeScreen(onSwitchTab: _switchTab),
+      const FarmerHomeTab(),
+      const MarketplaceScreen(),
+      const ProfileScreen(),
+    ];
+
     return Scaffold(
-      body: _screens[_selectedIndex],
+      body: IndexedStack(index: _selectedIndex, children: screens),
       bottomNavigationBar: Container(
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 20,
-              offset: const Offset(0, -5),
-            ),
-          ],
+          border: Border(top: BorderSide(color: NabaTheme.divider)),
         ),
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
+            padding: const EdgeInsets.only(top: 8, bottom: 6),
             child: Row(
+              textDirection: TextDirection.rtl,
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildNavItem(0, Icons.calendar_month_rounded, 'الجدول', imageAsset: 'assets/images/icons/schedule.png'),
-                _buildNavItem(1, Icons.landscape_rounded, 'الأراضي', imageAsset: 'assets/images/icons/lands_v2.png'),
-                _buildNavItem(2, Icons.water_drop_rounded, 'البئر', imageAsset: 'assets/images/icons/well.png'),
-                _buildNavItem(3, Icons.shopping_bag_rounded, 'السوق', imageAsset: 'assets/images/icons/market_v2.png'),
-                _buildNavItem(
-                    4, Icons.assignment_turned_in_rounded, 'استشاراتي', imageAsset: 'assets/images/icons/consultations.png'),
-                _buildNavItem(5, Icons.person_rounded, 'حسابي', imageAsset: 'assets/images/icons/profile.png'),
+                _buildNavItem(0, Icons.home_outlined, Icons.home_rounded, 'الرئيسية'),
+                _buildNavItem(1, Icons.water_drop_outlined, Icons.water_drop_rounded, 'الري'),
+                _buildNavItem(2, Icons.shopping_bag_outlined, Icons.shopping_bag_rounded, 'السوق'),
+                _buildNavItem(3, Icons.person_outline_rounded, Icons.person_rounded, 'حسابي'),
               ],
             ),
           ),
@@ -93,39 +90,34 @@ class _FarmerDashboardState extends State<FarmerDashboard> {
     );
   }
 
-  Widget _buildNavItem(int index, IconData icon, String label, {String? imageAsset}) {
+  Widget _buildNavItem(int index, IconData icon, IconData activeIcon, String label) {
     final isSelected = _selectedIndex == index;
-    return GestureDetector(
-      onTap: () => setState(() => _selectedIndex = index),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-        decoration: BoxDecoration(
-          color: isSelected ? NabaTheme.primary.withOpacity(0.1) : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-        ),
+    final color = isSelected ? NabaTheme.primary : NabaTheme.textSecondary;
+    return InkResponse(
+      onTap: () => _switchTab(index),
+      radius: 36,
+      child: SizedBox(
+        width: 72,
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            imageAsset != null
-                ? Image.asset(
-                    imageAsset,
-                    width: 24,
-                    height: 24,
-                  )
-                : Icon(
-                    icon,
-                    color: isSelected ? NabaTheme.primary : Colors.grey.shade400,
-                    size: 24,
-                  ),
-            const SizedBox(height: 4),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: 56,
+              height: 30,
+              decoration: BoxDecoration(
+                color: isSelected ? NabaTheme.primaryTint : Colors.transparent,
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Icon(isSelected ? activeIcon : icon, color: color, size: 22),
+            ),
+            const SizedBox(height: 3),
             Text(
               label,
               style: TextStyle(
-                color: isSelected ? NabaTheme.primary : Colors.grey.shade600,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                fontSize: 10,
+                color: color,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
+                fontSize: 12,
               ),
             ),
           ],
@@ -326,7 +318,7 @@ class FarmerHomeTab extends StatelessWidget {
     if (wells.isEmpty) {
       if (hasPendingCreation) {
         return const Scaffold(
-          appBar: PreferredSize(preferredSize: const Size.fromHeight(80), child: SafeArea(child: NabaTopHeader(title: 'الرئيسية'))),
+          appBar: PreferredSize(preferredSize: const Size.fromHeight(80), child: SafeArea(child: NabaTopHeader(title: 'الري'))),
           backgroundColor: NabaTheme.background,
           body: Center(
             child: Padding(
@@ -356,7 +348,7 @@ class FarmerHomeTab extends StatelessWidget {
 
       if (hasPendingJoin) {
         return const Scaffold(
-          appBar: PreferredSize(preferredSize: const Size.fromHeight(80), child: SafeArea(child: NabaTopHeader(title: 'الرئيسية'))),
+          appBar: PreferredSize(preferredSize: const Size.fromHeight(80), child: SafeArea(child: NabaTopHeader(title: 'الري'))),
           backgroundColor: NabaTheme.background,
           body: Center(
             child: Padding(
@@ -385,7 +377,7 @@ class FarmerHomeTab extends StatelessWidget {
       }
 
       return Scaffold(
-        appBar: PreferredSize(preferredSize: const Size.fromHeight(80), child: SafeArea(child: NabaTopHeader(title: 'الرئيسية'))),
+        appBar: PreferredSize(preferredSize: const Size.fromHeight(80), child: SafeArea(child: NabaTopHeader(title: 'الري'))),
         body: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
           child: Column(
@@ -1660,166 +1652,314 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthProvider>(context);
     final user = auth.user!;
+    void open(Widget screen) => Navigator.push(
+        context, MaterialPageRoute(builder: (_) => screen));
+    final place = (user.extraData?['district'] ?? user.address).toString().trim();
+
     return Scaffold(
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(80),
-        child: SafeArea(
-          child: NabaTopHeader(
-            title: 'حسابي - المزارع',
-            trailing: IconButton(
-              icon: const Icon(Icons.settings),
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const SettingsScreen()),
-              ),
-            ),
-          ),
-        ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
+      backgroundColor: NabaTheme.background,
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
           children: [
-            Stack(
+            Row(
+              textDirection: TextDirection.rtl,
               children: [
-                Hero(
-                  tag: 'avatar',
-                  child: CircleAvatar(
-                    radius: 60,
-                    backgroundColor: Colors.white,
-                    child: CircleAvatar(
-                      radius: 56,
-                      backgroundColor: Colors.grey.shade200,
-                      backgroundImage: user.profileImageBase64 != null
-                          ? MemoryImage(base64Decode(user.profileImageBase64!))
-                          : null,
-                      child: user.profileImageBase64 == null
-                          ? const Icon(Icons.person_rounded,
-                              size: 50, color: Colors.grey)
-                          : null,
-                    ),
+                GestureDetector(
+                  onTap: _isUploading ? null : () => _pickAndUploadImage(auth),
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Container(
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                                color: Color(0x1A1B1F1D),
+                                blurRadius: 16,
+                                offset: Offset(0, 6)),
+                          ],
+                        ),
+                        child: CircleAvatar(
+                          radius: 36,
+                          backgroundColor: Colors.white,
+                          child: CircleAvatar(
+                            radius: 33,
+                            backgroundColor: NabaTheme.primaryTint,
+                            backgroundImage: user.profileImageBase64 != null
+                                ? MemoryImage(
+                                    base64Decode(user.profileImageBase64!))
+                                : null,
+                            child: user.profileImageBase64 == null
+                                ? Image.asset('assets/images/icons/profile.png',
+                                    width: 40, height: 40)
+                                : null,
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        bottom: -2,
+                        right: -2,
+                        child: CircleAvatar(
+                          radius: 13,
+                          backgroundColor: NabaTheme.primary,
+                          child: _isUploading
+                              ? const SizedBox(
+                                  width: 12,
+                                  height: 12,
+                                  child: CircularProgressIndicator(
+                                      color: Colors.white, strokeWidth: 2))
+                              : const Icon(Icons.camera_alt_rounded,
+                                  size: 14, color: Colors.white),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                Positioned(
-                  bottom: 0,
-                  right: 0,
-                  child: CircleAvatar(
-                    radius: 18,
-                    backgroundColor: NabaTheme.primary,
-                    child: IconButton(
-                      icon: _isUploading
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                  color: Colors.white, strokeWidth: 2))
-                          : const Icon(Icons.camera_alt_rounded,
-                              size: 18, color: Colors.white),
-                      onPressed:
-                          _isUploading ? null : () => _pickAndUploadImage(auth),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(user.fullName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: NabaTheme.display(22)),
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: NabaTheme.primaryTint,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          [
+                            'مزارع',
+                            if (place.isNotEmpty) place,
+                            if (user.extraData?['landArea'] != null)
+                              '${user.extraData!['landArea']} فدان',
+                          ].join(' · '),
+                          style: const TextStyle(
+                              color: NabaTheme.primary,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                _circleButton(
+                  icon: Icons.edit_outlined,
+                  tooltip: 'تعديل البيانات',
+                  onTap: () => open(const EditProfileScreen()),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              textDirection: TextDirection.rtl,
+              children: [
+                Expanded(
+                  child: _statTile(
+                    color: NabaTheme.brand,
+                    textColor: const Color(0xFF0E2A14),
+                    label: 'رصيد المحفظة',
+                    value: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                      stream: FirebaseFirestore.instance
+                          .collection('wallets')
+                          .doc(user.id)
+                          .snapshots(),
+                      builder: (context, snap) {
+                        final b = ((snap.data?.data() ?? {})['balance'] ?? 0)
+                            as num;
+                        return Text('${b.toStringAsFixed(b % 1 == 0 ? 0 : 2)} ج.م',
+                            style: NabaTheme.display(22,
+                                color: const Color(0xFF0E2A14)));
+                      },
                     ),
+                    onTap: () => open(const WalletScreen()),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _statTile(
+                    color: NabaTheme.accentTint,
+                    border: const Color(0xFFF0DDAE),
+                    textColor: const Color(0xFF3D300E),
+                    label: 'ادعي أصحابك',
+                    value: Text('واكسب',
+                        style: NabaTheme.display(20,
+                            color: const Color(0xFF3D300E))),
+                    onTap: () => open(const InviteScreen()),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 20),
-            Text(user.fullName,
-                style:
-                    const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-            Text(user.phone,
-                style: const TextStyle(color: Colors.grey, fontSize: 16)),
-            if (user.extraData != null &&
-                user.extraData!['landArea'] != null) ...[
-              const SizedBox(height: 8),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: NabaTheme.primary.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  'المساحة: ${user.extraData!['landArea']} فدان',
-                  style: const TextStyle(
-                      color: NabaTheme.primary, fontWeight: FontWeight.bold),
-                ),
-              ),
-            ],
-            const SizedBox(height: 32),
-            _buildProfileItem(
-                context, Icons.person_outline_rounded, 'تعديل البيانات الشخصية',
-                onTap: () {
-              Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const EditProfileScreen()));
-            }),
-            _buildProfileItem(
-                context, Icons.work_history_rounded, 'سجل الطلبات السابقة',
-                onTap: () {
-              Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const JobHistoryScreen()));
-            }),
-            _buildProfileItem(
-                context, Icons.local_shipping_rounded, 'تتبع مشترياتي (المتجر)',
-                onTap: () {
-              Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => const OrdersHistoryScreen()));
-            }),
-            _buildProfileItem(context, Icons.history_rounded, 'تاريخ الري',
-                onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                    content: Text('لا يوجد عمليات ري سابقة لعرضها.')),
-              );
-            }),
-            _buildProfileItem(
-                context, Icons.card_giftcard_rounded, 'ادعي أصحابك واكسب',
-                onTap: () {
-              Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const InviteScreen()));
-            }),
-            _buildProfileItem(context, Icons.account_balance_wallet_outlined,
-                'المحفظة المالية', onTap: () {
-              Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const WalletScreen()));
-            }),
-            _buildProfileItem(
-                context, Icons.help_outline_rounded, 'المساعدة والدعم',
-                onTap: () {
-              Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const HelpSupportScreen()));
-            }),
-            const SizedBox(height: 24),
-            NabaButton(
-              text: 'تسجيل الخروج',
-              isPrimary: false,
-              icon: Icons.logout_rounded,
-              onPressed: () => auth.logout(),
-            ),
+            const SizedBox(height: 14),
+            _group([
+              _profileRow('assets/images/icons/market_v2.png',
+                  'طلباتي من السوق', () => open(const OrdersHistoryScreen())),
+              _profileRow('assets/images/icons/worker.png',
+                  'طلبات العمال والمعدات', () => open(const JobHistoryScreen())),
+              _profileRow('assets/images/icons/lands_v2.png',
+                  'أراضيّ المعروضة للبيع', () => open(const MyLandListingsScreen())),
+              _profileRow('assets/images/icons/trade.png', 'محاصيلي المعروضة',
+                  () => open(const UserCropSalesTrackingScreen())),
+            ]),
+            const SizedBox(height: 14),
+            _group([
+              _profileRow('assets/images/icons/well.png', 'بئري',
+                  () => open(const WellManagementScreen())),
+              _profileRow('assets/images/icons/lands.png', 'أراضيّ المزروعة',
+                  () => open(const LandPlotsTab())),
+              _profileRow('assets/images/icons/consultations.png', 'استشاراتي',
+                  () => open(const FarmerConsultationsScreen())),
+            ]),
+            const SizedBox(height: 14),
+            _group([
+              _plainRow(Icons.settings_outlined, 'الإعدادات وكلمة المرور',
+                  () => open(const SettingsScreen())),
+              _plainRow(Icons.chat_bubble_outline_rounded, 'كلّم الدعم على واتساب',
+                  () async {
+                final number = await SupportService.supportWhatsapp();
+                if (!context.mounted) return;
+                if (number == null) {
+                  open(const HelpSupportScreen());
+                } else {
+                  await SupportService.openWhatsapp(
+                      number, 'السلام عليكم، محتاج مساعدة في تطبيق نبع');
+                }
+              }),
+              _plainRow(Icons.help_outline_rounded, 'المساعدة والأسئلة',
+                  () => open(const HelpSupportScreen())),
+              _plainRow(Icons.logout_rounded, 'تسجيل الخروج', () => auth.logout(),
+                  color: const Color(0xFFA33520)),
+            ]),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildProfileItem(BuildContext context, IconData icon, String label,
-      {required VoidCallback onTap}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
-      child: NabaCard(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+  Widget _circleButton(
+      {required IconData icon,
+      required String tooltip,
+      required VoidCallback onTap}) {
+    return Material(
+      color: Colors.white,
+      shape: const CircleBorder(side: BorderSide(color: NabaTheme.divider)),
+      child: IconButton(
+        tooltip: tooltip,
+        onPressed: onTap,
+        icon: Icon(icon, size: 20, color: NabaTheme.textPrimary),
+      ),
+    );
+  }
+
+  Widget _statTile({
+    required Color color,
+    Color? border,
+    required Color textColor,
+    required String label,
+    required Widget value,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: color,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: border == null ? BorderSide.none : BorderSide(color: border),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
         onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label,
+                  style: TextStyle(
+                      color: textColor,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600)),
+              const SizedBox(height: 6),
+              value,
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// White rounded card holding rows separated by thin lines.
+  Widget _group(List<Widget> rows) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: NabaTheme.divider),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          for (var i = 0; i < rows.length; i++) ...[
+            if (i > 0) const Divider(height: 1, color: Color(0xFFF0EBE1)),
+            rows[i],
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _profileRow(String icon, String label, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         child: Row(
           textDirection: TextDirection.rtl,
           children: [
-            Icon(icon, color: NabaTheme.primary),
-            const SizedBox(width: 16),
-            Text(label,
-                style:
-                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            const Spacer(),
-            const Icon(Icons.arrow_back_ios, size: 14, color: Colors.grey),
+            Image.asset(icon, width: 32, height: 32),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(label,
+                  style: const TextStyle(
+                      fontSize: 15, fontWeight: FontWeight.w600)),
+            ),
+            const Icon(Icons.chevron_left_rounded,
+                color: NabaTheme.textSecondary),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _plainRow(IconData icon, String label, VoidCallback onTap,
+      {Color color = NabaTheme.textPrimary}) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+        child: Row(
+          textDirection: TextDirection.rtl,
+          children: [
+            Icon(icon,
+                size: 22,
+                color: color == NabaTheme.textPrimary
+                    ? NabaTheme.textSecondary
+                    : color),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(label,
+                  style: TextStyle(
+                      fontSize: 15,
+                      color: color,
+                      fontWeight: color == NabaTheme.textPrimary
+                          ? FontWeight.w400
+                          : FontWeight.w600)),
+            ),
           ],
         ),
       ),

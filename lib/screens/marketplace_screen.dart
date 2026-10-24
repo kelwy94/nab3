@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../data/product_categories.dart';
@@ -16,7 +15,6 @@ import 'job_details_screen.dart';
 import 'cart_screen.dart';
 import 'product_details_screen.dart';
 import 'orders_history_screen.dart';
-import 'profile_screen.dart';
 import 'product_form_screen.dart';
 
 class MarketplaceScreen extends StatefulWidget {
@@ -57,10 +55,40 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       _userDistrict != null &&
       _selectedDistrict != _userDistrict;
 
+  Widget _headerButton({
+    required String tooltip,
+    required IconData icon,
+    required VoidCallback onTap,
+    bool filled = false,
+  }) {
+    return Material(
+      color: filled ? NabaTheme.brand : Colors.white,
+      shape: CircleBorder(
+          side: filled ? BorderSide.none : const BorderSide(color: NabaTheme.divider)),
+      child: IconButton(
+        tooltip: tooltip,
+        onPressed: onTap,
+        icon: Icon(icon, size: 21, color: filled ? Colors.white : NabaTheme.textPrimary),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: NabaTheme.background,
+      floatingActionButton: context.watch<AuthProvider>().isGuest
+          ? null
+          : FloatingActionButton.extended(
+              heroTag: 'market_sell',
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProductFormScreen())),
+              backgroundColor: NabaTheme.accent,
+              foregroundColor: NabaTheme.textPrimary,
+              elevation: 3,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('اعرض للبيع', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+            ),
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
@@ -69,122 +97,53 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                 children: [
                   // AppBar
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
                     child: Row(
                       textDirection: TextDirection.rtl,
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
+                        if (Navigator.of(context).canPop())
+                          const SizedBox(
+                              width: 52,
+                              height: 52,
+                              child: NabaBackButton(background: Colors.white)),
                         Expanded(
-                          child: Row(
-                            textDirection: TextDirection.rtl,
-                            children: [
-                              Consumer<AuthProvider>(
-                                builder: (context, auth, _) {
-                                  final user = auth.user;
-                                  return GestureDetector(
-                                    onTap: () {
-                                      if (user != null) {
-                                        Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()));
-                                      } else {
-                                        GuestUtils.showGuestLoginPrompt(context);
-                                      }
-                                    },
-                                    child: CircleAvatar(
-                                      radius: 24,
-                                      backgroundColor: const Color(0xFFE2EBE5),
-                                      backgroundImage: (user != null && user.profileImageUrl != null)
-                                          ? NetworkImage(user.profileImageUrl!) as ImageProvider
-                                          : (user != null && user.profileImageBase64 != null)
-                                              ? MemoryImage(base64Decode(user.profileImageBase64!))
-                                              : null,
-                                      child: (user == null || (user.profileImageUrl == null && user.profileImageBase64 == null))
-                                          ? const Icon(Icons.person, color: Color(0xFF265B33))
-                                          : null,
-                                    ),
-                                  );
-                                }
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      textDirection: TextDirection.rtl,
-                                      children: [
-                                        const Text('مرحباً بك', style: TextStyle(color: Colors.grey, fontSize: 13)),
-                                        const SizedBox(width: 4),
-                                        const Icon(Icons.waving_hand, color: Colors.amber, size: 14),
-                                      ],
-                                    ),
-                                    Consumer<AuthProvider>(
-                                      builder: (context, auth, _) => Text(
-                                        auth.user?.fullName ?? 'ضيف',
-                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black87),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
+                          child: Text('السوق', style: NabaTheme.display(26)),
                         ),
-                        
-                        // Left side
-                        Row(
-                          textDirection: TextDirection.rtl,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Stack(
-                              alignment: Alignment.center,
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.shopping_cart_outlined, color: Colors.black87, size: 24),
-                                  padding: const EdgeInsets.all(4),
-                                  constraints: const BoxConstraints(),
-                                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CartScreen())),
-                                ),
+                        _headerButton(
+                          tooltip: 'طلباتي',
+                          icon: Icons.receipt_long_outlined,
+                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const OrdersHistoryScreen())),
+                        ),
+                        const SizedBox(width: 8),
+                        Consumer<AppStateProvider>(
+                          builder: (context, appState, _) => Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              _headerButton(
+                                tooltip: 'السلة',
+                                icon: Icons.shopping_cart_outlined,
+                                filled: true,
+                                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CartScreen())),
+                              ),
+                              if (appState.cart.isNotEmpty)
                                 Positioned(
-                                  right: 0,
-                                  top: 0,
-                                  child: Consumer<AppStateProvider>(
-                                    builder: (context, appState, child) {
-                                      if (appState.cart.isEmpty) return const SizedBox.shrink();
-                                      return Container(
-                                        padding: const EdgeInsets.all(4),
-                                        decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
-                                        child: Text('${appState.cart.length}', style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
-                                      );
-                                    },
+                                  top: -2,
+                                  left: -2,
+                                  child: Container(
+                                    constraints: const BoxConstraints(minWidth: 18),
+                                    height: 18,
+                                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                                    alignment: Alignment.center,
+                                    decoration: BoxDecoration(
+                                      color: NabaTheme.accent,
+                                      borderRadius: BorderRadius.circular(9),
+                                    ),
+                                    child: Text('${appState.cart.length}',
+                                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
                                   ),
                                 ),
-                              ],
-                            ),
-                            const SizedBox(width: 8),
-                            IconButton(
-                              icon: const Icon(Icons.receipt_long_rounded, color: Colors.black87, size: 24),
-                              padding: const EdgeInsets.all(4),
-                              constraints: const BoxConstraints(),
-                              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const OrdersHistoryScreen())),
-                            ),
-                            const SizedBox(width: 12),
-                            if (!Provider.of<AuthProvider>(context, listen: false).isGuest)
-                              ElevatedButton.icon(
-                                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ProductFormScreen())),
-                                icon: const Icon(Icons.add, size: 16),
-                                label: const Text('أضف بيعة', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF265B33),
-                                  foregroundColor: Colors.white,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
-                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                                  elevation: 2,
-                                  shadowColor: Colors.black26,
-                                ),
-                              ),
-                          ],
+                            ],
+                          ),
                         ),
                       ],
                     ),
@@ -201,10 +160,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: Colors.grey.shade200),
-                              boxShadow: [
-                                BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 4, offset: const Offset(0, 2)),
-                              ],
+                              border: Border.all(color: NabaTheme.divider),
                             ),
                             child: TextField(
                               textDirection: TextDirection.rtl,
@@ -214,11 +170,11 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                                 });
                               },
                               decoration: const InputDecoration(
-                                hintText: 'ابحث عن المنتجات...',
-                                hintStyle: TextStyle(color: Colors.grey),
+                                hintText: 'دوّر على سماد، بذور، جرار...',
+                                hintStyle: TextStyle(color: NabaTheme.textSecondary),
                                 border: InputBorder.none,
                                 contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                                suffixIcon: Icon(Icons.search, color: Colors.grey),
+                                prefixIcon: Icon(Icons.search_rounded, color: NabaTheme.textSecondary),
                               ),
                             ),
                           ),
@@ -226,11 +182,11 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                         const SizedBox(width: 12),
                         Container(
                           decoration: BoxDecoration(
-                            color: const Color(0xFFE2EBE5),
+                            color: NabaTheme.textPrimary,
                             borderRadius: BorderRadius.circular(16),
                           ),
                           child: IconButton(
-                            icon: const Icon(Icons.tune, color: Color(0xFF265B33)),
+                            icon: const Icon(Icons.tune, color: Colors.white),
                             onPressed: () {
                               _showFilterBottomSheet(context);
                             },
@@ -257,7 +213,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       margin: const EdgeInsets.all(16),
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFE2EBE5),
+                        color: NabaTheme.primaryTint,
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Row(
@@ -280,7 +236,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                               children: [
                                 Text(
                                   'بيع معداتك المستعملة',
-                                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Color(0xFF265B33)),
+                                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: NabaTheme.primary),
                                 ),
                                 SizedBox(height: 2),
                                 Text(
@@ -290,7 +246,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                               ],
                             ),
                           ),
-                          const Icon(Icons.chevron_left_rounded, color: Color(0xFF265B33)),
+                          const Icon(Icons.chevron_left_rounded, color: NabaTheme.primary),
                         ],
                       ),
                     ),
@@ -348,26 +304,26 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         margin: const EdgeInsets.only(left: 8),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFE2EBE5) : Colors.white,
+          color: isSelected ? NabaTheme.primaryTint : Colors.white,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: isSelected ? Colors.transparent : Colors.grey.shade200),
         ),
         child: Row(
           children: [
             if (icon != null) ...[
-              Icon(icon, size: 16, color: isSelected ? const Color(0xFF265B33) : Colors.grey.shade600),
+              Icon(icon, size: 16, color: isSelected ? NabaTheme.primary : Colors.grey.shade600),
               const SizedBox(width: 6),
             ],
             Text(
               label,
               style: TextStyle(
-                color: isSelected ? const Color(0xFF265B33) : Colors.grey.shade600,
+                color: isSelected ? NabaTheme.primary : Colors.grey.shade600,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
               ),
             ),
             if (isSelected) ...[
               const SizedBox(width: 6),
-              const Icon(Icons.check_circle, size: 16, color: Color(0xFF265B33)),
+              const Icon(Icons.check_circle, size: 16, color: NabaTheme.primary),
             ],
           ],
         ),
@@ -428,7 +384,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                               setModalState(() => tempDiscount = discount);
                             }
                           },
-                          selectedColor: const Color(0xFF265B33).withOpacity(0.2),
+                          selectedColor: NabaTheme.primary.withOpacity(0.2),
                         );
                       }).toList(),
                     ),
@@ -438,7 +394,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       width: double.infinity,
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF265B33),
+                          backgroundColor: NabaTheme.primary,
                           foregroundColor: Colors.white,
                         ),
                         onPressed: () {
@@ -630,8 +586,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ProductDetailsScreen(product: p))),
                           child: Container(
                             padding: const EdgeInsets.all(8),
-                            decoration: const BoxDecoration(color: Color(0xFFE2EBE5), shape: BoxShape.circle),
-                            child: const Icon(Icons.call_rounded, color: Color(0xFF265B33), size: 18),
+                            decoration: const BoxDecoration(color: NabaTheme.primaryTint, shape: BoxShape.circle),
+                            child: const Icon(Icons.call_rounded, color: NabaTheme.primary, size: 18),
                           ),
                         )
                       else
@@ -647,10 +603,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                         child: Container(
                           padding: const EdgeInsets.all(8),
                           decoration: const BoxDecoration(
-                            color: Color(0xFFE2EBE5),
+                            color: NabaTheme.primaryTint,
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(Icons.shopping_cart_outlined, color: Color(0xFF265B33), size: 18),
+                          child: const Icon(Icons.shopping_cart_outlined, color: NabaTheme.primary, size: 18),
                         ),
                       ),
                     ],
